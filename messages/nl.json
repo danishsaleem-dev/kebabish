@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "home": "Home",
+    "menu": "Menu",
+    "contact": "Contact",
+    "order": "Bestellen"
+  },
+  "hero": {
+    "eyebrow": "Nieuw in Hoogkarspel",
+    "title": "Ontdek de authentieke Pakistaanse keuken",
+    "subtitle": "Kebabish — De Smaak van Thuis",
+    "description": "Verse, huisgemaakte Pakistaanse gerechten — bezorgd of afgehaald binnen 10 km van Hoogkarspel.",
+    "ctaOrder": "Bekijk menu & bestel",
+    "ctaWhatsapp": "Bestel via WhatsApp",
+    "badge": "Alleen bezorgen & afhalen — geen dine-in"
+  },
+  "home": {
+    "aboutEyebrow": "Ons verhaal",
+    "aboutTitle": "Van onze keuken naar jouw tafel",
+    "aboutText": "Kebabish is opgericht door Marfah Enterprise in Hoogkarspel, met één doel: de authentieke smaken van Pakistan naar West-Friesland brengen. Elk gerecht wordt vers en met liefde bereid, precies zoals thuis.",
+    "popularEyebrow": "Onze favorieten",
+    "popularTitle": "Populaire gerechten",
+    "popularCta": "Bekijk het volledige menu",
+    "whyEyebrow": "Waarom Kebabish",
+    "whyTitle": "Verse smaak, snel bezorgd",
+    "why1Title": "100% Vers bereid",
+    "why1Text": "Geen kant-en-klare maaltijden — alles wordt dagelijks vers gemaakt.",
+    "why2Title": "Authentiek Pakistaans",
+    "why2Text": "Traditionele recepten en kruiden, zoals bij oma thuis.",
+    "why3Title": "Snel bezorgd",
+    "why3Text": "Bezorging binnen 10 km rondom Hoogkarspel.",
+    "why4Title": "Makkelijk bestellen",
+    "why4Text": "Via de website of direct via WhatsApp — wat jou het beste uitkomt.",
+    "deliveryEyebrow": "Bezorggebied",
+    "deliveryTitle": "Wij bezorgen binnen 10 km van Hoogkarspel",
+    "deliveryText": "Onder andere Bovenkarspel, Grootebroek, Lutjebroek, Westwoud, Wognum, Wervershoof en Enkhuizen.",
+    "deliveryCta": "Check je adres",
+    "ctaBannerTitle": "Trek in Pakistaans eten?",
+    "ctaBannerText": "Bestel nu eenvoudig via onze website of stuur ons een appje.",
+    "galleryTitle": "Een kijkje in de keuken"
+  },
+  "menu": {
+    "title": "Ons Menu",
+    "intro": "Alle gerechten worden vers bereid. Alleen beschikbaar voor bezorging en afhalen.",
+    "categories": {
+      "mainDishes": "Hoofdgerechten",
+      "kebabsStarters": "Kebabs & Voorgerechten",
+      "breads": "Brood",
+      "fastFoodWraps": "Fast Food & Wraps",
+      "specialtiesSides": "Specialiteiten & Bijgerechten",
+      "dessertsDrinks": "Desserts & Dranken"
+    },
+    "addToOrder": "Toevoegen",
+    "orderViaWhatsapp": "Bestel via WhatsApp",
+    "priceOnRequest": "Prijs op aanvraag"
+  },
+  "contact": {
+    "title": "Contact & Bezorggebied",
+    "intro": "Vragen over je bestelling of ons bezorggebied? Neem contact op.",
+    "addressTitle": "Adres (afhalen na afspraak)",
+    "hoursTitle": "Bezorgen & Afhalen",
+    "hoursNote": "Geen dine-in — alleen bezorgen en afhalen.",
+    "deliveryCheckTitle": "Check of wij bij jou bezorgen",
+    "deliveryCheckText": "Vul je postcode in om te zien of je binnen ons bezorggebied van 10 km valt.",
+    "socialsTitle": "Volg ons"
+  },
+  "cart": {
+    "title": "Jouw bestelling",
+    "empty": "Je winkelwagen is nog leeg.",
+    "subtotal": "Subtotaal",
+    "deliveryFee": "Bezorgkosten",
+    "total": "Totaal",
+    "checkout": "Afrekenen",
+    "checkoutWhatsapp": "Bestel via WhatsApp",
+    "remove": "Verwijderen"
+  },
+  "footer": {
+    "tagline": "Kebabish — De Smaak van Thuis",
+    "quickLinks": "Snel naar",
+    "contact": "Contact",
+    "followUs": "Volg ons",
+    "deliveryOnly": "Alleen bezorgen & afhalen",
+    "kvk": "KVK",
+    "rights": "Alle rechten voorbehouden."
+  },
+  "common": {
+    "callUs": "Bel ons",
+    "whatsappUs": "WhatsApp ons",
+    "orderNow": "Nu bestellen",
+    "viewMenu": "Bekijk menu",
+    "deliveryTakeawayOnly": "Alleen bezorgen & afhalen",
+    "readMore": "Lees meer"
+  }
+}

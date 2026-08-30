@@ -1,0 +1,94 @@
+{
+  "nav": {
+    "home": "Home",
+    "menu": "Menu",
+    "contact": "Contact",
+    "order": "Order"
+  },
+  "hero": {
+    "eyebrow": "New in Hoogkarspel",
+    "title": "Discover authentic Pakistani cuisine",
+    "subtitle": "Kebabish — The Taste of Home",
+    "description": "Fresh, homemade Pakistani dishes — delivered or picked up within 10 km of Hoogkarspel.",
+    "ctaOrder": "View menu & order",
+    "ctaWhatsapp": "Order via WhatsApp",
+    "badge": "Delivery & takeaway only — no dine-in"
+  },
+  "home": {
+    "aboutEyebrow": "Our story",
+    "aboutTitle": "From our kitchen to your table",
+    "aboutText": "Kebabish was founded by Marfah Enterprise in Hoogkarspel with one goal: bringing the authentic flavors of Pakistan to West Friesland. Every dish is made fresh with care, just like at home.",
+    "popularEyebrow": "Fan favorites",
+    "popularTitle": "Popular dishes",
+    "popularCta": "View the full menu",
+    "whyEyebrow": "Why Kebabish",
+    "whyTitle": "Fresh flavor, delivered fast",
+    "why1Title": "100% freshly made",
+    "why1Text": "No ready-made meals — everything is prepared fresh every day.",
+    "why2Title": "Authentically Pakistani",
+    "why2Text": "Traditional recipes and spices, just like home cooking.",
+    "why3Title": "Fast delivery",
+    "why3Text": "Delivery within 10 km of Hoogkarspel.",
+    "why4Title": "Easy ordering",
+    "why4Text": "Through the website or straight via WhatsApp — whatever suits you.",
+    "deliveryEyebrow": "Delivery area",
+    "deliveryTitle": "We deliver within 10 km of Hoogkarspel",
+    "deliveryText": "Including Bovenkarspel, Grootebroek, Lutjebroek, Westwoud, Wognum, Wervershoof and Enkhuizen.",
+    "deliveryCta": "Check your address",
+    "ctaBannerTitle": "Craving Pakistani food?",
+    "ctaBannerText": "Order easily through our website or send us a WhatsApp message.",
+    "galleryTitle": "A look inside the kitchen"
+  },
+  "menu": {
+    "title": "Our Menu",
+    "intro": "Every dish is freshly prepared. Available for delivery and takeaway only.",
+    "categories": {
+      "mainDishes": "Main Dishes",
+      "kebabsStarters": "Kebabs & Starters",
+      "breads": "Breads",
+      "fastFoodWraps": "Fast Food & Wraps",
+      "specialtiesSides": "Specialties & Sides",
+      "dessertsDrinks": "Desserts & Drinks"
+    },
+    "addToOrder": "Add",
+    "orderViaWhatsapp": "Order via WhatsApp",
+    "priceOnRequest": "Price on request"
+  },
+  "contact": {
+    "title": "Contact & Delivery Area",
+    "intro": "Questions about your order or our delivery area? Get in touch.",
+    "addressTitle": "Address (pickup by appointment)",
+    "hoursTitle": "Delivery & Takeaway",
+    "hoursNote": "No dine-in — delivery and takeaway only.",
+    "deliveryCheckTitle": "Check if we deliver to you",
+    "deliveryCheckText": "Enter your postcode to see if you're within our 10 km delivery area.",
+    "socialsTitle": "Follow us"
+  },
+  "cart": {
+    "title": "Your order",
+    "empty": "Your cart is empty.",
+    "subtotal": "Subtotal",
+    "deliveryFee": "Delivery fee",
+    "total": "Total",
+    "checkout": "Checkout",
+    "checkoutWhatsapp": "Order via WhatsApp",
+    "remove": "Remove"
+  },
+  "footer": {
+    "tagline": "Kebabish — The Taste of Home",
+    "quickLinks": "Quick links",
+    "contact": "Contact",
+    "followUs": "Follow us",
+    "deliveryOnly": "Delivery & takeaway only",
+    "kvk": "KVK",
+    "rights": "All rights reserved."
+  },
+  "common": {
+    "callUs": "Call us",
+    "whatsappUs": "WhatsApp us",
+    "orderNow": "Order now",
+    "viewMenu": "View menu",
+    "deliveryTakeawayOnly": "Delivery & takeaway only",
+    "readMore": "Read more"
+  }
+}
