@@ -2,6 +2,38 @@
 
 Read this first. This is a real client project, not a demo. Follow it precisely.
 
+## ⚠️ Read this before touching any visual design
+
+The homepage, menu, and contact pages already exist and are functional,
+but they are currently styled in **plain neutral gray/black/white
+(Tailwind's default palette) on purpose** — there is no brand color, no
+display font, no visual identity applied. An earlier attempt picked a
+"warm terracotta/mustard/maroon" palette and a display typeface without
+the client's input, and the client explicitly rejected it and had it
+stripped back out. Do not repeat that mistake.
+
+**Do not choose colors, fonts, or a visual style yourself, and do not
+start implementing/restyling the UI as your first move.** Instead:
+
+1. First, actually read this whole file and the codebase (especially
+   `src/lib/site-config.ts`, `messages/nl.json`, and the existing page
+   components) so you fully understand the business, the content, and
+   what's already built.
+2. Then, talk to Danish directly and ask him what design direction he
+   wants — mood, palette preference, any reference sites/brands he likes,
+   and get the logo file from him if it isn't already in `public/` (check
+   first). Ask specific, concrete questions rather than a vague "what do
+   you want" — e.g. "should I derive colors from the logo, or do you have
+   a palette in mind already?", "any competitor or reference sites whose
+   look you like or dislike?", "how bold vs. minimal do you want this?".
+3. Wait for his actual answer.
+4. Only after he responds should you propose a concrete direction (and
+   ideally get his sign-off on that direction) before writing the styling
+   into the real pages.
+
+This applies to first-run visual design work. It does not mean re-asking
+before every small tweak once a direction is agreed and confirmed.
+
 ## The business
 
 **Kebabish** (trading name / brand) is run by **Marfah Enterprise** (legal
@@ -13,8 +45,10 @@ WhatsApp, email, socials, delivery radius) already live in
 `src/lib/site-config.ts` — treat that file as the single source of truth,
 don't hardcode business details anywhere else.
 
-Owner: Danish. He is non-technical-ish but hands-on and wants to be able to
-manage the menu himself eventually (see admin dashboard, below).
+Owner: Danish. He is non-technical-ish but hands-on, responsive, and wants
+to be consulted on design/product decisions before you run with them (see
+above). He also wants to eventually manage the menu himself (see admin
+dashboard, below).
 
 ## Priorities, in order
 
@@ -33,7 +67,8 @@ manage the menu himself eventually (see admin dashboard, below).
 ## Tech stack (already decided, don't relitigate without asking Danish)
 
 - **Next.js 16** (App Router), TypeScript, Tailwind CSS v4 (CSS-based
-  `@theme` config in `src/app/globals.css`, no `tailwind.config.js`)
+  `@theme` config in `src/app/globals.css` — currently empty/neutral, see
+  the design note above)
 - **next-intl v4** for bilingual routing — Dutch is the default locale
   with no URL prefix (`/menu`), English is prefixed (`/en/menu`). Routing
   config: `src/i18n/routing.ts`, `navigation.ts`, `request.ts`,
@@ -55,26 +90,21 @@ manage the menu himself eventually (see admin dashboard, below).
 - All planned service keys have placeholders in `.env.example` — ask
   Danish for real values when you get to that feature, don't invent them.
 
-## Design direction
+## Design direction — not yet decided
 
-"Warm & homestyle" — chosen deliberately over "bold street food" or
-"premium minimal". Palette (provisional, defined as Tailwind v4 custom
-colors in `globals.css`, swap here once the real logo is available):
+See the warning at the top of this file. Current state:
 
-- `terracotta` #c4522a (primary/CTA), `mustard` #e8a33d (accent),
-  `maroon` #6b1e23 (dark sections/headers), `cream` #fbf3e7 (background),
-  `charcoal` #2b2320 (text)
-- Fonts: Fraunces (display/headings) + Inter (body), via `next/font/google`
-- **Logo**: not yet integrated — the brand name currently renders as
-  styled text in the header/footer. Ask Danish for the logo file if it
-  hasn't been added to `public/` yet; once you have it, consider pulling
-  the palette from it directly instead of the provisional colors.
-- **Hero background**: `src/app/[locale]/page.tsx` has a commented-out
-  `<video>` tag and a gradient fallback. Danish wants a free stock "desi
-  food making" video there — source one from Pexels/Pixabay/Coverr
-  (royalty-free, no attribution required) if it hasn't been added yet.
+- `src/app/globals.css` has no brand palette — just a plain neutral
+  background/text color, with a comment explaining why.
+- All components use Tailwind's default `neutral-*` gray scale instead of
+  named brand colors.
+- Only one font (Inter) is loaded, no display/heading typeface.
+- No logo is integrated yet — the brand name renders as plain text.
 
-## What's already built (working, committed to git)
+None of this should be treated as a real design — it's intentionally
+undressed so nothing presumes an answer Danish hasn't given yet.
+
+## What's already built (functionally working, committed to git)
 
 - Bilingual routing/middleware, full site chrome (`Header`, `Footer`,
   `WhatsAppButton`)
@@ -85,44 +115,49 @@ colors in `globals.css`, swap here once the real logo is available):
 - WhatsApp ordering: floating button site-wide + per-dish "Add" button
   that opens a pre-filled WhatsApp message
 
-## What's NOT built yet — do these next, in this order
+All of the above is structurally sound (content, routing, SEO, data) —
+it's specifically the visual styling that was stripped and needs your
+design conversation with Danish before being redone.
 
-1. **Get it running.** `npm install` just had a peer-dependency conflict
-   (next-intl v3 doesn't support Next 16) — already fixed in the latest
-   commit (bumped to `next-intl@^4.14.1`, renamed `middleware.ts` →
-   `proxy.ts`). Run `npm install` fresh, then `npm run dev`, and fix
-   anything else that surfaces before building new features. `node_modules`
-   was deleted before this handoff so you're starting from a clean slate.
-2. **Menu prices.** `src/lib/menu-data.ts` has every dish with `price:
+## What's NOT built yet — priority order, after the design conversation
+
+1. **Get it running.** `npm install` had a peer-dependency conflict
+   (next-intl v3 doesn't support Next 16) — already fixed (bumped to
+   `next-intl@^4.14.1`, renamed `middleware.ts` → `proxy.ts`). Run
+   `npm install` fresh, then `npm run dev`, and fix anything else that
+   surfaces.
+2. **Have the design conversation described at the top of this file**,
+   then apply the agreed direction (palette from the logo, typography,
+   hero treatment, etc.) across the existing pages.
+3. **Menu prices.** `src/lib/menu-data.ts` has every dish with `price:
    null` — Danish never provided prices. The UI shows "price on request"
-   as a fallback. Ask him for the price list before this can be
-   considered launch-ready.
-3. **On-site cart + Mollie checkout.** This is the biggest remaining
-   feature. Needs a Supabase project (menu items, orders table) and a
-   Mollie account (Danish said accounts/domain are ready, but confirm he's
-   actually created these and get the API keys before starting). Keep
-   WhatsApp ordering working alongside it, not replaced by it.
-4. **Admin dashboard** — simple password-protected `/admin` route (nest
+   as a fallback. Ask him for the price list.
+4. **On-site cart + Mollie checkout.** The biggest remaining feature.
+   Needs a Supabase project (menu items, orders table) and a Mollie
+   account — confirm Danish has actually created these and get the API
+   keys before starting. Keep WhatsApp ordering working alongside it.
+5. **Admin dashboard** — simple password-protected `/admin` route (nest
    it under `src/app/[locale]/admin/` so it inherits the locale layout's
    `<html>/<body>`, or give it its own layout if you deliberately want it
    locale-independent) backed by Supabase, so Danish can edit menu items,
    prices, photos, and sold-out status without touching code.
-5. **Google Maps delivery-radius check** on the contact/checkout flow —
+6. **Google Maps delivery-radius check** on the contact/checkout flow —
    `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` placeholder is in `.env.example`.
-6. **Geocode the real kitchen coordinates** — `siteConfig.coordinates` in
+7. **Geocode the real kitchen coordinates** — `siteConfig.coordinates` in
    `src/lib/site-config.ts` is currently an approximate Hoogkarspel-center
    placeholder, not the exact address.
-7. **Confirm `siteConfig.deliveryAreaTowns`** (draft list for local-SEO
+8. **Confirm `siteConfig.deliveryAreaTowns`** (draft list for local-SEO
    pages) against the real 10km driving radius from the kitchen — it was
    estimated from general geography, not verified driving distances.
-8. Once real food photography is available, replace stock/placeholder
+9. Once real food photography is available, replace stock/placeholder
    imagery throughout.
 
 ## Working style Danish expects
 
-He wants to be asked before big architectural decisions (payment provider,
-CMS approach, etc. were already decided via explicit Q&A — don't redo
-that), but is comfortable with you moving fast on implementation within
-that agreed direction. He's engaged and responsive — if something is
-ambiguous or you're about to invent business data (prices, coordinates,
-copy) that he hasn't provided, stop and ask rather than guessing.
+He wants to be consulted before design and architectural decisions, and
+reacts strongly (rightly) when something is decided for him without being
+asked — see the design section above for exactly why that section exists.
+Within an agreed direction he's comfortable with you moving fast. He's
+engaged and responsive — if something is ambiguous, or you're about to
+invent business data (prices, coordinates, copy) or a design choice he
+hasn't actually given you, stop and ask rather than guessing.
