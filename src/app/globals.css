@@ -1,23 +1,15 @@
 @import "tailwindcss";
 
-@theme {
-  /* Kebabish brand palette — "warm & homestyle".
-     Provisional until finalized against the logo. */
-  --color-terracotta: #c4522a;
-  --color-terracotta-dark: #a5401e;
-  --color-mustard: #e8a33d;
-  --color-mustard-dark: #c97f1f;
-  --color-maroon: #6b1e23;
-  --color-maroon-dark: #4a1418;
-  --color-cream: #fbf3e7;
-  --color-cream-dark: #f3e4ce;
-  --color-charcoal: #2b2320;
-
-  --font-sans: var(--font-body);
-  --font-display: var(--font-heading);
-}
+/*
+ * No brand palette or display typeface is defined yet on purpose.
+ * The previous "warm & homestyle" terracotta/mustard/maroon palette
+ * and the Fraunces display font were picked before the client's logo
+ * was available and have been reverted — see CLAUDE.md. Visual design
+ * (colors, typography, imagery style) should not be decided again
+ * without the client's logo and explicit direction.
+ */
 
 body {
-  background: var(--color-cream);
-  color: var(--color-charcoal);
+  background: #fafafa;
+  color: #171717;
 }

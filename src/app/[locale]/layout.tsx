@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import { Fraunces, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import { hasLocale } from "next-intl";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
@@ -13,16 +13,9 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import StructuredData from "@/components/StructuredData";
 import "../globals.css";
 
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-heading",
-  weight: ["500", "600", "700"],
-});
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-body",
-});
+// Only a neutral, safe body font for now — no display typeface has
+// been chosen. See globals.css / CLAUDE.md.
+const inter = Inter({ subsets: ["latin"] });
 
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
@@ -81,8 +74,8 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${fraunces.variable} ${inter.variable}`}>
-      <body className="flex min-h-screen flex-col bg-cream text-charcoal antialiased">
+    <html lang={locale} className={inter.className}>
+      <body className="flex min-h-screen flex-col antialiased">
         <NextIntlClientProvider messages={messages}>
           <StructuredData locale={locale} />
           <Header />

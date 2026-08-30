@@ -28,75 +28,75 @@ export default async function ContactPage({
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
       <div className="text-center">
-        <h1 className="font-display text-4xl font-semibold text-maroon">{t("title")}</h1>
-        <p className="mx-auto mt-3 max-w-xl text-base text-charcoal/75">{t("intro")}</p>
+        <h1 className="text-4xl font-semibold text-neutral-900">{t("title")}</h1>
+        <p className="mx-auto mt-3 max-w-xl text-base text-neutral-900/75">{t("intro")}</p>
       </div>
 
       <div className="mt-12 grid grid-cols-1 gap-10 lg:grid-cols-2">
         <div className="space-y-8">
           <div>
-            <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-maroon">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
               <MapPin size={20} /> {t("addressTitle")}
             </h2>
-            <p className="mt-2 text-charcoal/85">{fullAddress}</p>
+            <p className="mt-2 text-neutral-900/85">{fullAddress}</p>
           </div>
 
           <div>
-            <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-maroon">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
               <Clock size={20} /> {t("hoursTitle")}
             </h2>
-            <p className="mt-2 text-charcoal/85">{t("hoursNote")}</p>
+            <p className="mt-2 text-neutral-900/85">{t("hoursNote")}</p>
           </div>
 
           <div>
-            <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-maroon">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-neutral-900">
               <Phone size={20} /> {siteConfig.brandName}
             </h2>
             <a
               href={`tel:${siteConfig.contact.phone}`}
-              className="mt-2 block text-charcoal/85 hover:text-terracotta"
+              className="mt-2 block text-neutral-900/85 hover:text-neutral-900"
             >
               {siteConfig.contact.phone}
             </a>
             <a
               href={`mailto:${siteConfig.contact.email}`}
-              className="mt-1 flex items-center gap-2 text-charcoal/85 hover:text-terracotta"
+              className="mt-1 flex items-center gap-2 text-neutral-900/85 hover:text-neutral-900"
             >
               <Mail size={16} /> {siteConfig.contact.email}
             </a>
           </div>
 
           <div>
-            <h2 className="font-display text-lg font-semibold text-maroon">{t("socialsTitle")}</h2>
+            <h2 className="text-lg font-semibold text-neutral-900">{t("socialsTitle")}</h2>
             <div className="mt-3 flex gap-3">
-              <a href={siteConfig.socials.instagram} target="_blank" rel="noopener noreferrer" className="rounded-full bg-maroon/10 p-2.5 text-maroon hover:bg-maroon hover:text-cream" aria-label="Instagram">
+              <a href={siteConfig.socials.instagram} target="_blank" rel="noopener noreferrer" className="rounded-full bg-neutral-900/10 p-2.5 text-neutral-900 hover:bg-neutral-900 hover:text-neutral-50" aria-label="Instagram">
                 <Instagram size={18} />
               </a>
-              <a href={siteConfig.socials.facebook} target="_blank" rel="noopener noreferrer" className="rounded-full bg-maroon/10 p-2.5 text-maroon hover:bg-maroon hover:text-cream" aria-label="Facebook">
+              <a href={siteConfig.socials.facebook} target="_blank" rel="noopener noreferrer" className="rounded-full bg-neutral-900/10 p-2.5 text-neutral-900 hover:bg-neutral-900 hover:text-neutral-50" aria-label="Facebook">
                 <Facebook size={18} />
               </a>
-              <a href={siteConfig.socials.tiktok} target="_blank" rel="noopener noreferrer" className="rounded-full bg-maroon/10 p-2.5 text-maroon hover:bg-maroon hover:text-cream" aria-label="TikTok">
+              <a href={siteConfig.socials.tiktok} target="_blank" rel="noopener noreferrer" className="rounded-full bg-neutral-900/10 p-2.5 text-neutral-900 hover:bg-neutral-900 hover:text-neutral-50" aria-label="TikTok">
                 <Music2 size={18} />
               </a>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-cream-dark bg-white/60 p-6">
-            <h2 className="font-display text-lg font-semibold text-maroon">
+          <div className="rounded-2xl border border-neutral-200 bg-white/60 p-6">
+            <h2 className="text-lg font-semibold text-neutral-900">
               {t("deliveryCheckTitle")}
             </h2>
-            <p className="mt-2 text-sm text-charcoal/75">{t("deliveryCheckText")}</p>
+            <p className="mt-2 text-sm text-neutral-900/75">{t("deliveryCheckText")}</p>
             {/* TODO: replace with a live Google Maps Distance Matrix check
                 once NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is configured — validate
                 the entered postcode is within siteConfig.deliveryRadiusKm
                 and show the estimated delivery time. */}
-            <p className="mt-3 text-xs italic text-charcoal/50">
+            <p className="mt-3 text-xs italic text-neutral-900/50">
               (Postcode-check komt hier zodra de Google Maps koppeling live is.)
             </p>
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-cream-dark shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-neutral-200 shadow-sm">
           <iframe
             title="Kebabish location"
             src={mapSrc}
