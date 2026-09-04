@@ -66,19 +66,28 @@ export default async function SettingsPage() {
 
         <Card>
           <CardHeader
-            title="Not wired up yet"
-            subtitle="These need accounts and API keys before there's anything to configure."
+            title="Third-party integrations"
+            subtitle="Where each one actually stands — a key being on file isn't the same as the feature being built."
           />
           <ul className="mt-4 divide-y divide-hairline text-sm">
             {[
               {
                 name: "Supabase",
-                detail: "Database, admin login and image storage",
+                detail:
+                  "Staff and customer login run on it now. Menu data and image storage are still on the local store.",
+                status: "Auth only",
               },
-              { name: "Mollie", detail: "iDEAL, cards, Apple & Google Pay" },
+              {
+                name: "Mollie",
+                detail:
+                  "Test API key is on file. The on-site checkout flow itself isn't built yet — WhatsApp ordering still works.",
+                status: "Not built",
+              },
               {
                 name: "Google Maps",
-                detail: "Delivery-radius check on checkout",
+                detail:
+                  "API key is on file. The delivery-radius check and live map aren't wired into the site yet.",
+                status: "Not built",
               },
             ].map((service) => (
               <li
@@ -91,7 +100,7 @@ export default async function SettingsPage() {
                 </div>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-xs font-semibold text-muted">
                   <ExternalLink size={12} />
-                  Needs keys
+                  {service.status}
                 </span>
               </li>
             ))}
