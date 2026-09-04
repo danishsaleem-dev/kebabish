@@ -1,6 +1,27 @@
 import { siteConfig } from "@/lib/site-config";
+import { getSettings } from "@/lib/admin/store";
 
-export default function StructuredData({ locale }: { locale: string }) {
+const SCHEMA_DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+export default async function StructuredData({ locale }: { locale: string }) {
+  const settings = await getSettings();
+  const openingHoursSpecification = settings.hours
+    .filter((h) => !h.closed)
+    .map((h) => ({
+      "@type": "OpeningHoursSpecification",
+      dayOfWeek: SCHEMA_DAYS[h.day],
+      opens: h.opens,
+      closes: h.closes,
+    }));
+
   const data = {
     "@context": "https://schema.org",
     "@type": "FoodEstablishment",
@@ -41,6 +62,7 @@ export default function StructuredData({ locale }: { locale: string }) {
     ],
     hasMenu: `${siteConfig.website}/${locale === "nl" ? "" : "en/"}menu`,
     acceptsReservations: "False",
+    openingHoursSpecification,
   };
 
   return (

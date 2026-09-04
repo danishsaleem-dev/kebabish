@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Phone, Mail, MapPin, Clock, Instagram, Facebook, Music2 } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
+import { getSettings } from "@/lib/admin/store";
+import { getStoreStatus } from "@/lib/store-status";
 
 export async function generateMetadata({
   params,
@@ -20,6 +22,11 @@ export default async function ContactPage({
 }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "contact" });
+  const tStatus = await getTranslations({ locale, namespace: "status" });
+  const settings = await getSettings();
+  const status = getStoreStatus(settings);
+  const weekdays = tStatus.raw("weekdays") as string[];
+  const sortedHours = [...settings.hours].sort((a, b) => a.day - b.day);
   const fullAddress = `${siteConfig.address.street}, ${siteConfig.address.postalCode} ${siteConfig.address.city}`;
   const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(
     fullAddress
@@ -46,6 +53,37 @@ export default async function ContactPage({
               <Clock size={20} /> {t("hoursTitle")}
             </h2>
             <p className="mt-2 text-neutral-900/85">{t("hoursNote")}</p>
+
+            <div className="mt-4 flex items-center gap-2 text-sm font-semibold">
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${
+                  status.isOpen ? "bg-green-600" : "bg-charcoal-500"
+                }`}
+                aria-hidden="true"
+              />
+              <span className={status.isOpen ? "text-green-700" : "text-charcoal-500"}>
+                {status.isOpen ? tStatus("openNowLabel") : tStatus("closedNowLabel")}
+              </span>
+            </div>
+
+            <h3 className="mt-4 text-sm font-semibold text-neutral-900/70">
+              {tStatus("hoursTitle")}
+            </h3>
+            <dl className="mt-2 divide-y divide-neutral-200 text-sm">
+              {sortedHours.map((h) => (
+                <div
+                  key={h.day}
+                  className="flex items-center justify-between gap-2 py-1.5"
+                >
+                  <dt className="text-neutral-900/70">{weekdays[h.day]}</dt>
+                  <dd className="font-medium text-neutral-900">
+                    {h.closed
+                      ? tStatus("closedLabel")
+                      : `${h.opens} – ${h.closes}`}
+                  </dd>
+                </div>
+              ))}
+            </dl>
           </div>
 
           <div>

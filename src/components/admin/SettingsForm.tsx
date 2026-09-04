@@ -115,7 +115,14 @@ export default function SettingsForm({
                   type="time"
                   name="hourOpens"
                   value={entry.opens}
-                  disabled={entry.closed}
+                  // Not `disabled` — disabled fields are dropped from
+                  // FormData on submit, which shifts every later day's
+                  // values by one position once zipped back up server-side
+                  // (see settings/actions.ts). The dimmed look above is
+                  // opacity-only; the value still submits, it's just
+                  // ignored server-side for a closed day.
+                  readOnly={entry.closed}
+                  tabIndex={entry.closed ? -1 : 0}
                   onChange={(ev) =>
                     setHours((prev) =>
                       prev.map((h, index) =>
@@ -130,7 +137,8 @@ export default function SettingsForm({
                   type="time"
                   name="hourCloses"
                   value={entry.closes}
-                  disabled={entry.closed}
+                  readOnly={entry.closed}
+                  tabIndex={entry.closed ? -1 : 0}
                   onChange={(ev) =>
                     setHours((prev) =>
                       prev.map((h, index) =>

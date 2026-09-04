@@ -5,7 +5,13 @@ import { Link } from "@/i18n/navigation";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 
-export default async function FinalCta({ locale }: { locale: string }) {
+export default async function FinalCta({
+  locale,
+  isOpen,
+}: {
+  locale: string;
+  isOpen: boolean;
+}) {
   const t = await getTranslations({ locale });
   const whatsappHref = whatsappOrderLink(t("whatsapp.orderGeneric"));
 
@@ -55,16 +61,26 @@ export default async function FinalCta({ locale }: { locale: string }) {
             {t("common.viewMenu")}
           </Link>
 
-          <a
-            data-reveal
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-100/45 px-8 py-4 font-display text-sm font-semibold text-cream-50 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-cream-100/15 sm:w-auto"
-          >
-            <MessageCircle size={18} />
-            {t("common.whatsappUs")}
-          </a>
+          {isOpen ? (
+            <a
+              data-reveal
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-100/45 px-8 py-4 font-display text-sm font-semibold text-cream-50 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-cream-100/15 sm:w-auto"
+            >
+              <MessageCircle size={18} />
+              {t("common.whatsappUs")}
+            </a>
+          ) : (
+            <span
+              data-reveal
+              className="inline-flex w-full cursor-default items-center justify-center gap-2.5 rounded-full border border-cream-100/20 px-8 py-4 font-display text-sm font-semibold text-cream-50/50 sm:w-auto"
+            >
+              <MessageCircle size={18} />
+              {t("common.closedNow")}
+            </span>
+          )}
         </div>
 
         <a

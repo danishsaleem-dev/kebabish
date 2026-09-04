@@ -68,5 +68,10 @@ export async function updateSettingsAction(
 
   revalidatePath("/admin/settings");
   revalidatePath("/admin");
+  // The public site reads the same settings (open/closed banner, live
+  // hours, per-dish ordering) — push the change out immediately rather
+  // than waiting on the 60s ISR window on (site)/layout.tsx.
+  revalidatePath("/", "layout");
+  revalidatePath("/en", "layout");
   return { ok: true, message: "Settings saved." };
 }

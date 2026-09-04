@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { menu } from "@/lib/menu-data";
 import MenuItemCardServer from "@/components/MenuItemCard";
+import { getSettings } from "@/lib/admin/store";
+import { getStoreStatus } from "@/lib/store-status";
 
 export async function generateMetadata({
   params,
@@ -23,6 +25,8 @@ export default async function MenuPage({
 }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "menu" });
+  const settings = await getSettings();
+  const { isOpen } = getStoreStatus(settings);
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
@@ -39,7 +43,7 @@ export default async function MenuPage({
             </h2>
             <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {category.items.map((item) => (
-                <MenuItemCardServer key={item.slug} item={item} />
+                <MenuItemCardServer key={item.slug} item={item} isOpen={isOpen} />
               ))}
             </div>
           </section>

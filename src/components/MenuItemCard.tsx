@@ -5,9 +5,16 @@ import { Leaf, Plus } from "lucide-react";
 import type { MenuItem } from "@/lib/menu-data";
 import { whatsappOrderLink } from "@/lib/site-config";
 
-export default function MenuItemCard({ item }: { item: MenuItem }) {
+export default function MenuItemCard({
+  item,
+  isOpen,
+}: {
+  item: MenuItem;
+  isOpen: boolean;
+}) {
   const t = useTranslations("menu");
   const tWhatsapp = useTranslations("whatsapp");
+  const tStatus = useTranslations("status");
 
   const orderHref = whatsappOrderLink(
     item.variants
@@ -49,17 +56,22 @@ export default function MenuItemCard({ item }: { item: MenuItem }) {
             : t("priceOnRequest")}
         </span>
 
-        {!item.soldOut && (
-          <a
-            href={orderHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-charcoal-600 px-4 py-2.5 text-xs font-semibold text-cream-100 transition-colors duration-300 hover:bg-ember-600"
-          >
-            <Plus size={14} />
-            {t("addToOrder")}
-          </a>
-        )}
+        {!item.soldOut &&
+          (isOpen ? (
+            <a
+              href={orderHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-charcoal-600 px-4 py-2.5 text-xs font-semibold text-cream-100 transition-colors duration-300 hover:bg-ember-600"
+            >
+              <Plus size={14} />
+              {t("addToOrder")}
+            </a>
+          ) : (
+            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-charcoal-600/10 px-4 py-2.5 text-xs font-semibold text-charcoal-500">
+              {tStatus("menuUnavailable")}
+            </span>
+          ))}
       </div>
     </div>
   );

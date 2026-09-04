@@ -279,16 +279,65 @@ plus the auth and file storage the panel will need, and EU data residency
 for Dutch customer data). Ask him for the project URL and keys when
 picking this up.
 
-**The public site still reads the static `src/lib/menu-data.ts`** — admin
-edits do NOT yet appear on kebabish.nl. Wiring the public pages to the
-store was deliberately deferred: they're statically generated for SEO
-(priority #1) and should move to ISR/revalidation at the same time as the
-Supabase swap, not before.
+**The public site still reads the static `src/lib/menu-data.ts`** for
+dishes/prices/categories — admin menu edits do NOT yet appear on
+kebabish.nl. Wiring the public menu pages to the store was deliberately
+deferred: they're statically generated for SEO (priority #1) and should
+move to ISR/revalidation at the same time as the Supabase swap, not
+before.
 
-Validation is zod schemas in `src/app/admin/menu/actions.ts`, shared by
-create and update paths. Deletes are guarded server-side — a category with
-items or an ingredient used by a recipe refuses, and the reason surfaces
-inline in the UI.
+**Settings are the one exception — the public site already reads these
+live** (see "Live open/closed status" below). Same JSON-adapter caveat
+applies (Vercel's read-only filesystem), it's just a much smaller surface
+than the full menu, so it was wired ahead of the Supabase swap rather than
+waiting for it.
+
+Validation is zod schemas in `src/app/admin/(dashboard)/menu/actions.ts`,
+shared by create and update paths. Deletes are guarded server-side — a
+category with items or an ingredient used by a recipe refuses, and the
+reason surfaces inline in the UI.
+
+### Live open/closed status on the public site
+
+`src/lib/store-status.ts`'s `getStoreStatus()` combines the owner's
+"Taking orders" toggle with today's opening hours (from `getSettings()`)
+to decide whether the site is actually open right now — always computed
+in `Europe/Amsterdam`, not the visitor's own timezone, since the kitchen's
+hours don't move with whoever's looking. Closed = the toggle is off, OR
+today is marked closed, OR the current time falls outside today's
+opens/closes window.
+
+Every ordering affordance on the public site reads this and reacts:
+`WhatsAppButton` (floating button) hides entirely when closed; `Header`'s
+CTA and the Hero/FinalCta WhatsApp links swap to a disabled-look "Closed
+now" state; every per-dish "Add" button (`MenuItemCard`, homepage
+`FeaturedDishCard`) swaps to "Currently unavailable". `StoreStatusBanner`
+sits between the header and page content on every normal page: a firm
+notice when closed (the owner's custom `orderNotice` text if set, else a
+generic line), or a lighter one when open but a notice is set anyway
+(e.g. "busy tonight, delivery up to 60 min"). `/contact` also renders the
+real per-day hours table and a live open/closed pill, and
+`StructuredData.tsx` feeds the same hours into schema.org
+`openingHoursSpecification` for local SEO.
+
+`(site)/layout.tsx` fetches settings once per request and revalidates
+every 60s (`export const revalidate = 60`) since hours can flip on their
+own at a hours boundary without anyone touching `/admin/settings`; saving
+there also calls `revalidatePath("/", "layout")` / `revalidatePath("/en",
+"layout")` for an immediate update instead of waiting on that window.
+
+**A real bug was found and fixed here, worth knowing about:** the
+per-day opening-hours inputs in `SettingsForm.tsx` used to be
+`disabled={entry.closed}` when a day was marked closed. Disabled fields
+are excluded from `FormData` on submit — since `settings/actions.ts` zips
+`hourDay`/`hourOpens`/`hourCloses` back together by array *position*, not
+by day value, marking any day closed silently shifted every later day's
+saved hours by one (Monday is closed by default, so this was live from
+the start). Fixed by using `readOnly` instead of `disabled` — the grayed
+look was already CSS opacity on the wrapper, not the `disabled` attribute,
+so nothing about the UI needed to change, only the submit behavior. If
+you ever touch that form again: don't reach for `disabled` on a field
+whose value still needs to reach the server.
 
 ### Toasts (status messages)
 
@@ -366,6 +415,10 @@ Two things worth knowing about the maths:
   alternates, `FoodEstablishment` JSON-LD
 - WhatsApp ordering: floating button site-wide + per-dish "Add" button
   that opens a pre-filled WhatsApp message
+- Live open/closed status site-wide, driven by `/admin/settings` (see
+  "Live open/closed status on the public site" above) — every ordering
+  CTA and a site banner react to the real Taking Orders toggle, hours,
+  and notice text
 
 The homepage now also has its full visual design applied (see "Design
 direction — agreed"): a video-ready hero, a scrolling selling-points

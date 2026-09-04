@@ -25,7 +25,13 @@ const FEATURED: { slug: string; image: string }[] = [
   { slug: "milk-shake", image: "/images/dishes/milk-shake.jpg" },
 ];
 
-export default async function Popular({ locale }: { locale: string }) {
+export default async function Popular({
+  locale,
+  isOpen,
+}: {
+  locale: string;
+  isOpen: boolean;
+}) {
   const t = await getTranslations({ locale });
 
   const dishes = FEATURED.map(({ slug, image }) => {
@@ -68,6 +74,8 @@ export default async function Popular({ locale }: { locale: string }) {
               addLabel={t("menu.addToOrder")}
               priceOnRequestLabel={t("menu.priceOnRequest")}
               vegetarianLabel={t("menu.vegetarian")}
+              isOpen={isOpen}
+              unavailableLabel={t("status.menuUnavailable")}
             />
           ))}
         </div>

@@ -121,6 +121,25 @@
     "orderNow": "Order now",
     "viewMenu": "View menu",
     "deliveryTakeawayOnly": "Delivery & takeaway only",
-    "readMore": "Read more"
+    "readMore": "Read more",
+    "closedNow": "Closed now"
+  },
+  "status": {
+    "closedTitle": "We're closed right now",
+    "closedDefault": "Please check back during our opening hours.",
+    "menuUnavailable": "Currently unavailable",
+    "hoursTitle": "Opening hours",
+    "closedLabel": "Closed",
+    "openNowLabel": "Open now",
+    "closedNowLabel": "Closed now",
+    "weekdays": [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday"
+    ]
   }
 }

@@ -8,9 +8,11 @@ import MaskedWords from "@/components/motion/MaskedWords";
 export default async function Hero({
   locale,
   hasVideo,
+  isOpen,
 }: {
   locale: string;
   hasVideo: boolean;
+  isOpen: boolean;
 }) {
   const t = await getTranslations({ locale });
   const whatsappHref = whatsappOrderLink(t("whatsapp.orderGeneric"));
@@ -122,17 +124,28 @@ export default async function Hero({
             {t("hero.ctaOrder")}
           </Link>
 
-          <a
-            data-hero-cta
-            data-reveal
-            href={whatsappHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-200/30 bg-cream-200/10 px-8 py-4 text-sm font-semibold text-cream-100 backdrop-blur-sm transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-cream-200/20 sm:w-auto"
-          >
-            <MessageCircle size={18} />
-            {t("hero.ctaWhatsapp")}
-          </a>
+          {isOpen ? (
+            <a
+              data-hero-cta
+              data-reveal
+              href={whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-200/30 bg-cream-200/10 px-8 py-4 text-sm font-semibold text-cream-100 backdrop-blur-sm transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-cream-200/20 sm:w-auto"
+            >
+              <MessageCircle size={18} />
+              {t("hero.ctaWhatsapp")}
+            </a>
+          ) : (
+            <span
+              data-hero-cta
+              data-reveal
+              className="inline-flex w-full cursor-default items-center justify-center gap-2.5 rounded-full border border-cream-200/15 px-8 py-4 text-sm font-semibold text-cream-100/50 sm:w-auto"
+            >
+              <MessageCircle size={18} />
+              {t("common.closedNow")}
+            </span>
+          )}
         </div>
 
         <p

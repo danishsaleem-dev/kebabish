@@ -3,9 +3,15 @@
 import { useTranslations } from "next-intl";
 import { whatsappOrderLink } from "@/lib/site-config";
 
-export default function WhatsAppButton() {
+export default function WhatsAppButton({ isOpen }: { isOpen: boolean }) {
   const t = useTranslations("whatsapp");
   const tCommon = useTranslations("common");
+
+  // The floating button's whole purpose is placing an order right now —
+  // while the kitchen isn't accepting orders, hide it rather than let
+  // people message in expecting immediate fulfilment. General contact
+  // info (phone/email/socials) still lives in the footer regardless.
+  if (!isOpen) return null;
 
   return (
     <a

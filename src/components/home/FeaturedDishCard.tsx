@@ -9,6 +9,8 @@ export default function FeaturedDishCard({
   addLabel,
   priceOnRequestLabel,
   vegetarianLabel,
+  isOpen,
+  unavailableLabel,
 }: {
   item: MenuItem;
   image: string;
@@ -16,6 +18,8 @@ export default function FeaturedDishCard({
   addLabel: string;
   priceOnRequestLabel: string;
   vegetarianLabel: string;
+  isOpen: boolean;
+  unavailableLabel: string;
 }) {
   return (
     <article
@@ -60,17 +64,22 @@ export default function FeaturedDishCard({
               : priceOnRequestLabel}
           </span>
 
-          {!item.soldOut && (
-            <a
-              href={orderHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-charcoal-600 px-4 py-2.5 text-xs font-semibold text-cream-100 transition-colors duration-300 hover:bg-ember-600"
-            >
-              <Plus size={14} />
-              {addLabel}
-            </a>
-          )}
+          {!item.soldOut &&
+            (isOpen ? (
+              <a
+                href={orderHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-charcoal-600 px-4 py-2.5 text-xs font-semibold text-cream-100 transition-colors duration-300 hover:bg-ember-600"
+              >
+                <Plus size={14} />
+                {addLabel}
+              </a>
+            ) : (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-charcoal-600/10 px-4 py-2.5 text-xs font-semibold text-charcoal-500">
+                {unavailableLabel}
+              </span>
+            ))}
         </div>
       </div>
     </article>

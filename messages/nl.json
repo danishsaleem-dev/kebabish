@@ -121,6 +121,25 @@
     "orderNow": "Nu bestellen",
     "viewMenu": "Bekijk menu",
     "deliveryTakeawayOnly": "Alleen bezorgen & afhalen",
-    "readMore": "Lees meer"
+    "readMore": "Lees meer",
+    "closedNow": "Nu gesloten"
+  },
+  "status": {
+    "closedTitle": "We zijn nu gesloten",
+    "closedDefault": "Kom later terug tijdens onze openingstijden.",
+    "menuUnavailable": "Nu niet beschikbaar",
+    "hoursTitle": "Openingstijden",
+    "closedLabel": "Gesloten",
+    "openNowLabel": "Nu open",
+    "closedNowLabel": "Nu gesloten",
+    "weekdays": [
+      "Zondag",
+      "Maandag",
+      "Dinsdag",
+      "Woensdag",
+      "Donderdag",
+      "Vrijdag",
+      "Zaterdag"
+    ]
   }
 }

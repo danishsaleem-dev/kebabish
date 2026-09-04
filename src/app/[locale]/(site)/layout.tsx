@@ -2,6 +2,14 @@ import type { ReactNode } from "react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import StoreStatusBanner from "@/components/StoreStatusBanner";
+import { getSettings } from "@/lib/admin/store";
+import { getStoreStatus } from "@/lib/store-status";
+
+// Revalidate at most every minute — status can flip on its own (opening
+// hours boundary) without anyone touching /admin/settings. A save there
+// also calls revalidatePath for an immediate update; see settings/actions.ts.
+export const revalidate = 60;
 
 /**
  * The normal site chrome (header nav, footer, floating WhatsApp button) —
@@ -11,13 +19,24 @@ import WhatsAppButton from "@/components/WhatsAppButton";
  * this way it's a clean standalone page while still sharing the parent
  * layout's <html>/<body>, fonts and NextIntlClientProvider.
  */
-export default function SiteLayout({ children }: { children: ReactNode }) {
+export default async function SiteLayout({
+  children,
+  params,
+}: {
+  children: ReactNode;
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
+  const settings = await getSettings();
+  const status = getStoreStatus(settings);
+
   return (
     <>
-      <Header />
+      <Header isOpen={status.isOpen} />
+      <StoreStatusBanner status={status} locale={locale} />
       <main className="flex-1">{children}</main>
       <Footer />
-      <WhatsAppButton />
+      <WhatsAppButton isOpen={status.isOpen} />
     </>
   );
 }

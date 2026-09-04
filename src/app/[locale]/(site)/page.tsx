@@ -8,6 +8,8 @@ import Popular from "@/components/home/Popular";
 import Why from "@/components/home/Why";
 import DeliveryArea from "@/components/home/DeliveryArea";
 import FinalCta from "@/components/home/FinalCta";
+import { getSettings } from "@/lib/admin/store";
+import { getStoreStatus } from "@/lib/store-status";
 
 export default async function HomePage({
   params,
@@ -19,6 +21,8 @@ export default async function HomePage({
 
   const t = await getTranslations({ locale });
   const marqueeItems = t.raw("home.marquee") as string[];
+  const settings = await getSettings();
+  const { isOpen } = getStoreStatus(settings);
 
   return (
     <>
@@ -26,13 +30,13 @@ export default async function HomePage({
           client island that drives the GSAP timelines and smooth scrolling. */}
       <Motion />
 
-      <Hero locale={locale} hasVideo={hasHeroVideo()} />
+      <Hero locale={locale} hasVideo={hasHeroVideo()} isOpen={isOpen} />
       <Marquee items={marqueeItems} />
       <Story locale={locale} />
-      <Popular locale={locale} />
+      <Popular locale={locale} isOpen={isOpen} />
       <Why locale={locale} />
       <DeliveryArea locale={locale} />
-      <FinalCta locale={locale} />
+      <FinalCta locale={locale} isOpen={isOpen} />
     </>
   );
 }
