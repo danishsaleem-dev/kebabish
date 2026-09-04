@@ -12,7 +12,8 @@
     "description": "Verse, huisgemaakte Pakistaanse gerechten — bezorgd of afgehaald binnen 10 km van Hoogkarspel.",
     "ctaOrder": "Bekijk menu & bestel",
     "ctaWhatsapp": "Bestel via WhatsApp",
-    "badge": "Alleen bezorgen & afhalen — geen dine-in"
+    "badge": "Alleen bezorgen & afhalen — geen dine-in",
+    "scrollCue": "Scroll"
   },
   "home": {
     "aboutEyebrow": "Ons verhaal",
@@ -37,7 +38,21 @@
     "deliveryCta": "Check je adres",
     "ctaBannerTitle": "Trek in Pakistaans eten?",
     "ctaBannerText": "Bestel nu eenvoudig via onze website of stuur ons een appje.",
-    "galleryTitle": "Een kijkje in de keuken"
+    "galleryTitle": "Een kijkje in de keuken",
+    "marquee": [
+      "Vers bereid",
+      "Authentiek Pakistaans",
+      "Bezorgd binnen 10 km",
+      "Alleen bezorgen & afhalen",
+      "Bestel via WhatsApp"
+    ],
+    "storyStat1Label": "Bezorgstraal",
+    "storyStat2Label": "Vers bereid",
+    "storyStat3Label": "Menucategorieën",
+    "storyImageAlt1": "Gemarineerde kip die in de tandoor boven de vlammen gaart",
+    "storyImageAlt2": "Verse Pakistaanse kruiden en specerijen",
+    "popularNote": "Prijzen op aanvraag — stuur ons een appje voor de actuele prijslijst.",
+    "deliveryTownsLabel": "Wij bezorgen onder andere in"
   },
   "menu": {
     "title": "Ons Menu",
@@ -52,7 +67,9 @@
     },
     "addToOrder": "Toevoegen",
     "orderViaWhatsapp": "Bestel via WhatsApp",
-    "priceOnRequest": "Prijs op aanvraag"
+    "priceOnRequest": "Prijs op aanvraag",
+    "vegetarian": "Vegetarisch",
+    "soldOut": "Uitverkocht"
   },
   "contact": {
     "title": "Contact & Bezorggebied",
@@ -82,6 +99,21 @@
     "deliveryOnly": "Alleen bezorgen & afhalen",
     "kvk": "KVK",
     "rights": "Alle rechten voorbehouden."
+  },
+  "comingSoon": {
+    "eyebrow": "Binnenkort open",
+    "title": "Onze website is bijna klaar",
+    "description": "Kebabish brengt de authentieke smaken van Pakistan naar Hoogkarspel en omgeving. Terwijl wij de laatste details afronden, kun je nu al bestellen via WhatsApp.",
+    "badge": "Alleen bezorgen & afhalen — geen dine-in",
+    "ctaWhatsapp": "Bestel via WhatsApp",
+    "deliveryNote": "Bezorging binnen 10 km van Hoogkarspel",
+    "followTitle": "Volg ons voor updates",
+    "contactTitle": "Of neem direct contact op"
+  },
+  "whatsapp": {
+    "orderGeneric": "Hallo Kebabish! Ik wil graag een bestelling plaatsen.",
+    "orderItem": "Hallo Kebabish! Ik wil graag bestellen: {item}",
+    "orderItemVariant": "Hallo Kebabish! Ik wil graag bestellen: {item} (smaak: ___)"
   },
   "common": {
     "callUs": "Bel ons",

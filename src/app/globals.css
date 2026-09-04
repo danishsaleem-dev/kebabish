@@ -1,15 +1,302 @@
 @import "tailwindcss";
 
 /*
- * No brand palette or display typeface is defined yet on purpose.
- * The previous "warm & homestyle" terracotta/mustard/maroon palette
- * and the Fraunces display font were picked before the client's logo
- * was available and have been reverted — see CLAUDE.md. Visual design
- * (colors, typography, imagery style) should not be decided again
- * without the client's logo and explicit direction.
+ * Kebabish brand system.
+ *
+ * Palette comes directly from the client's logo (public/logo/):
+ *   #EDE6D0  cream   — page ground
+ *   #3D3831  charcoal — headings / dark sections
+ *   #A95026  ember    — accent (the flame in the mark)
+ * Body copy sits on a warm near-black so it reads darker than headings.
+ *
+ * Typography: Bitter (slab serif) for headings — chosen to sit beside the
+ * logo's hand-cut serif wordmark without competing with it. Inter for body.
  */
 
-body {
-  background: #fafafa;
-  color: #171717;
+@theme {
+  /* ---- cream ---- */
+  --color-cream-50: #faf7ee;
+  --color-cream-100: #f4efe0;
+  --color-cream-200: #ede6d0;
+  --color-cream-300: #e2d8bd;
+  --color-cream-400: #d1c3a1;
+  --color-cream-500: #b9a880;
+
+  /* ---- charcoal ---- */
+  --color-charcoal-950: #14120f;
+  --color-charcoal-900: #1c1a16;
+  --color-charcoal-800: #26231e;
+  --color-charcoal-700: #302c26;
+  --color-charcoal-600: #3d3831;
+  --color-charcoal-500: #514a41;
+  --color-charcoal-400: #6e6559;
+  --color-charcoal-300: #948a7c;
+
+  /* ---- ember (accent) ---- */
+  --color-ember-400: #c9713e;
+  --color-ember-500: #b95c2d;
+  --color-ember-600: #a95026;
+  --color-ember-700: #8c401d;
+  --color-ember-800: #6d3116;
+
+  /* ---- body text ---- */
+  --color-ink: #1a1713;
+
+  /* ---- admin panel ----
+   * The public site is warm cream-on-charcoal. The dashboard needs cooler,
+   * higher-contrast neutrals so dense tables and charts stay readable; ember
+   * carries over as the accent so it still reads as the same brand.
+   * Semantic names rather than a numbered ramp — there are only a handful. */
+  --color-canvas: #f4f5f7;
+  --color-panel: #ffffff;
+  --color-hairline: #e9ebef;
+  --color-heading: #101828;
+  --color-body-text: #344054;
+  --color-muted: #667085;
+  --color-faint: #98a2b3;
+
+  --color-success: #12b76a;
+  --color-success-soft: #ecfdf3;
+  --color-warn: #f79009;
+  --color-warn-soft: #fffaeb;
+  --color-danger: #f04438;
+  --color-danger-soft: #fef3f2;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-bitter), ui-serif, Georgia, serif;
+
+  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-cream-200);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    color: var(--color-charcoal-600);
+    letter-spacing: -0.02em;
+  }
+
+  ::selection {
+    background-color: var(--color-ember-600);
+    color: var(--color-cream-100);
+  }
+
+  /* Keyboard focus that stays visible on both cream and charcoal grounds. */
+  :focus-visible {
+    outline: 2px solid var(--color-ember-500);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Scroll-reveal priming.
+ *
+ * `.js` is set by a tiny blocking script in the layout <head>, so if JS never
+ * runs the content is simply visible — nothing is hidden behind an animation
+ * that will never play. Motion.tsx animates these to their resting state.
+ * ------------------------------------------------------------------------- */
+.js [data-reveal] {
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Headline words: outer span clips, inner span is what slides up. */
+.js [data-reveal-mask] > * > * {
+  opacity: 0;
+  will-change: transform;
+}
+
+/* The hero's entrance veil only exists when JS can fade it back out. */
+[data-hero-veil] {
+  opacity: 0;
+}
+
+.js [data-hero-veil] {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-hero-veil] {
+    opacity: 0 !important;
+  }
+
+  .js [data-reveal],
+  .js [data-reveal-mask] > * > * {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  .radar-ring {
+    animation: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Utilities
+ * ------------------------------------------------------------------------- */
+
+/* Fine film grain — keeps the large flat cream areas from looking sterile. */
+@utility grain {
+  position: relative;
+  isolation: isolate;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.4;
+    mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+  }
+}
+
+/* Word-by-word headline reveal: each word rides up out of a clipping box. */
+@utility line-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+
+/* Underline that draws itself in on hover. */
+@utility link-underline {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -3px;
+    height: 1.5px;
+    width: 100%;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.45s var(--ease-brand);
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+/* Ambient "delivery radius" radar ping on the delivery-area map — a ring
+   that continuously expands and fades from the kitchen pin. Needs
+   fill-box/center so it scales from the circle's own middle, not the SVG
+   viewport's origin. */
+.radar-ring {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: radar-pulse 3.6s ease-out infinite;
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.75);
+    opacity: 0.5;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* Toast entrance — slides up from the bottom edge it appears at. */
+.toast-in {
+  animation: toast-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-in {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Print — the admin's print buttons should produce a clean table, not a
+ * screenshot of the whole dashboard. Chrome, filters and action buttons are
+ * dropped; anything marked print:hidden by a component goes too.
+ * ------------------------------------------------------------------------- */
+@media print {
+  aside,
+  header {
+    display: none !important;
+  }
+
+  .lg\:pl-64 {
+    padding-left: 0 !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  table {
+    min-width: 0 !important;
+    font-size: 11px;
+  }
+
+  .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  /* Keep rows from splitting across pages mid-record. */
+  tr {
+    break-inside: avoid;
+  }
+}
+
+/* Lenis is driven by GSAP's ticker; these are the styles it expects. */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
 }

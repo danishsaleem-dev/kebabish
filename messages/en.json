@@ -12,7 +12,8 @@
     "description": "Fresh, homemade Pakistani dishes — delivered or picked up within 10 km of Hoogkarspel.",
     "ctaOrder": "View menu & order",
     "ctaWhatsapp": "Order via WhatsApp",
-    "badge": "Delivery & takeaway only — no dine-in"
+    "badge": "Delivery & takeaway only — no dine-in",
+    "scrollCue": "Scroll"
   },
   "home": {
     "aboutEyebrow": "Our story",
@@ -37,7 +38,21 @@
     "deliveryCta": "Check your address",
     "ctaBannerTitle": "Craving Pakistani food?",
     "ctaBannerText": "Order easily through our website or send us a WhatsApp message.",
-    "galleryTitle": "A look inside the kitchen"
+    "galleryTitle": "A look inside the kitchen",
+    "marquee": [
+      "Freshly made",
+      "Authentically Pakistani",
+      "Delivered within 10 km",
+      "Delivery & takeaway only",
+      "Order via WhatsApp"
+    ],
+    "storyStat1Label": "Delivery radius",
+    "storyStat2Label": "Freshly made",
+    "storyStat3Label": "Menu categories",
+    "storyImageAlt1": "Marinated chicken roasting in the tandoor over open flames",
+    "storyImageAlt2": "Fresh Pakistani herbs and spices",
+    "popularNote": "Prices on request — message us for the current price list.",
+    "deliveryTownsLabel": "We deliver to"
   },
   "menu": {
     "title": "Our Menu",
@@ -52,7 +67,9 @@
     },
     "addToOrder": "Add",
     "orderViaWhatsapp": "Order via WhatsApp",
-    "priceOnRequest": "Price on request"
+    "priceOnRequest": "Price on request",
+    "vegetarian": "Vegetarian",
+    "soldOut": "Sold out"
   },
   "contact": {
     "title": "Contact & Delivery Area",
@@ -82,6 +99,21 @@
     "deliveryOnly": "Delivery & takeaway only",
     "kvk": "KVK",
     "rights": "All rights reserved."
+  },
+  "comingSoon": {
+    "eyebrow": "Opening soon",
+    "title": "Our website is almost ready",
+    "description": "Kebabish brings the authentic flavors of Pakistan to Hoogkarspel and the surrounding area. While we put the finishing touches on the site, you can already order via WhatsApp.",
+    "badge": "Delivery & takeaway only — no dine-in",
+    "ctaWhatsapp": "Order via WhatsApp",
+    "deliveryNote": "Delivery within 10 km of Hoogkarspel",
+    "followTitle": "Follow us for updates",
+    "contactTitle": "Or get in touch directly"
+  },
+  "whatsapp": {
+    "orderGeneric": "Hi Kebabish! I'd like to place an order.",
+    "orderItem": "Hi Kebabish! I'd like to order: {item}",
+    "orderItemVariant": "Hi Kebabish! I'd like to order: {item} (flavor: ___)"
   },
   "common": {
     "callUs": "Call us",

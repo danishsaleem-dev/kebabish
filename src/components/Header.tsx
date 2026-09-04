@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
@@ -10,9 +11,23 @@ import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 export default function Header() {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
+  const tWhatsapp = useTranslations("whatsapp");
   const locale = useLocale();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  // On the homepage the header floats over the dark hero until you scroll
+  // past it; everywhere else it's a normal solid sticky bar.
+  const isHome = pathname === "/";
+  const onHero = isHome && !scrolled && !open;
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const navLinks = [
     { href: "/", label: t("home") },
@@ -20,42 +35,73 @@ export default function Header() {
     { href: "/contact", label: t("contact") },
   ];
 
-  const whatsappHref = whatsappOrderLink(
-    locale === "nl"
-      ? "Hallo Kebabish! Ik wil graag een bestelling plaatsen."
-      : "Hi Kebabish! I'd like to place an order."
-  );
+  const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
 
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-200 bg-neutral-50/95 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link href="/" className="text-2xl font-semibold text-neutral-900">
-          {siteConfig.brandName}
+    <header
+      className={`${isHome ? "fixed" : "sticky"} inset-x-0 top-0 z-50 transition-[background-color,box-shadow,border-color] duration-500 ${
+        onHero
+          ? "border-b border-transparent bg-transparent"
+          : "border-b border-charcoal-600/10 bg-cream-200/90 shadow-sm shadow-charcoal-950/5 backdrop-blur-md"
+      }`}
+    >
+      <div
+        className={`mx-auto flex max-w-6xl items-center justify-between px-5 transition-[height] duration-500 sm:px-6 ${
+          scrolled || !isHome ? "h-16" : "h-20"
+        }`}
+      >
+        <Link
+          href="/"
+          aria-label={`${siteConfig.brandName} — ${tCommon("deliveryTakeawayOnly")}`}
+          className="shrink-0"
+        >
+          <Image
+            src={onHero ? "/logo/kebabish-dark.png" : "/logo/Kebabish-light.png"}
+            alt={siteConfig.brandName}
+            width={440}
+            height={330}
+            priority
+            className={`w-auto transition-[height] duration-500 ${
+              scrolled || !isHome ? "h-11" : "h-14"
+            }`}
+          />
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`text-sm font-medium transition-colors hover:text-neutral-900 ${
-                pathname === link.href ? "text-neutral-900" : "text-neutral-900"
-              }`}
-            >
-              {link.label}
-            </Link>
-          ))}
+        <nav className="hidden items-center gap-9 md:flex">
+          {navLinks.map((link) => {
+            const active = pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? "page" : undefined}
+                className={`relative font-display text-sm font-semibold transition-colors duration-300 ${
+                  onHero
+                    ? "text-cream-100/85 hover:text-cream-50"
+                    : "text-charcoal-600/75 hover:text-charcoal-600"
+                }`}
+              >
+                {link.label}
+                <span
+                  aria-hidden="true"
+                  className={`absolute -bottom-1.5 left-0 h-0.5 w-full origin-left bg-ember-500 transition-transform duration-300 ${
+                    active ? "scale-x-100" : "scale-x-0"
+                  }`}
+                />
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <LocaleSwitch locale={locale} />
+          <LocaleSwitch locale={locale} onHero={onHero} />
           <a
             href={whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 rounded-full bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-neutral-50 transition-colors hover:bg-neutral-800"
+            className="inline-flex items-center gap-2 rounded-full bg-ember-600 px-5 py-2.5 font-display text-sm font-semibold text-cream-50 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-ember-500"
           >
-            <MessageCircle size={18} />
+            <MessageCircle size={17} />
             {tCommon("orderNow")}
           </a>
         </div>
@@ -63,7 +109,10 @@ export default function Header() {
         <button
           type="button"
           aria-label="Menu"
-          className="flex h-11 w-11 items-center justify-center rounded-full text-neutral-900 md:hidden"
+          aria-expanded={open}
+          className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors duration-300 md:hidden ${
+            onHero ? "text-cream-100" : "text-charcoal-600"
+          }`}
           onClick={() => setOpen((v) => !v)}
         >
           {open ? <X size={26} /> : <Menu size={26} />}
@@ -71,28 +120,34 @@ export default function Header() {
       </div>
 
       {open && (
-        <div className="border-t border-neutral-200 bg-neutral-50 px-4 pb-6 md:hidden">
-          <nav className="flex flex-col gap-1 pt-2">
+        <div className="border-t border-charcoal-600/10 bg-cream-200 px-5 pb-6 md:hidden">
+          <nav className="flex flex-col gap-1 pt-3">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
                 onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-3 text-base font-medium text-neutral-900 hover:bg-neutral-200"
+                aria-current={pathname === link.href ? "page" : undefined}
+                className={`rounded-xl px-4 py-3.5 font-display text-base font-semibold transition-colors ${
+                  pathname === link.href
+                    ? "bg-cream-100 text-ember-600"
+                    : "text-charcoal-600 hover:bg-cream-100"
+                }`}
               >
                 {link.label}
               </Link>
             ))}
           </nav>
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <LocaleSwitch locale={locale} />
+
+          <div className="mt-4 flex items-center gap-3">
+            <LocaleSwitch locale={locale} onHero={false} />
             <a
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-neutral-900 px-5 py-3 text-sm font-semibold text-neutral-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ember-600 px-5 py-3.5 font-display text-sm font-semibold text-cream-50"
             >
-              <MessageCircle size={18} />
+              <MessageCircle size={17} />
               {tCommon("orderNow")}
             </a>
           </div>
@@ -102,17 +157,33 @@ export default function Header() {
   );
 }
 
-function LocaleSwitch({ locale }: { locale: string }) {
+function LocaleSwitch({
+  locale,
+  onHero,
+}: {
+  locale: string;
+  onHero: boolean;
+}) {
   const pathname = usePathname();
+
   return (
-    <div className="flex items-center overflow-hidden rounded-full border border-neutral-200 text-xs font-semibold">
+    <div
+      className={`flex items-center overflow-hidden rounded-full border text-xs font-semibold transition-colors duration-300 ${
+        onHero ? "border-cream-100/30" : "border-charcoal-600/20"
+      }`}
+    >
       {routing.locales.map((loc) => (
         <Link
           key={loc}
           href={pathname}
           locale={loc}
-          className={`px-3 py-2 uppercase transition-colors ${
-            locale === loc ? "bg-neutral-900 text-neutral-50" : "text-neutral-900 hover:bg-neutral-200"
+          aria-label={loc.toUpperCase()}
+          className={`px-3 py-2 uppercase transition-colors duration-300 ${
+            locale === loc
+              ? "bg-ember-600 text-cream-50"
+              : onHero
+                ? "text-cream-100/75 hover:text-cream-50"
+                : "text-charcoal-600/70 hover:text-charcoal-600"
           }`}
         >
           {loc}
