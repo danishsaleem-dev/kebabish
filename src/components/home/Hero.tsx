@@ -70,7 +70,7 @@ export default async function Hero({
         <div data-hero-mark data-reveal className="flex justify-center">
           <Image
             src="/logo/kebabish-dark.png"
-            alt={`${siteConfig.brandName} — ${siteConfig.companyName}`}
+            alt={siteConfig.brandName}
             width={440}
             height={330}
             priority

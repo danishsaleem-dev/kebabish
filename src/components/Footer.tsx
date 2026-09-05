@@ -98,8 +98,7 @@ export default function Footer() {
       </div>
 
       <div className="relative z-10 border-t border-cream-200/10 px-5 py-6 text-center text-xs leading-relaxed text-cream-200/50 sm:px-6">
-        © {year} {siteConfig.companyName} ({siteConfig.brandName}) — {t("kvk")}{" "}
-        {siteConfig.kvkNumber}. {t("rights")}
+        © {year} {siteConfig.brandName}. {t("rights")}
       </div>
     </footer>
   );

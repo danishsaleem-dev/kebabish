@@ -18,7 +18,7 @@
   "home": {
     "aboutEyebrow": "Our story",
     "aboutTitle": "From our kitchen to your table",
-    "aboutText": "Kebabish was founded by Marfah Enterprise in Hoogkarspel with one goal: bringing the authentic flavors of Pakistan to West Friesland. Every dish is made fresh with care, just like at home.",
+    "aboutText": "Kebabish was founded in Hoogkarspel with one goal: bringing the authentic flavors of Pakistan to West Friesland. Every dish is made fresh with care, just like at home.",
     "popularEyebrow": "Fan favorites",
     "popularTitle": "Popular dishes",
     "popularCta": "View the full menu",
@@ -168,7 +168,6 @@
     "contact": "Contact",
     "followUs": "Follow us",
     "deliveryOnly": "Delivery & takeaway only",
-    "kvk": "KVK",
     "rights": "All rights reserved."
   },
   "comingSoon": {

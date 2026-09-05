@@ -18,7 +18,7 @@
   "home": {
     "aboutEyebrow": "Ons verhaal",
     "aboutTitle": "Van onze keuken naar jouw tafel",
-    "aboutText": "Kebabish is opgericht door Marfah Enterprise in Hoogkarspel, met één doel: de authentieke smaken van Pakistan naar West-Friesland brengen. Elk gerecht wordt vers en met liefde bereid, precies zoals thuis.",
+    "aboutText": "Kebabish is opgericht in Hoogkarspel, met één doel: de authentieke smaken van Pakistan naar West-Friesland brengen. Elk gerecht wordt vers en met liefde bereid, precies zoals thuis.",
     "popularEyebrow": "Onze favorieten",
     "popularTitle": "Populaire gerechten",
     "popularCta": "Bekijk het volledige menu",
@@ -168,7 +168,6 @@
     "contact": "Contact",
     "followUs": "Volg ons",
     "deliveryOnly": "Alleen bezorgen & afhalen",
-    "kvk": "KVK",
     "rights": "Alle rechten voorbehouden."
   },
   "comingSoon": {

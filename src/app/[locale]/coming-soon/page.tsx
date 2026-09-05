@@ -130,8 +130,7 @@ export default async function ComingSoonPage({
         </div>
 
         <p className="mt-10 text-[0.7rem] text-cream-200/35">
-          © {new Date().getFullYear()} {siteConfig.companyName} ({siteConfig.brandName}) — KVK{" "}
-          {siteConfig.kvkNumber}
+          © {new Date().getFullYear()} {siteConfig.brandName}
         </p>
       </div>
     </div>
