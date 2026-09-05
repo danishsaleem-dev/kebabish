@@ -3,7 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import StoreStatusBanner from "@/components/StoreStatusBanner";
-import { getSettings } from "@/lib/admin/store";
+import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 
 // Revalidate at most every minute — status can flip on its own (opening
@@ -27,7 +27,7 @@ export default async function SiteLayout({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const settings = await getSettings();
+  const settings = await getPublicSettings();
   const status = getStoreStatus(settings);
 
   return (

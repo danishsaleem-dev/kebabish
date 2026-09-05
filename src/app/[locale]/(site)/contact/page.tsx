@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import { Phone, Mail, MapPin, Clock, Instagram, Facebook, Music2 } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
-import { getSettings } from "@/lib/admin/store";
+import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 
 export async function generateMetadata({
@@ -23,7 +23,7 @@ export default async function ContactPage({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "contact" });
   const tStatus = await getTranslations({ locale, namespace: "status" });
-  const settings = await getSettings();
+  const settings = await getPublicSettings();
   const status = getStoreStatus(settings);
   const weekdays = tStatus.raw("weekdays") as string[];
   const sortedHours = [...settings.hours].sort((a, b) => a.day - b.day);

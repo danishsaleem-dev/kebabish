@@ -1,5 +1,5 @@
 import { siteConfig } from "@/lib/site-config";
-import { getSettings } from "@/lib/admin/store";
+import { getPublicSettings } from "@/lib/admin/store";
 
 const SCHEMA_DAYS = [
   "Sunday",
@@ -12,7 +12,7 @@ const SCHEMA_DAYS = [
 ];
 
 export default async function StructuredData({ locale }: { locale: string }) {
-  const settings = await getSettings();
+  const settings = await getPublicSettings();
   const openingHoursSpecification = settings.hours
     .filter((h) => !h.closed)
     .map((h) => ({

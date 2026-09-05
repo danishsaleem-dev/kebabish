@@ -1,4 +1,6 @@
 import { jsonAdapter } from "@/lib/admin/store/json-adapter";
+import { supabaseAdapter } from "@/lib/admin/store/supabase-adapter";
+import { buildSeed } from "@/lib/admin/store/seed";
 import type {
   StoreAdapter,
   StoreShape,
@@ -8,19 +10,40 @@ import type {
   StoredCategory,
   StoredIngredient,
   StoredItem,
+  StoredOptionGroup,
   StoredRecipe,
 } from "@/lib/admin/store/types";
 
 /**
- * The single place the backend is chosen. Replace this line with a Supabase
- * adapter and everything above the store keeps working unchanged.
+ * The single place the backend is chosen.
+ *
+ * Supabase whenever it's configured — including local dev, so what you see
+ * locally is what the live site serves. The JSON file remains the fallback
+ * for a checkout with no keys (a fresh clone, CI), where it's better to
+ * boot with seeded data than to crash. It cannot be the production store:
+ * Vercel's filesystem is read-only at runtime.
  */
-const adapter: StoreAdapter = jsonAdapter;
+const adapter: StoreAdapter =
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+    ? supabaseAdapter
+    : jsonAdapter;
 
-export const readStore = () => adapter.read();
+/**
+ * Documents written before a field existed are still out there — in
+ * Supabase, and in anyone's local .data file. Backfill the newer fields on
+ * read so nothing above the store has to null-check them.
+ */
+function normalise(data: StoreShape): StoreShape {
+  data.optionGroups ??= [];
+  for (const item of data.items) item.optionGroupIds ??= [];
+  return data;
+}
+
+export const readStore = async (): Promise<StoreShape> =>
+  normalise(await adapter.read());
 
 async function mutate<T>(fn: (data: StoreShape) => T | Promise<T>): Promise<T> {
-  const data = await adapter.read();
+  const data = await readStore();
   const result = await fn(data);
   await adapter.write(data);
   return result;
@@ -159,6 +182,59 @@ export async function deleteItem(slug: string) {
   });
 }
 
+/* -------------------------------------------------------------- option groups */
+
+export async function listOptionGroups(): Promise<StoredOptionGroup[]> {
+  const { optionGroups } = await readStore();
+  return [...optionGroups].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export async function getOptionGroup(id: string) {
+  const { optionGroups } = await readStore();
+  return optionGroups.find((g) => g.id === id);
+}
+
+export async function createOptionGroup(input: Omit<StoredOptionGroup, "id">) {
+  return mutate((data) => {
+    const id = uniqueId(
+      slugify(input.label),
+      data.optionGroups.map((g) => g.id)
+    );
+    const group: StoredOptionGroup = { ...input, id };
+    data.optionGroups.push(group);
+    return group;
+  });
+}
+
+export async function updateOptionGroup(
+  id: string,
+  input: Partial<Omit<StoredOptionGroup, "id">>
+) {
+  return mutate((data) => {
+    const group = data.optionGroups.find((g) => g.id === id);
+    if (!group) throw new Error(`Option group "${id}" not found`);
+    Object.assign(group, input);
+    return group;
+  });
+}
+
+export async function deleteOptionGroup(id: string) {
+  return mutate((data) => {
+    data.optionGroups = data.optionGroups.filter((g) => g.id !== id);
+    // Detach from every dish that offered it, so no item points at a group
+    // that no longer exists.
+    for (const item of data.items) {
+      item.optionGroupIds = item.optionGroupIds.filter((g) => g !== id);
+    }
+  });
+}
+
+/** Dishes currently offering a group — shown before deleting one. */
+export async function itemsUsingOptionGroup(id: string): Promise<StoredItem[]> {
+  const { items } = await readStore();
+  return items.filter((i) => i.optionGroupIds.includes(id));
+}
+
 /* --------------------------------------------------------------------- media */
 
 export async function listMedia(): Promise<StoredMedia[]> {
@@ -239,6 +315,24 @@ export async function deleteMedia(id: string) {
 export async function getSettings(): Promise<StoredSettings> {
   const { settings } = await readStore();
   return settings;
+}
+
+/**
+ * Settings for the public storefront, which reads them on every page.
+ *
+ * The admin panel should fail loudly when the store is unreachable — that's
+ * how Danish finds out a migration hasn't been run. The shop front should
+ * not: a database hiccup taking kebabish.nl down, rather than serving the
+ * menu with default hours, is the worse failure. Logged so it's still
+ * visible in the Vercel logs.
+ */
+export async function getPublicSettings(): Promise<StoredSettings> {
+  try {
+    return await getSettings();
+  } catch (error) {
+    console.error("[store] falling back to default settings:", error);
+    return buildSeed().settings;
+  }
 }
 
 export async function updateSettings(patch: Partial<StoredSettings>) {

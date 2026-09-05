@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import MenuBrowser from "@/components/menu/MenuBrowser";
-import { getSettings } from "@/lib/admin/store";
+import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 
 export async function generateMetadata({
@@ -24,7 +24,7 @@ export default async function MenuPage({
 }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "menu" });
-  const settings = await getSettings();
+  const settings = await getPublicSettings();
   const { isOpen } = getStoreStatus(settings);
 
   return (

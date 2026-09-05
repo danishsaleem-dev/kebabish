@@ -46,6 +46,31 @@ export interface StoredItem {
   soldOut: boolean;
   /** Media ids, in display order. The first is the featured image. */
   imageIds: string[];
+  /** Extras offered with this dish, by option-group id. */
+  optionGroupIds: string[];
+}
+
+/** One choice inside an option group, e.g. "Garlic sauce" at +€0.75. */
+export interface StoredOption {
+  id: string;
+  label: string;
+  /** Surcharge in euros. 0 is free. */
+  price: number;
+}
+
+/**
+ * A reusable set of extras ("Sauces", "Drinks", "Extra toppings") that can
+ * be attached to any number of dishes. Reusable rather than per-dish so
+ * changing the price of a sauce is one edit, not twenty.
+ */
+export interface StoredOptionGroup {
+  id: string;
+  label: string;
+  /** 0 makes the group optional; 1+ forces a choice. */
+  minChoices: number;
+  /** 1 renders as radios, more as checkboxes capped at this many. */
+  maxChoices: number;
+  options: StoredOption[];
 }
 
 export interface StoredSettings {
@@ -104,6 +129,7 @@ export interface StoredAllergen {
 export interface StoreShape {
   categories: StoredCategory[];
   items: StoredItem[];
+  optionGroups: StoredOptionGroup[];
   ingredients: StoredIngredient[];
   recipes: StoredRecipe[];
   allergens: StoredAllergen[];

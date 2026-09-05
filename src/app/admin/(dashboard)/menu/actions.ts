@@ -163,6 +163,7 @@ const itemSchema = z.object({
   spicy: z.boolean(),
   soldOut: z.boolean(),
   imageIds: z.array(z.string()),
+  optionGroupIds: z.array(z.string()),
 });
 
 function readItemForm(formData: FormData) {
@@ -175,6 +176,10 @@ function readItemForm(formData: FormData) {
     spicy: formData.get("spicy") === "on",
     soldOut: formData.get("soldOut") === "on",
     imageIds: formData.getAll("imageIds").map(String).filter(Boolean),
+    optionGroupIds: formData
+      .getAll("optionGroupIds")
+      .map(String)
+      .filter(Boolean),
   });
 }
 

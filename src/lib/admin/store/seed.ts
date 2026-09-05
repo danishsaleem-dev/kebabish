@@ -52,8 +52,13 @@ export function buildSeed(): StoreShape {
         spicy: Boolean(item.spicy),
         soldOut: Boolean(item.soldOut),
         imageIds: [],
+        optionGroupIds: [],
       }))
     ),
+
+    // Extras are Danish's to define in /admin/menu/extras — seeding
+    // invented sauces and prices would be worse than starting empty.
+    optionGroups: [],
 
     ingredients: ingredients.map((i) => ({
       id: i.id,

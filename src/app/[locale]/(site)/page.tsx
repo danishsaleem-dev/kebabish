@@ -8,7 +8,7 @@ import Popular from "@/components/home/Popular";
 import Why from "@/components/home/Why";
 import DeliveryArea from "@/components/home/DeliveryArea";
 import FinalCta from "@/components/home/FinalCta";
-import { getSettings } from "@/lib/admin/store";
+import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 
 export default async function HomePage({
@@ -21,7 +21,7 @@ export default async function HomePage({
 
   const t = await getTranslations({ locale });
   const marqueeItems = t.raw("home.marquee") as string[];
-  const settings = await getSettings();
+  const settings = await getPublicSettings();
   const { isOpen } = getStoreStatus(settings);
 
   return (
