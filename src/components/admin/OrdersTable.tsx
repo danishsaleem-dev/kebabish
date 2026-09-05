@@ -12,9 +12,9 @@ import { formatMoney } from "@/lib/admin/units";
 import { downloadCsv, stampedFilename, toCsv } from "@/lib/admin/export";
 import {
   ORDER_STATUS_LABELS,
-  type MockOrder,
+  type AdminOrder,
   type OrderStatus,
-} from "@/lib/admin/mock-data";
+} from "@/lib/admin/order-types";
 
 type StatusOption = OrderStatus | "all";
 type ChannelOption = "all" | "whatsapp" | "website";
@@ -25,7 +25,7 @@ export default function OrdersTable({
   title = "Orders",
   lockedStatus,
 }: {
-  orders: MockOrder[];
+  orders: AdminOrder[];
   title?: string;
   lockedStatus?: OrderStatus;
 }) {
@@ -36,7 +36,7 @@ export default function OrdersTable({
   const [channel, setChannel] = useState<ChannelOption>("all");
   const [sort, setSort] = useState<SortKey>("placedAt");
   const [desc, setDesc] = useState(true);
-  const [quickView, setQuickView] = useState<MockOrder | null>(null);
+  const [quickView, setQuickView] = useState<AdminOrder | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const rows = useMemo(() => {
@@ -54,7 +54,7 @@ export default function OrdersTable({
       );
     });
 
-    const itemCount = (o: MockOrder) =>
+    const itemCount = (o: AdminOrder) =>
       o.lines.reduce((n, l) => n + l.quantity, 0);
 
     return [...filtered].sort((a, b) => {

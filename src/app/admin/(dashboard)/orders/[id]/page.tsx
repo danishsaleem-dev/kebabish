@@ -17,16 +17,10 @@ import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import { formatMoney } from "@/lib/admin/units";
-import {
-  findCustomer,
-  findOrder,
-  orders,
-  ordersForCustomer,
-} from "@/lib/admin/mock-data";
+import { getOrder, getCustomer, listOrders } from "@/lib/admin/orders-data";
+import { ORDER_STATUS_LABELS } from "@/lib/admin/order-types";
 
-export function generateStaticParams() {
-  return orders.map((o) => ({ id: o.id }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -34,11 +28,12 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return { title: findOrder(id)?.reference ?? "Order" };
+  const order = await getOrder(id);
+  return { title: order?.reference ?? "Order" };
 }
 
 /** Timeline stages an order moves through, in order. */
-const STAGES = ["new", "preparing", "on-the-way", "delivered"] as const;
+const STAGES = ["new", "preparing", "on_the_way", "delivered"] as const;
 
 export default async function OrderDetailPage({
   params,
@@ -46,11 +41,17 @@ export default async function OrderDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const order = findOrder(id);
+  const order = await getOrder(id);
   if (!order) notFound();
 
-  const customer = findCustomer(order.customerId);
-  const history = ordersForCustomer(order.customerId);
+  const [customer, allOrders] = await Promise.all([
+    order.customerId ? getCustomer(order.customerId) : Promise.resolve(null),
+    listOrders(),
+  ]);
+  const history = order.customerId
+    ? allOrders.filter((o) => o.customerId === order.customerId)
+    : [];
+
   const placed = new Date(order.placedAt);
   const cancelled = order.status === "cancelled";
   const reachedIndex = STAGES.indexOf(order.status as (typeof STAGES)[number]);
@@ -124,11 +125,11 @@ export default async function OrderDetailPage({
                           }`}
                         />
                         <p
-                          className={`mt-2 text-xs capitalize ${
+                          className={`mt-2 text-xs ${
                             done ? "font-semibold text-heading" : "text-faint"
                           }`}
                         >
-                          {stage.replace(/-/g, " ")}
+                          {ORDER_STATUS_LABELS[stage]}
                         </p>
                       </div>
                     </li>

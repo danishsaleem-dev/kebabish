@@ -1,12 +1,15 @@
 import AdminShell from "@/components/admin/AdminShell";
 import Card from "@/components/admin/ui/Card";
 import CustomersTable from "@/components/admin/CustomersTable";
-import { customers, orders } from "@/lib/admin/mock-data";
+import { listCustomers, listOrders } from "@/lib/admin/orders-data";
 import { formatMoney } from "@/lib/admin/units";
 
 export const metadata = { title: "Customers" };
+export const dynamic = "force-dynamic";
 
-export default function CustomersPage() {
+export default async function CustomersPage() {
+  const [customers, orders] = await Promise.all([listCustomers(), listOrders()]);
+
   const active = customers.filter((c) => c.status === "active").length;
   const lapsed = customers.filter((c) => c.status === "lapsed").length;
   const lifetime = customers.reduce((sum, c) => sum + c.totalSpent, 0);

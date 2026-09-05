@@ -9,8 +9,8 @@ import { formatMoney } from "@/lib/admin/units";
 import {
   CUSTOMER_STATUS_LABELS,
   type CustomerStatus,
-  type MockCustomer,
-} from "@/lib/admin/mock-data";
+  type AdminCustomer,
+} from "@/lib/admin/order-types";
 
 type StatusOption = CustomerStatus | "all";
 type SortKey = "name" | "orderCount" | "totalSpent" | "lastOrderAt";
@@ -24,7 +24,7 @@ const STATUS_TONE: Record<CustomerStatus, string> = {
 export default function CustomersTable({
   customers,
 }: {
-  customers: MockCustomer[];
+  customers: AdminCustomer[];
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -58,7 +58,10 @@ export default function CustomersTable({
       if (sort === "name") return a.name.localeCompare(b.name) * dir;
       if (sort === "orderCount") return (a.orderCount - b.orderCount) * dir;
       if (sort === "totalSpent") return (a.totalSpent - b.totalSpent) * dir;
-      return (Date.parse(a.lastOrderAt) - Date.parse(b.lastOrderAt)) * dir;
+      // Never-ordered customers sort last regardless of direction.
+      const at = a.lastOrderAt ? Date.parse(a.lastOrderAt) : -Infinity;
+      const bt = b.lastOrderAt ? Date.parse(b.lastOrderAt) : -Infinity;
+      return (at - bt) * dir;
     });
   }, [customers, query, status, town, sort, desc]);
 
@@ -170,11 +173,13 @@ export default function CustomersTable({
                   {formatMoney(customer.totalSpent)}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-sm text-muted">
-                  {new Date(customer.lastOrderAt).toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
+                  {customer.lastOrderAt
+                    ? new Date(customer.lastOrderAt).toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })
+                    : "—"}
                 </td>
                 <td className="px-4 py-4">
                   <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-xs font-medium text-body-text">

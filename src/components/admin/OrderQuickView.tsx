@@ -14,14 +14,14 @@ import {
 } from "lucide-react";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import { formatMoney } from "@/lib/admin/units";
-import type { MockOrder } from "@/lib/admin/mock-data";
+import type { AdminOrder } from "@/lib/admin/order-types";
 
 /** Slide-over summary opened by the eye icon — the "is this ready?" glance. */
 export default function OrderQuickView({
   order,
   onClose,
 }: {
-  order: MockOrder | null;
+  order: AdminOrder | null;
   onClose: () => void;
 }) {
   useEffect(() => {

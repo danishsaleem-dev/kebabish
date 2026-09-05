@@ -15,16 +15,10 @@ import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import { formatMoney } from "@/lib/admin/units";
-import {
-  CUSTOMER_STATUS_LABELS,
-  customers,
-  findCustomer,
-  ordersForCustomer,
-} from "@/lib/admin/mock-data";
+import { getCustomer, listOrders } from "@/lib/admin/orders-data";
+import { CUSTOMER_STATUS_LABELS } from "@/lib/admin/order-types";
 
-export function generateStaticParams() {
-  return customers.map((c) => ({ id: c.id }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -32,7 +26,8 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return { title: findCustomer(id)?.name ?? "Customer" };
+  const customer = await getCustomer(id);
+  return { title: customer?.name ?? "Customer" };
 }
 
 export default async function CustomerDetailPage({
@@ -41,12 +36,15 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const customer = findCustomer(id);
+  const [customer, allOrders] = await Promise.all([
+    getCustomer(id),
+    listOrders(),
+  ]);
   if (!customer) notFound();
 
-  const history = [...ordersForCustomer(id)].sort(
-    (a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt)
-  );
+  const history = allOrders
+    .filter((o) => o.customerId === id)
+    .sort((a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt));
   const avg = customer.totalSpent / Math.max(1, customer.orderCount);
 
   const stats = [
@@ -98,10 +96,12 @@ export default async function CustomerDetailPage({
                   <Mail size={14} className="text-faint" />
                   {customer.email}
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <MapPin size={14} className="text-faint" />
-                  {customer.address}, {customer.postalCode} {customer.town}
-                </li>
+                {customer.address !== "—" && (
+                  <li className="flex items-center gap-1.5">
+                    <MapPin size={14} className="text-faint" />
+                    {customer.address}
+                  </li>
+                )}
                 <li className="flex items-center gap-1.5">
                   {customer.preferredChannel === "whatsapp" ? (
                     <MessageCircle size={14} className="text-success" />
@@ -113,10 +113,12 @@ export default async function CustomerDetailPage({
                     ? "WhatsApp"
                     : "the website"}
                 </li>
-                <li className="flex items-center gap-1.5">
-                  <Heart size={14} className="text-faint" />
-                  Usually orders {customer.favouriteDish}
-                </li>
+                {customer.favouriteDish && (
+                  <li className="flex items-center gap-1.5">
+                    <Heart size={14} className="text-faint" />
+                    Usually orders {customer.favouriteDish}
+                  </li>
+                )}
               </ul>
             </div>
           </div>
@@ -141,8 +143,8 @@ export default async function CustomerDetailPage({
               title="Order history"
               subtitle={
                 history.length
-                  ? `${history.length} order${history.length === 1 ? "" : "s"} in the current data`
-                  : "No orders in the current data window"
+                  ? `${history.length} order${history.length === 1 ? "" : "s"}`
+                  : "No orders yet"
               }
             />
           </div>

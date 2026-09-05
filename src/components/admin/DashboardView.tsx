@@ -14,12 +14,14 @@ import {
   getOrderPerformance,
   getRevenueProfile,
   getSummaryStats,
-  orders,
+} from "@/lib/admin/order-analytics";
+import {
   PERIOD_LABELS,
   STATUS_FILTER_LABELS,
+  type AdminOrder,
   type Period,
   type StatusFilter,
-} from "@/lib/admin/mock-data";
+} from "@/lib/admin/order-types";
 
 const TONE_COLOR = {
   success: "#12b76a",
@@ -28,25 +30,35 @@ const TONE_COLOR = {
 } as const;
 
 /**
- * Dashboard. Every dropdown here actually drives the data — changing the
- * period or status re-derives the series from mock-data and the charts tween
- * into the new shape.
+ * Dashboard. `orders` and `customerJoinDates` are fetched once, server-side
+ * (the page component), and passed down here — every dropdown re-derives
+ * its series from that same array client-side, so switching period/status
+ * still tweens instantly with no round-trip per click.
  */
-export default function DashboardView() {
+export default function DashboardView({
+  orders,
+  customerJoinDates,
+}: {
+  orders: AdminOrder[];
+  customerJoinDates: string[];
+}) {
   const [period, setPeriod] = useState<Period>("monthly");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [revenuePeriod, setRevenuePeriod] = useState<Period>("monthly");
 
-  const stats = useMemo(() => getSummaryStats(period), [period]);
+  const stats = useMemo(
+    () => getSummaryStats(orders, customerJoinDates, period),
+    [orders, customerJoinDates, period]
+  );
   const analytics = useMemo(
-    () => getOrderAnalytics(statusFilter, period),
-    [statusFilter, period]
+    () => getOrderAnalytics(orders, statusFilter, period),
+    [orders, statusFilter, period]
   );
   const revenue = useMemo(
-    () => getRevenueProfile(revenuePeriod),
-    [revenuePeriod]
+    () => getRevenueProfile(orders, revenuePeriod),
+    [orders, revenuePeriod]
   );
-  const performance = useMemo(() => getOrderPerformance(), []);
+  const performance = useMemo(() => getOrderPerformance(orders), [orders]);
 
   const periodOptions = (Object.keys(PERIOD_LABELS) as Period[]).map((p) => ({
     value: p,

@@ -13,9 +13,9 @@ import { formatMoney } from "@/lib/admin/units";
 import { downloadCsv, stampedFilename, toCsv } from "@/lib/admin/export";
 import {
   ORDER_STATUS_LABELS,
-  type MockOrder,
+  type AdminOrder,
   type OrderStatus,
-} from "@/lib/admin/mock-data";
+} from "@/lib/admin/order-types";
 
 type StatusOption = OrderStatus | "all";
 type DaysOption = "today" | "7" | "30" | "all";
@@ -35,15 +35,8 @@ const DAY_WINDOW: Record<DaysOption, number | null> = {
   all: null,
 };
 
-/**
- * The dashboard's order feed.
- *
- * The "Days" window is measured back from the most recent order in the data
- * rather than the real clock — the mock orders are dated December 2024, so
- * anchoring to the actual today would make every option show nothing.
- * Swapping to `Date.now()` is the right move once real orders flow in.
- */
-export default function OrderActivities({ orders }: { orders: MockOrder[] }) {
+/** The dashboard's order feed, windowed by real days back from now. */
+export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
   const router = useRouter();
 
   const [status, setStatus] = useState<StatusOption>("all");
@@ -51,24 +44,19 @@ export default function OrderActivities({ orders }: { orders: MockOrder[] }) {
   const [sort, setSort] = useState<SortKey>("placedAt");
   const [desc, setDesc] = useState(true);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [quickView, setQuickView] = useState<MockOrder | null>(null);
-
-  const latest = useMemo(
-    () => Math.max(...orders.map((o) => Date.parse(o.placedAt))),
-    [orders]
-  );
+  const [quickView, setQuickView] = useState<AdminOrder | null>(null);
 
   const rows = useMemo(() => {
     const window = DAY_WINDOW[days];
     const cutoff =
-      window === null ? -Infinity : latest - (window - 1) * 86_400_000;
+      window === null ? -Infinity : Date.now() - (window - 1) * 86_400_000;
 
     const filtered = orders.filter((o) => {
       if (status !== "all" && o.status !== status) return false;
       return Date.parse(o.placedAt) >= cutoff;
     });
 
-    const itemCount = (o: MockOrder) =>
+    const itemCount = (o: AdminOrder) =>
       o.lines.reduce((n, l) => n + l.quantity, 0);
 
     return [...filtered].sort((a, b) => {
@@ -86,7 +74,7 @@ export default function OrderActivities({ orders }: { orders: MockOrder[] }) {
           return (Date.parse(a.placedAt) - Date.parse(b.placedAt)) * dir;
       }
     });
-  }, [orders, status, days, sort, desc, latest]);
+  }, [orders, status, days, sort, desc]);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDesc((d) => !d);

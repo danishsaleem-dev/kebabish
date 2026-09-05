@@ -2,37 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Bell, CheckCheck, ReceiptText } from "lucide-react";
 import {
-  Bell,
-  CheckCheck,
-  MessageSquareHeart,
-  PackageSearch,
-  ReceiptText,
-  Settings2,
-} from "lucide-react";
-import {
-  notifications as seedNotifications,
   relativeTime,
-  type NotificationKind,
-} from "@/lib/admin/mock-data";
+  type AdminNotification,
+} from "@/lib/admin/order-types";
 
-const ICON: Record<NotificationKind, typeof Bell> = {
-  order: ReceiptText,
-  review: MessageSquareHeart,
-  stock: PackageSearch,
-  system: Settings2,
-};
+const TONE = "bg-ember-600/10 text-ember-700";
 
-const TONE: Record<NotificationKind, string> = {
-  order: "bg-ember-600/10 text-ember-700",
-  review: "bg-success-soft text-success",
-  stock: "bg-warn-soft text-warn",
-  system: "bg-canvas text-muted",
-};
-
-export default function NotificationsMenu() {
+export default function NotificationsMenu({
+  notifications,
+}: {
+  notifications: AdminNotification[];
+}) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState(seedNotifications);
+  const [items, setItems] = useState(notifications);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   const unread = items.filter((n) => !n.read).length;
@@ -103,14 +87,12 @@ export default function NotificationsMenu() {
 
           <ul className="max-h-96 divide-y divide-hairline overflow-y-auto">
             {items.map((item) => {
-              const Icon = ICON[item.kind];
-
               const content = (
                 <span className="flex gap-3">
                   <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TONE[item.kind]}`}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${TONE}`}
                   >
-                    <Icon size={16} />
+                    <ReceiptText size={16} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-start gap-2">

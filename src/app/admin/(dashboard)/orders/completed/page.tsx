@@ -1,10 +1,13 @@
 import AdminShell from "@/components/admin/AdminShell";
 import OrdersTable from "@/components/admin/OrdersTable";
-import { orders } from "@/lib/admin/mock-data";
+import { listOrders } from "@/lib/admin/orders-data";
 
 export const metadata = { title: "Completed orders" };
+export const dynamic = "force-dynamic";
 
-export default function CompletedOrdersPage() {
+export default async function CompletedOrdersPage() {
+  const orders = await listOrders();
+
   return (
     <AdminShell title="Completed orders">
       <OrdersTable

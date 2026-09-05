@@ -479,6 +479,61 @@ required choices enforced, minimum-order and free-delivery thresholds
 applied, order and line items persisted, payment marked paid, cart
 cleared. The test order was deleted afterwards.
 
+### Dashboard, orders, customers, reports — all real now
+
+There is no more mock data anywhere in the admin panel. `mock-data.ts` is
+deleted; everything it used to fabricate now comes from the real `orders`,
+`order_items` and `customers` tables (see "Cart and checkout" above for
+why those exist).
+
+- `src/lib/admin/order-types.ts` — the real domain vocabulary (statuses,
+  channels, labels) that survived the migration. Not fake data, just
+  shared types — kept separate from the data itself.
+- `src/lib/admin/orders-data.ts` — `"server-only"`. Every fetch (orders,
+  customers, notifications) hits Supabase with the service-role client,
+  which can never reach a Client Component. Pages fetch once and pass the
+  plain array down as a prop.
+- `src/lib/admin/order-analytics.ts` — pure functions, no Supabase calls.
+  Dashboard and Reports fetch the full order list server-side *once* and
+  pass it down; every dropdown (period, status, metric) recomputes from
+  that already-fetched array client-side, so switching one still tweens
+  instantly with no round-trip — same UX the mock version had, now over
+  real orders.
+
+Known, documented approximations rather than invented numbers:
+- **Customer status** ("new"/"active"/"lapsed") is derived: no orders yet
+  = new, ordered within 60 days = active, older = lapsed. A judgement
+  call, not a stored fact — revisit the threshold if it stops feeling
+  right.
+- **Sales by category** matches each order line's snapshotted dish
+  against *today's* menu to find its category (order lines don't
+  snapshot a category, only the dish). A dish that's moved category
+  since, or been deleted, reports under its current category or "Other".
+- **Ordering channel** will read 100% Website until WhatsApp orders get
+  a logging path of their own — a WhatsApp order is a chat message, not
+  a database row, so there's nothing to report yet. This reports what's
+  actually tracked, not a guess.
+- **Notifications** only cover the one real signal that exists — new and
+  cancelled orders. The mock version invented "low stock" and "new
+  review" notifications with no system behind either; those are gone
+  rather than faked.
+
+Since Kebabish just launched, real order volume is near zero — the
+dashboard and reports will show mostly zeros until real orders come in.
+That's correct, not broken.
+
+Verified end-to-end against a real Mollie-paid test order (not a
+fixture — an actual checkout run through test-mode payment): appeared
+correctly in the orders list, quick view, and full detail page; the
+linked customer's profile showed the right lifetime value, favourite
+dish, address (pulled from the delivery order, since customers carry no
+address of their own), and status; the dashboard's summary stats, order
+analytics chart and activity feed all picked it up; reports correctly
+attributed it to Main Dishes, Hoorn, and the website channel. Test order
+and accounts deleted afterward — confirmed via the database that a real
+customer who'd already signed up independently (unrelated to this
+testing) was left untouched throughout.
+
 ### Allergens are user-extendable
 
 `Allergen` is a plain string, not a union. The 14 EU-mandated ones seed the

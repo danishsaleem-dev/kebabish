@@ -5,6 +5,7 @@ import { Menu, Search } from "lucide-react";
 import Sidebar from "@/components/admin/Sidebar";
 import NotificationsMenu from "@/components/admin/NotificationsMenu";
 import type { SessionUser } from "@/components/admin/AdminShell";
+import type { AdminNotification } from "@/lib/admin/order-types";
 
 /**
  * The interactive chrome: fixed sidebar on desktop, slide-over drawer on
@@ -15,10 +16,12 @@ import type { SessionUser } from "@/components/admin/AdminShell";
 export default function AdminShellClient({
   title,
   user,
+  notifications,
   children,
 }: {
   title: string;
   user: SessionUser | undefined;
+  notifications: AdminNotification[];
   children: ReactNode;
 }) {
   const [navOpen, setNavOpen] = useState(false);
@@ -75,7 +78,7 @@ export default function AdminShellClient({
                 />
               </label>
 
-              <NotificationsMenu />
+              <NotificationsMenu notifications={notifications} />
             </div>
           </div>
         </header>

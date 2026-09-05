@@ -16,7 +16,8 @@ import {
   getRevenueByMonth,
   getSalesByCategory,
   getTopDishes,
-} from "@/lib/admin/mock-data";
+} from "@/lib/admin/order-analytics";
+import type { AdminOrder } from "@/lib/admin/order-types";
 
 type Metric = "revenue" | "orders";
 type Range = "6m" | "12m";
@@ -25,20 +26,35 @@ const CATEGORY_COLORS = [
   "#a95026", "#c9713e", "#3d3831", "#12b76a", "#f79009", "#98a2b3",
 ];
 
-export default function ReportsView() {
+/**
+ * Reports. `orders` and `categoryByDish` (today's slug -> category label,
+ * needed since order lines don't snapshot a category) are fetched once,
+ * server-side, and passed down — everything below is pure math on that
+ * already-fetched array.
+ */
+export default function ReportsView({
+  orders,
+  categoryByDish,
+}: {
+  orders: AdminOrder[];
+  categoryByDish: Map<string, string>;
+}) {
   const [metric, setMetric] = useState<Metric>("revenue");
   const [range, setRange] = useState<Range>("12m");
 
   const monthly = useMemo(() => {
-    const all = getRevenueByMonth();
+    const all = getRevenueByMonth(orders);
     return range === "6m" ? all.slice(-6) : all;
-  }, [range]);
+  }, [orders, range]);
 
-  const categories = useMemo(() => getSalesByCategory(), []);
-  const topDishes = useMemo(() => getTopDishes(), []);
-  const towns = useMemo(() => getOrdersByTown(), []);
-  const hours = useMemo(() => getOrdersByHour(), []);
-  const channels = useMemo(() => getChannelSplit(), []);
+  const categories = useMemo(
+    () => getSalesByCategory(orders, categoryByDish),
+    [orders, categoryByDish]
+  );
+  const topDishes = useMemo(() => getTopDishes(orders), [orders]);
+  const towns = useMemo(() => getOrdersByTown(orders), [orders]);
+  const hours = useMemo(() => getOrdersByHour(orders), [orders]);
+  const channels = useMemo(() => getChannelSplit(orders), [orders]);
 
   const totalRevenue = monthly.reduce((s, m) => s + m.revenue, 0);
   const totalOrders = monthly.reduce((s, m) => s + m.orders, 0);
@@ -50,6 +66,11 @@ export default function ReportsView() {
       )
     : 0;
 
+  const busiestHour = hours.reduce(
+    (a, b) => (b.value > a.value ? b : a),
+    hours[0]
+  );
+
   const headline = [
     { label: "Revenue", value: formatMoney(totalRevenue) },
     { label: "Orders", value: totalOrders.toLocaleString("en-US") },
@@ -59,7 +80,7 @@ export default function ReportsView() {
     },
     {
       label: "Busiest hour",
-      value: hours.reduce((a, b) => (b.value > a.value ? b : a)).label,
+      value: busiestHour && busiestHour.value > 0 ? busiestHour.label : "—",
     },
   ];
 
@@ -150,23 +171,31 @@ export default function ReportsView() {
             subtitle="Share of total revenue"
           />
           <div className="mt-5">
-            <DonutChart
-              centreLabel="100%"
-              slices={categories.map((c, i) => ({
-                label: c.label,
-                value: c.value,
-                color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
-              }))}
-            />
+            {categories.length === 0 ? (
+              <EmptyChart />
+            ) : (
+              <DonutChart
+                centreLabel="100%"
+                slices={categories.map((c, i) => ({
+                  label: c.label,
+                  value: c.value,
+                  color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+                }))}
+              />
+            )}
           </div>
         </Card>
 
         <Card>
           <CardHeader title="Top dishes" subtitle="By orders placed" />
           <div className="mt-5">
-            <HorizontalBars
-              data={topDishes.map((d) => ({ label: d.name, value: d.orders }))}
-            />
+            {topDishes.length === 0 ? (
+              <EmptyChart />
+            ) : (
+              <HorizontalBars
+                data={topDishes.map((d) => ({ label: d.name, value: d.orders }))}
+              />
+            )}
           </div>
         </Card>
 
@@ -183,7 +212,11 @@ export default function ReportsView() {
         <Card>
           <CardHeader title="Orders by town" subtitle="Across the delivery area" />
           <div className="mt-5">
-            <HorizontalBars data={towns} color="#3d3831" />
+            {towns.length === 0 ? (
+              <EmptyChart />
+            ) : (
+              <HorizontalBars data={towns} color="#3d3831" />
+            )}
           </div>
         </Card>
       </div>
@@ -205,5 +238,13 @@ export default function ReportsView() {
         </div>
       </Card>
     </div>
+  );
+}
+
+function EmptyChart() {
+  return (
+    <p className="py-10 text-center text-sm text-muted">
+      Nothing to show yet.
+    </p>
   );
 }

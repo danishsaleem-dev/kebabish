@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { auth } from "@/lib/auth";
 import AdminShellClient from "@/components/admin/AdminShellClient";
+import { getRecentNotifications } from "@/lib/admin/orders-data";
 
 export interface SessionUser {
   name: string;
@@ -25,7 +26,15 @@ export default async function AdminShell({
   title: string;
   children: ReactNode;
 }) {
-  const session = await auth();
+  const [session, notifications] = await Promise.all([
+    auth(),
+    // Every admin page renders this shell, so a failure here (store
+    // unreachable) shouldn't take the whole page down over a bell icon.
+    getRecentNotifications().catch((error) => {
+      console.error("[admin] notifications unavailable:", error);
+      return [];
+    }),
+  ]);
 
   // Narrows the broader `Role` (which also includes "customer") down to
   // what this shell actually renders for — the (dashboard) layout guard
@@ -41,7 +50,7 @@ export default async function AdminShell({
       : undefined;
 
   return (
-    <AdminShellClient title={title} user={user}>
+    <AdminShellClient title={title} user={user} notifications={notifications}>
       {children}
     </AdminShellClient>
   );
