@@ -368,12 +368,25 @@ that helper for any new redirecting action rather than reinventing it.
 
 ### Media library
 
-`/admin/media` plus a shared picker. Files land in `public/uploads`
-(gitignored) via a server action; metadata lives in the store. **Same Vercel
-caveat as the JSON store** — read-only filesystem in production, so
-`persistFile` in `src/app/admin/media/actions.ts` becomes a Supabase Storage
-upload at the same time as the DB swap. `next.config.ts` raises the server
-action body limit to 12 MB for this.
+`/admin/media` plus a shared picker. Files upload to a public Supabase
+Storage bucket (`media`, created via the Storage API, 6MB/image cap and
+mime-type restricted at the bucket level too — not just in the action);
+metadata lives in the store. `next.config.ts` allow-lists `**.supabase.co`
+in `images.remotePatterns` so `next/image` will render the URLs, and
+raises the server action body limit to 12MB for the upload itself.
+
+**This used to write to `public/uploads`**, which is why every upload
+failed with `ENOENT: no such file or directory, mkdir '/var/task/public/
+uploads'` in production — Vercel's filesystem is read-only at runtime, so
+the directory can never be created there even though it works locally.
+Storage uploads don't touch the filesystem at all, so this is fixed for
+good, not just papered over.
+
+Note this means uploads always hit the real Supabase bucket, **even in
+local dev with `STORE_ADAPTER=json`** — that override only affects the
+menu/settings document, not media. Uploading a test image locally puts a
+real file in the live bucket; delete it afterwards the same way any other
+QA leftover gets cleaned up.
 
 - `ImageField` — single featured image (categories).
 - `GalleryField` — ordered gallery (menu items). **The first image is the

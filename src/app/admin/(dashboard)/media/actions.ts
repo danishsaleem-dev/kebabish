@@ -1,7 +1,5 @@
 "use server";
 
-import { mkdir, unlink, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import {
@@ -11,19 +9,21 @@ import {
   mediaUsage,
   updateMedia,
 } from "@/lib/admin/store";
+import { supabaseAdmin } from "@/lib/supabase/server";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 
 /**
- * Media uploads.
+ * Media uploads, via Supabase Storage.
  *
- * ⚠️ Files are written to `public/uploads`, which works locally but NOT on
- * Vercel — its filesystem is read-only at runtime. This mirrors the interim
- * JSON store: when Supabase lands, `persistFile` becomes a Supabase Storage
- * upload and everything above it is unchanged.
+ * Used to write to public/uploads, which worked locally but not on
+ * Vercel — its filesystem is read-only at runtime, so every upload in
+ * production failed with ENOENT. The bucket ("media", public, created
+ * once via the Storage API) replaces that; everything above this file —
+ * the store record, the picker, the gallery field — is unchanged, since
+ * they only ever dealt with a URL string.
  */
 
-const UPLOAD_DIR = path.join(process.cwd(), "public", "uploads");
-const PUBLIC_PREFIX = "/uploads";
+const BUCKET = "media";
 
 const ALLOWED = new Set([
   "image/jpeg",
@@ -47,6 +47,18 @@ function safeFilename(original: string): string {
   return `${base || "image"}-${randomBytes(4).toString("hex")}${ext}`;
 }
 
+function publicUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  return `${base}/storage/v1/object/public/${BUCKET}/${path}`;
+}
+
+/** The storage object path from a public URL, for deletes. */
+function pathFromUrl(url: string): string | null {
+  const marker = `/storage/v1/object/public/${BUCKET}/`;
+  const index = url.indexOf(marker);
+  return index === -1 ? null : url.slice(index + marker.length);
+}
+
 export async function uploadMediaAction(
   _prev: FormState,
   formData: FormData
@@ -59,49 +71,46 @@ export async function uploadMediaAction(
   const widths = formData.getAll("widths").map((w) => Number(w) || 0);
   const heights = formData.getAll("heights").map((h) => Number(h) || 0);
 
+  const storage = supabaseAdmin().storage.from(BUCKET);
   const uploaded: string[] = [];
 
-  try {
-    await mkdir(UPLOAD_DIR, { recursive: true });
-
-    for (const [index, file] of files.entries()) {
-      if (file.size === 0) continue;
-      if (!ALLOWED.has(file.type)) {
-        return {
-          ok: false,
-          message: `${file.name}: only JPEG, PNG, WebP and AVIF are allowed.`,
-        };
-      }
-      if (file.size > MAX_BYTES) {
-        return {
-          ok: false,
-          message: `${file.name} is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is 6 MB.`,
-        };
-      }
-
-      const filename = safeFilename(file.name);
-      const buffer = Buffer.from(await file.arrayBuffer());
-      await writeFile(path.join(UPLOAD_DIR, filename), buffer);
-
-      const record = await addMedia({
-        url: `${PUBLIC_PREFIX}/${filename}`,
-        filename: file.name,
-        alt: "",
-        mimeType: file.type,
-        sizeBytes: file.size,
-        width: widths[index] ?? 0,
-        height: heights[index] ?? 0,
-      });
-      uploaded.push(record.id);
+  for (const [index, file] of files.entries()) {
+    if (file.size === 0) continue;
+    if (!ALLOWED.has(file.type)) {
+      return {
+        ok: false,
+        message: `${file.name}: only JPEG, PNG, WebP and AVIF are allowed.`,
+      };
     }
-  } catch (error) {
-    return {
-      ok: false,
-      message:
-        error instanceof Error
-          ? `Upload failed: ${error.message}`
-          : "Upload failed.",
-    };
+    if (file.size > MAX_BYTES) {
+      return {
+        ok: false,
+        message: `${file.name} is ${(file.size / 1024 / 1024).toFixed(1)} MB — the limit is 6 MB.`,
+      };
+    }
+
+    const filename = safeFilename(file.name);
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const { error } = await storage.upload(filename, buffer, {
+      contentType: file.type,
+      cacheControl: "31536000", // a year — the random suffix means the name never gets reused
+    });
+
+    if (error) {
+      return { ok: false, message: `Upload failed: ${error.message}` };
+    }
+
+    const record = await addMedia({
+      url: publicUrl(filename),
+      filename: file.name,
+      alt: "",
+      mimeType: file.type,
+      sizeBytes: file.size,
+      width: widths[index] ?? 0,
+      height: heights[index] ?? 0,
+    });
+    uploaded.push(record.id);
   }
 
   revalidateMedia();
@@ -148,12 +157,11 @@ export async function deleteMediaAction(
 
   await deleteMedia(id);
 
-  // Remove the file too, but never fail the action over it — the record is
-  // gone either way and an orphaned file is harmless.
-  try {
-    await unlink(path.join(process.cwd(), "public", record.url.replace(/^\//, "")));
-  } catch {
-    // already missing, or permissions — nothing to recover from here
+  // Remove the object too, but never fail the action over it — the record
+  // is gone either way and an orphaned file is harmless.
+  const objectPath = pathFromUrl(record.url);
+  if (objectPath) {
+    await supabaseAdmin().storage.from(BUCKET).remove([objectPath]);
   }
 
   revalidateMedia();
