@@ -11,29 +11,55 @@ export default function FeaturedDishCard({
   vegetarianLabel,
   isOpen,
   unavailableLabel,
+  reveal = true,
 }: {
   item: MenuItem;
-  image: string;
+  /** Omitted for dishes with no photo yet — falls back to a branded tile. */
+  image?: string;
   orderHref: string;
   addLabel: string;
   priceOnRequestLabel: string;
   vegetarianLabel: string;
   isOpen: boolean;
   unavailableLabel: string;
+  /**
+   * Scroll-reveal is primed to opacity:0 by CSS and only ever un-hidden by
+   * the GSAP `Motion` island, which mounts on the homepage alone. Anywhere
+   * without it — the filterable menu grid, where cards also mount and
+   * unmount as filters change — must opt out or the cards stay invisible.
+   */
+  reveal?: boolean;
 }) {
   return (
     <article
-      data-reveal
+      data-reveal={reveal ? "" : undefined}
       className="group flex flex-col overflow-hidden rounded-3xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[transform,box-shadow] duration-500 ease-brand hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10"
     >
       <div className="relative aspect-4/3 overflow-hidden bg-cream-300">
-        <Image
-          src={image}
-          alt={item.name}
-          fill
-          sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
-          className="object-cover transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
-        />
+        {image ? (
+          <Image
+            src={image}
+            alt={item.name}
+            fill
+            sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+            className="object-cover transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
+          />
+        ) : (
+          // No photo for this dish yet. A branded tile reads as intentional,
+          // where an empty grey box reads as broken.
+          <div
+            aria-hidden="true"
+            className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]"
+          >
+            <Image
+              src="/logo/Kebabish-light.png"
+              alt=""
+              width={220}
+              height={165}
+              className="h-auto w-20 opacity-25 transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
+            />
+          </div>
+        )}
 
         {item.vegetarian && (
           <span

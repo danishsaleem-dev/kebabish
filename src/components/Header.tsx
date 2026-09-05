@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -8,7 +8,19 @@ import { routing } from "@/i18n/routing";
 import { Menu, X, MessageCircle } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 
-export default function Header({ isOpen }: { isOpen: boolean }) {
+export default function Header({
+  isOpen,
+  banner,
+}: {
+  isOpen: boolean;
+  /**
+   * Status strip (open/closed, order notice). It renders *inside* this
+   * component's positioned container rather than as a sibling: on the
+   * homepage the header is `fixed`, so anything rendered after it in the
+   * layout slides underneath and collides with the nav row.
+   */
+  banner?: ReactNode;
+}) {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
   const tWhatsapp = useTranslations("whatsapp");
@@ -45,6 +57,8 @@ export default function Header({ isOpen }: { isOpen: boolean }) {
           : "border-b border-charcoal-600/10 bg-cream-200/90 shadow-sm shadow-charcoal-950/5 backdrop-blur-md"
       }`}
     >
+      {banner}
+
       <div
         className={`mx-auto flex max-w-6xl items-center justify-between px-5 transition-[height] duration-500 sm:px-6 ${
           scrolled || !isHome ? "h-16" : "h-20"

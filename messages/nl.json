@@ -69,7 +69,16 @@
     "orderViaWhatsapp": "Bestel via WhatsApp",
     "priceOnRequest": "Prijs op aanvraag",
     "vegetarian": "Vegetarisch",
-    "soldOut": "Uitverkocht"
+    "spicy": "Pittig",
+    "soldOut": "Uitverkocht",
+    "searchPlaceholder": "Zoek gerechten…",
+    "searchLabel": "Zoek in het menu",
+    "allCategories": "Alles",
+    "filtersLabel": "Filters",
+    "hideSoldOut": "Verberg uitverkocht",
+    "resultCount": "{count, plural, =0 {Geen gerechten} one {# gerecht} other {# gerechten}}",
+    "noResults": "Geen gerechten gevonden met deze filters.",
+    "clearFilters": "Filters wissen"
   },
   "contact": {
     "title": "Contact & Bezorggebied",

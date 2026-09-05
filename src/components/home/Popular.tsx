@@ -2,27 +2,20 @@ import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { findMenuItem } from "@/lib/menu-data";
+import { dishImage } from "@/lib/dish-images";
 import { whatsappOrderLink } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
 
-/**
- * The six dishes shown on the homepage, paired with their photo.
- *
- * NOTE: these are royalty-free stock photos (Pexels) standing in until the
- * client's own food photography arrives — see public/images/CREDITS.md.
- * Replacing a photo means dropping a new file at the same path; nothing here
- * needs to change. Once the menu moves to Supabase these belong on the menu
- * item record itself rather than in this component.
- */
-const FEATURED: { slug: string; image: string }[] = [
-  { slug: "chicken-biryani", image: "/images/dishes/chicken-biryani.jpg" },
-  { slug: "chicken-chapli-kebab", image: "/images/dishes/chicken-chapli-kebab.jpg" },
-  { slug: "chicken-shoarma", image: "/images/dishes/chicken-shoarma.jpg" },
-  { slug: "zinger-burger", image: "/images/dishes/zinger-burger.jpg" },
-  { slug: "qeema-naan", image: "/images/dishes/qeema-naan.jpg" },
-  { slug: "milk-shake", image: "/images/dishes/milk-shake.jpg" },
+/** The six dishes shown on the homepage. Photos come from dish-images.ts. */
+const FEATURED = [
+  "chicken-biryani",
+  "chicken-chapli-kebab",
+  "chicken-shoarma",
+  "zinger-burger",
+  "qeema-naan",
+  "milk-shake",
 ];
 
 export default async function Popular({
@@ -34,9 +27,9 @@ export default async function Popular({
 }) {
   const t = await getTranslations({ locale });
 
-  const dishes = FEATURED.map(({ slug, image }) => {
+  const dishes = FEATURED.map((slug) => {
     const item = findMenuItem(slug);
-    return item ? { item, image } : null;
+    return item ? { item, image: dishImage(slug) } : null;
   }).filter((entry) => entry != null);
 
   return (

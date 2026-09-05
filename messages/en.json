@@ -69,7 +69,16 @@
     "orderViaWhatsapp": "Order via WhatsApp",
     "priceOnRequest": "Price on request",
     "vegetarian": "Vegetarian",
-    "soldOut": "Sold out"
+    "spicy": "Spicy",
+    "soldOut": "Sold out",
+    "searchPlaceholder": "Search dishes…",
+    "searchLabel": "Search the menu",
+    "allCategories": "All",
+    "filtersLabel": "Filters",
+    "hideSoldOut": "Hide sold out",
+    "resultCount": "{count, plural, =0 {No dishes} one {# dish} other {# dishes}}",
+    "noResults": "No dishes match those filters.",
+    "clearFilters": "Clear filters"
   },
   "contact": {
     "title": "Contact & Delivery Area",

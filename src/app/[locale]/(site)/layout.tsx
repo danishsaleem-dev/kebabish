@@ -32,8 +32,10 @@ export default async function SiteLayout({
 
   return (
     <>
-      <Header isOpen={status.isOpen} />
-      <StoreStatusBanner status={status} locale={locale} />
+      <Header
+        isOpen={status.isOpen}
+        banner={<StoreStatusBanner status={status} locale={locale} />}
+      />
       <main className="flex-1">{children}</main>
       <Footer />
       <WhatsAppButton isOpen={status.isOpen} />
