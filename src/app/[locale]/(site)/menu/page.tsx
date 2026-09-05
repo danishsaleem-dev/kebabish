@@ -3,6 +3,8 @@ import { getTranslations } from "next-intl/server";
 import MenuBrowser from "@/components/menu/MenuBrowser";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
+import { getPublicMenu } from "@/lib/public-menu";
+import { resolveCategoryLabel } from "@/lib/category-labels";
 
 export async function generateMetadata({
   params,
@@ -24,8 +26,16 @@ export default async function MenuPage({
 }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "menu" });
-  const settings = await getPublicSettings();
+  const [settings, menu] = await Promise.all([
+    getPublicSettings(),
+    getPublicMenu(),
+  ]);
   const { isOpen } = getStoreStatus(settings);
+
+  const categories = menu.map((category) => ({
+    ...category,
+    label: resolveCategoryLabel(category.id, category.label, t),
+  }));
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
@@ -38,7 +48,7 @@ export default async function MenuPage({
         </p>
       </div>
 
-      <MenuBrowser isOpen={isOpen} />
+      <MenuBrowser categories={categories} isOpen={isOpen} />
     </div>
   );
 }

@@ -3,10 +3,8 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Search, X, Leaf, Flame, EyeOff } from "lucide-react";
-import { menu, type MenuCategoryId, type MenuItem } from "@/lib/menu-data";
-import { whatsappOrderLink } from "@/lib/site-config";
-import { dishImage } from "@/lib/dish-images";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
+import type { PublicMenuCategory, PublicMenuItem } from "@/lib/public-menu";
 
 type Toggle = "vegetarian" | "spicy" | "hideSoldOut";
 
@@ -14,14 +12,23 @@ type Toggle = "vegetarian" | "spicy" | "hideSoldOut";
  * The full menu with client-side filtering. Everything renders unfiltered
  * on the server first, so a crawler still sees every dish (SEO is priority
  * #1) — the filters only ever narrow what's already in the HTML.
+ *
+ * Categories arrive with their labels already resolved by the server,
+ * since the six original ones are translated while any category Danish
+ * adds in /admin has only the label he typed.
  */
-export default function MenuBrowser({ isOpen }: { isOpen: boolean }) {
+export default function MenuBrowser({
+  categories,
+  isOpen,
+}: {
+  categories: PublicMenuCategory[];
+  isOpen: boolean;
+}) {
   const t = useTranslations("menu");
-  const tWhatsapp = useTranslations("whatsapp");
   const tStatus = useTranslations("status");
 
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<MenuCategoryId | "all">("all");
+  const [category, setCategory] = useState<string>("all");
   const [toggles, setToggles] = useState<Record<Toggle, boolean>>({
     vegetarian: false,
     spicy: false,
@@ -34,7 +41,7 @@ export default function MenuBrowser({ isOpen }: { isOpen: boolean }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    return menu
+    return categories
       .filter((c) => category === "all" || c.id === category)
       .map((c) => ({
         ...c,
@@ -47,7 +54,7 @@ export default function MenuBrowser({ isOpen }: { isOpen: boolean }) {
         }),
       }))
       .filter((c) => c.items.length > 0);
-  }, [query, category, toggles]);
+  }, [categories, query, category, toggles]);
 
   const count = filtered.reduce((sum, c) => sum + c.items.length, 0);
   const isFiltered =
@@ -89,13 +96,13 @@ export default function MenuBrowser({ isOpen }: { isOpen: boolean }) {
           <Chip active={category === "all"} onClick={() => setCategory("all")}>
             {t("allCategories")}
           </Chip>
-          {menu.map((c) => (
+          {categories.map((c) => (
             <Chip
               key={c.id}
               active={category === c.id}
               onClick={() => setCategory(c.id)}
             >
-              {t(`categories.${c.id}`)}
+              {c.label}
             </Chip>
           ))}
         </div>
@@ -151,22 +158,20 @@ export default function MenuBrowser({ isOpen }: { isOpen: boolean }) {
           {filtered.map((c) => (
             <section key={c.id} id={c.id}>
               <h2 className="font-display text-2xl font-semibold text-charcoal-600">
-                {t(`categories.${c.id}`)}
+                {c.label}
               </h2>
+              {c.description && (
+                <p className="mt-1.5 text-sm text-ink/55">{c.description}</p>
+              )}
               <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
                 {c.items.map((item) => (
                   <FeaturedDishCard
                     key={item.slug}
                     item={item}
-                    image={dishImage(item.slug)}
-                    orderHref={whatsappOrderLink(
-                      item.variants
-                        ? tWhatsapp("orderItemVariant", { item: item.name })
-                        : tWhatsapp("orderItem", { item: item.name })
-                    )}
                     addLabel={t("addToOrder")}
                     priceOnRequestLabel={t("priceOnRequest")}
                     vegetarianLabel={t("vegetarian")}
+                    soldOutLabel={t("soldOut")}
                     isOpen={isOpen}
                     unavailableLabel={tStatus("menuUnavailable")}
                     reveal={false}
@@ -181,9 +186,9 @@ export default function MenuBrowser({ isOpen }: { isOpen: boolean }) {
   );
 }
 
-function matches(item: MenuItem, q: string) {
+function matches(item: PublicMenuItem, q: string) {
   if (item.name.toLowerCase().includes(q)) return true;
-  return (item.variants ?? []).some((v) => v.toLowerCase().includes(q));
+  return item.variants.some((v) => v.toLowerCase().includes(q));
 }
 
 function Chip({

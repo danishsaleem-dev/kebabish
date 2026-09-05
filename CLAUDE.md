@@ -420,6 +420,52 @@ triggers the illustrated fallback.
 radius, so its pin renders outside the ring. Flagged to Danish; kept
 because it's already advertised.
 
+### Cart and checkout
+
+The public menu now reads the store (`src/lib/public-menu.ts`), so prices,
+sold-out flags and extras that Danish sets in `/admin` appear on the site.
+Same resilience rule as settings: it degrades to seeded content rather than
+taking the storefront down.
+
+The cart is `localStorage` only (`CartProvider`). **Nothing it says about
+money is trusted.** `priceCart()` in `src/lib/orders.ts` throws away every
+submitted price and rebuilds each line from the store, re-checking that the
+dish exists, isn't sold out, has a price, that each chosen option belongs
+to a group actually offered on that dish, and that required groups were
+satisfied. A hand-edited cart can change *what* someone orders, never
+*what they pay*. Delivery fee, free-delivery threshold, minimum order and
+whether we deliver to that town are all recomputed server-side too.
+
+A dish with `price: null` can't be added at all — the cart would carry a
+line it can't total. Those fall back to WhatsApp, which is how they're
+ordered today anyway.
+
+Money is integer cents from the moment it leaves the cart. Order lines
+snapshot name, price and chosen options, so editing the menu later never
+rewrites what a past customer agreed to pay.
+
+**Payment (Mollie).** `src/lib/mollie.ts` is a two-call REST client, no SDK.
+The flow: checkout action prices the cart → writes the order → creates a
+payment → redirects to Mollie. Status comes back two ways, because either
+can arrive first: the webhook (`/api/mollie/webhook`) and the return page,
+which polls if the order is still `open`. Mollie's webhook posts only a
+payment id — the status is then fetched with our own key, so a forged POST
+can't mark an order paid.
+
+Two things that bit us and are easy to reintroduce:
+- **Return URL must follow the request origin**, not
+  `NEXT_PUBLIC_SITE_URL` — otherwise a developer testing locally gets
+  redirected to the live site after paying. It also needs the locale
+  prefix, or an English customer lands on the Dutch confirmation.
+- **Mollie rejects non-public webhook URLs**, so local dev omits the
+  webhook entirely and relies on the return page polling. That's why the
+  page reconciles rather than trusting the webhook alone.
+
+Verified end to end against Mollie test mode: extras priced correctly,
+required choices enforced, minimum-order and free-delivery thresholds
+applied, order and line items persisted, payment marked paid, cart
+cleared. The test order was deleted afterwards.
+
 ### Allergens are user-extendable
 
 `Allergen` is a plain string, not a union. The 14 EU-mandated ones seed the
@@ -497,15 +543,11 @@ delivery-radius diagram, and a closing CTA.
 5. **Menu prices.** `src/lib/menu-data.ts` has every dish with `price:
    null` — Danish never provided prices. The UI shows "price on request"
    as a fallback. Ask him for the price list.
-6. **On-site cart + Mollie checkout.** The biggest remaining feature.
-   Needs a Supabase project (menu items, orders table) and a Mollie
-   account — confirm Danish has actually created these and get the API
-   keys before starting. Keep WhatsApp ordering working alongside it.
-7. **Admin dashboard** — simple password-protected `/admin` route (nest
-   it under `src/app/[locale]/admin/` so it inherits the locale layout's
-   `<html>/<body>`, or give it its own layout if you deliberately want it
-   locale-independent) backed by Supabase, so Danish can edit menu items,
-   prices, photos, and sold-out status without touching code.
+6. ~~On-site cart + Mollie checkout~~ — **done.** See "Cart and checkout".
+   Still on the **test** Mollie key: going live is swapping
+   `MOLLIE_API_KEY` for the `live_…` one, no code change. WhatsApp
+   ordering still works alongside it.
+7. ~~Admin dashboard~~ — **done**, and now Supabase-backed.
 8. **Google Maps delivery-radius check** on the contact/checkout flow.
    ⚠️ `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is currently **invalid** — it
    starts `Alza`, and every real Google key starts `AIza`. Geocoding and

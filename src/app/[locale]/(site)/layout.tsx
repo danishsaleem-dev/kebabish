@@ -3,6 +3,8 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import StoreStatusBanner from "@/components/StoreStatusBanner";
+import CartProvider from "@/components/cart/CartProvider";
+import CartDrawer from "@/components/cart/CartDrawer";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 
@@ -31,7 +33,7 @@ export default async function SiteLayout({
   const status = getStoreStatus(settings);
 
   return (
-    <>
+    <CartProvider>
       <Header
         isOpen={status.isOpen}
         banner={<StoreStatusBanner status={status} locale={locale} />}
@@ -39,6 +41,7 @@ export default async function SiteLayout({
       <main className="flex-1">{children}</main>
       <Footer />
       <WhatsAppButton isOpen={status.isOpen} />
-    </>
+      <CartDrawer />
+    </CartProvider>
   );
 }

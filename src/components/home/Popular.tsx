@@ -1,14 +1,12 @@
 import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { findMenuItem } from "@/lib/menu-data";
-import { dishImage } from "@/lib/dish-images";
-import { whatsappOrderLink } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
+import { getPublicMenu } from "@/lib/public-menu";
 
-/** The six dishes shown on the homepage. Photos come from dish-images.ts. */
+/** The dishes shown on the homepage, in order, when they're on the menu. */
 const FEATURED = [
   "chicken-biryani",
   "chicken-chapli-kebab",
@@ -26,11 +24,15 @@ export default async function Popular({
   isOpen: boolean;
 }) {
   const t = await getTranslations({ locale });
+  const menu = await getPublicMenu();
+  const all = menu.flatMap((c) => c.items);
 
-  const dishes = FEATURED.map((slug) => {
-    const item = findMenuItem(slug);
-    return item ? { item, image: dishImage(slug) } : null;
-  }).filter((entry) => entry != null);
+  // Fall back to whatever's on the menu if a featured dish was renamed or
+  // removed in /admin — an empty section would look broken.
+  const dishes = FEATURED.map((slug) => all.find((i) => i.slug === slug))
+    .filter((item) => item != null)
+    .concat(all.filter((i) => !FEATURED.includes(i.slug)))
+    .slice(0, 6);
 
   return (
     <section className="grain bg-cream-100 py-20 sm:py-28 lg:py-32">
@@ -54,19 +56,14 @@ export default async function Popular({
           data-reveal-group
           className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
         >
-          {dishes.map(({ item, image }) => (
+          {dishes.map((item) => (
             <FeaturedDishCard
               key={item.slug}
               item={item}
-              image={image}
-              orderHref={whatsappOrderLink(
-                item.variants
-                  ? t("whatsapp.orderItemVariant", { item: item.name })
-                  : t("whatsapp.orderItem", { item: item.name })
-              )}
               addLabel={t("menu.addToOrder")}
               priceOnRequestLabel={t("menu.priceOnRequest")}
               vegetarianLabel={t("menu.vegetarian")}
+              soldOutLabel={t("menu.soldOut")}
               isOpen={isOpen}
               unavailableLabel={t("status.menuUnavailable")}
             />

@@ -7,6 +7,7 @@ import { Link, usePathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { Menu, X, MessageCircle } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import CartButton from "@/components/cart/CartButton";
 
 export default function Header({
   isOpen,
@@ -109,6 +110,7 @@ export default function Header({
 
         <div className="hidden items-center gap-3 md:flex">
           <LocaleSwitch locale={locale} onHero={onHero} />
+          <CartButton onHero={onHero} />
           {isOpen ? (
             <a
               href={whatsappHref}
@@ -133,17 +135,20 @@ export default function Header({
           )}
         </div>
 
-        <button
-          type="button"
-          aria-label="Menu"
-          aria-expanded={open}
-          className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors duration-300 md:hidden ${
-            onHero ? "text-cream-100" : "text-charcoal-600"
-          }`}
-          onClick={() => setOpen((v) => !v)}
-        >
-          {open ? <X size={26} /> : <Menu size={26} />}
-        </button>
+        <div className="flex items-center gap-1 md:hidden">
+          <CartButton onHero={onHero} />
+          <button
+            type="button"
+            aria-label="Menu"
+            aria-expanded={open}
+            className={`-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors duration-300 ${
+              onHero ? "text-cream-100" : "text-charcoal-600"
+            }`}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {open ? <X size={26} /> : <Menu size={26} />}
+          </button>
+        </div>
       </div>
 
       {open && (
