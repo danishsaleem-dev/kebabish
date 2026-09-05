@@ -8,17 +8,21 @@ import {
   createCategory,
   createIngredient,
   createItem,
+  createOptionGroup,
   deleteAllergen,
   deleteCategory,
   deleteIngredient,
   deleteItem,
+  deleteOptionGroup,
   deleteRecipe,
   moveCategory,
   saveRecipe,
+  slugify,
   updateAllergen,
   updateCategory,
   updateIngredient,
   updateItem,
+  updateOptionGroup,
 } from "@/lib/admin/store";
 import type { IngredientGroup } from "@/lib/admin/ingredients";
 import type { Unit } from "@/lib/admin/units";
@@ -63,8 +67,12 @@ function refreshMenu() {
   revalidatePath("/admin/menu");
   revalidatePath("/admin/menu/categories");
   revalidatePath("/admin/menu/ingredients");
+  revalidatePath("/admin/menu/extras");
   revalidatePath("/admin/menu/production");
   revalidatePath("/admin/media");
+  // The public menu renders from this same store now.
+  revalidatePath("/", "layout");
+  revalidatePath("/en", "layout");
 }
 
 /* ---------------------------------------------------------------- categories */
@@ -432,4 +440,107 @@ export async function deleteRecipeAction(
   refreshMenu();
   revalidatePath(`/admin/menu/recipes/${slug}`);
   return { ok: true, message: "Recipe deleted." };
+}
+
+/* ------------------------------------------------------------- option groups */
+
+const optionSchema = z.object({
+  label: z.string().trim().min(1, "Every option needs a name."),
+  price: z.coerce
+    .number()
+    .min(0, "A surcharge can't be negative.")
+    .max(100, "That looks like a typo."),
+});
+
+const optionGroupSchema = z
+  .object({
+    label: z.string().trim().min(2, "Give the group a name."),
+    minChoices: z.coerce.number().int().min(0).max(20),
+    maxChoices: z.coerce.number().int().min(1).max(20),
+    options: z.array(optionSchema).min(1, "Add at least one option."),
+  })
+  .refine((g) => g.maxChoices >= g.minChoices, {
+    message: "The maximum can't be lower than the minimum.",
+    path: ["maxChoices"],
+  })
+  .refine((g) => g.minChoices <= g.options.length, {
+    message: "You're requiring more choices than there are options.",
+    path: ["minChoices"],
+  });
+
+/**
+ * Options arrive as one JSON string rather than parallel `optionLabel[]` /
+ * `optionPrice[]` arrays. Parallel arrays have to be zipped back together
+ * by position, and anything that stops a field submitting (a disabled
+ * input, say) silently shifts every later row onto the wrong record — a
+ * bug we already had once in the opening-hours form.
+ */
+function readOptionGroupForm(formData: FormData) {
+  let options: unknown = [];
+  try {
+    options = JSON.parse(String(formData.get("options") ?? "[]"));
+  } catch {
+    options = [];
+  }
+
+  return optionGroupSchema.safeParse({
+    label: formData.get("label"),
+    minChoices: formData.get("minChoices") ?? 0,
+    maxChoices: formData.get("maxChoices") ?? 1,
+    options,
+  });
+}
+
+/** Stable, readable option ids, unique inside their group. */
+function withOptionIds(options: { label: string; price: number }[]) {
+  const taken: string[] = [];
+  return options.map((o) => {
+    const base = slugify(o.label) || "option";
+    let id = base;
+    let n = 2;
+    while (taken.includes(id)) id = `${base}-${n++}`;
+    taken.push(id);
+    return { id, label: o.label, price: o.price };
+  });
+}
+
+export async function createOptionGroupAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const parsed = readOptionGroupForm(formData);
+  if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+
+  const group = await createOptionGroup({
+    ...parsed.data,
+    options: withOptionIds(parsed.data.options),
+  });
+  refreshMenu();
+  redirect(flashRedirect("/admin/menu/extras", `“${group.label}” added.`));
+}
+
+export async function updateOptionGroupAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  const parsed = readOptionGroupForm(formData);
+  if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+
+  const group = await updateOptionGroup(id, {
+    ...parsed.data,
+    options: withOptionIds(parsed.data.options),
+  });
+  refreshMenu();
+  redirect(flashRedirect("/admin/menu/extras", `“${group.label}” saved.`));
+}
+
+export async function deleteOptionGroupAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const id = String(formData.get("id") ?? "");
+  await deleteOptionGroup(id);
+  refreshMenu();
+  return { ok: true, message: "Extras group deleted." };
 }

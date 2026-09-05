@@ -3,16 +3,17 @@ import { ArrowLeft } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import ItemForm from "@/components/admin/ItemForm";
-import { listCategories, listMedia } from "@/lib/admin/store";
+import { listCategories, listMedia, listOptionGroups } from "@/lib/admin/store";
 import { createItemAction } from "@/app/admin/(dashboard)/menu/actions";
 
 export const metadata = { title: "Add item" };
 export const dynamic = "force-dynamic";
 
 export default async function NewItemPage() {
-  const [categories, library] = await Promise.all([
+  const [categories, library, optionGroups] = await Promise.all([
     listCategories(),
     listMedia(),
+    listOptionGroups(),
   ]);
 
   return (
@@ -36,6 +37,7 @@ export default async function NewItemPage() {
               action={createItemAction}
               categories={categories}
               library={library}
+              optionGroups={optionGroups}
             />
           </div>
         </Card>

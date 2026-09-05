@@ -17,14 +17,22 @@ import type {
 /**
  * The single place the backend is chosen.
  *
- * Supabase whenever it's configured — including local dev, so what you see
- * locally is what the live site serves. The JSON file remains the fallback
- * for a checkout with no keys (a fresh clone, CI), where it's better to
- * boot with seeded data than to crash. It cannot be the production store:
- * Vercel's filesystem is read-only at runtime.
+ * Supabase whenever it's configured, including local dev — what you see
+ * locally is then what the live site serves. The JSON file is the fallback
+ * for a checkout with no keys (fresh clone, CI), where booting with seeded
+ * data beats crashing. It cannot be the production store: Vercel's
+ * filesystem is read-only at runtime.
+ *
+ * `STORE_ADAPTER=json` in .env.local forces the file store even when keys
+ * are present. Without that escape hatch, `npm run dev` edits the real
+ * shop's live menu — fine when that's what you meant, bad by accident.
  */
-const adapter: StoreAdapter =
+const hasSupabase = Boolean(
   process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+const adapter: StoreAdapter =
+  hasSupabase && process.env.STORE_ADAPTER !== "json"
     ? supabaseAdapter
     : jsonAdapter;
 

@@ -5,7 +5,12 @@ import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import ItemForm from "@/components/admin/ItemForm";
 import DeleteButton from "@/components/admin/ui/DeleteButton";
-import { getItem, listCategories, listMedia } from "@/lib/admin/store";
+import {
+  getItem,
+  listCategories,
+  listMedia,
+  listOptionGroups,
+} from "@/lib/admin/store";
 import { deleteItemAction, updateItemAction } from "@/app/admin/(dashboard)/menu/actions";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +31,11 @@ export default async function EditItemPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [item, categories, library] = await Promise.all([
+  const [item, categories, library, optionGroups] = await Promise.all([
     getItem(slug),
     listCategories(),
     listMedia(),
+    listOptionGroups(),
   ]);
   if (!item) notFound();
 
@@ -52,6 +58,7 @@ export default async function EditItemPage({
               categories={categories}
               item={item}
               library={library}
+              optionGroups={optionGroups}
             />
           </div>
         </Card>

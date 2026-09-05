@@ -49,6 +49,7 @@ const MAIN: NavItem[] = [
     children: [
       { label: "All items", href: "/admin/menu" },
       { label: "Categories", href: "/admin/menu/categories" },
+      { label: "Extras", href: "/admin/menu/extras" },
       { label: "Ingredients", href: "/admin/menu/ingredients" },
       { label: "Allergens", href: "/admin/menu/allergens" },
       { label: "Production planner", href: "/admin/menu/production" },

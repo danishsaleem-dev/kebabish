@@ -16,6 +16,7 @@ import type {
   StoredCategory,
   StoredItem,
   StoredMedia,
+  StoredOptionGroup,
 } from "@/lib/admin/store/types";
 
 const EMPTY: FormState = { ok: false };
@@ -25,11 +26,13 @@ export default function ItemForm({
   categories,
   item,
   library,
+  optionGroups,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   categories: StoredCategory[];
   item?: StoredItem;
   library: StoredMedia[];
+  optionGroups: StoredOptionGroup[];
 }) {
   const [state, formAction] = useActionState(action, EMPTY);
   const e = state.errors ?? {};
@@ -97,6 +100,41 @@ export default function ItemForm({
       <div className="border-t border-hairline pt-5">
         <GalleryField library={library} initialIds={item?.imageIds ?? []} />
       </div>
+
+      <fieldset className="border-t border-hairline pt-5">
+        <legend className="mb-1.5 text-sm font-medium text-heading">
+          Extras
+        </legend>
+        {optionGroups.length === 0 ? (
+          <p className="text-sm text-muted">
+            No extras groups yet.{" "}
+            <Link
+              href="/admin/menu/extras/new"
+              className="font-semibold text-ember-600 hover:text-ember-500"
+            >
+              Create one
+            </Link>{" "}
+            and it can be offered with this dish.
+          </p>
+        ) : (
+          <>
+            <p className="mb-3 text-sm text-muted">
+              Tick the groups customers can add to this dish.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {optionGroups.map((group) => (
+                <Checkbox
+                  key={group.id}
+                  name="optionGroupIds"
+                  value={group.id}
+                  label={`${group.label} (${group.options.length})`}
+                  defaultChecked={item?.optionGroupIds?.includes(group.id)}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </fieldset>
 
       <fieldset className="grid gap-3 sm:grid-cols-3">
         <legend className="mb-1.5 text-sm font-medium text-heading">
