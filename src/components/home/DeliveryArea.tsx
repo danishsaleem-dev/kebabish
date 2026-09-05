@@ -29,14 +29,28 @@ export default async function DeliveryArea({ locale }: { locale: string }) {
             {t("home.deliveryText")}
           </p>
 
-          {/* Every town is already pinned on the map opposite; this line
-              exists so the names are also present as plain crawlable text. */}
-          <p data-reveal className="mt-6 text-sm leading-relaxed text-ink/55">
-            <span className="font-semibold text-ink/75">
-              {t("home.deliveryTownsLabel")}:
-            </span>{" "}
-            {siteConfig.deliveryAreaTowns.join(", ")}
-          </p>
+          {/* Every town is already pinned on the map opposite; these exist
+              so the names are also present as plain crawlable text. */}
+          <div data-reveal className="mt-7">
+            <p className="text-sm font-semibold text-ink/75">
+              {t("home.deliveryTownsLabel")}
+            </p>
+            <ul className="mt-3 flex flex-wrap gap-2">
+              {siteConfig.deliveryAreaTowns.map((town) => (
+                <li
+                  key={town.name}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-charcoal-600/15 bg-cream-100 px-3.5 py-1.5 text-sm font-medium text-charcoal-600/85 transition-colors duration-300 hover:border-ember-600/40 hover:text-charcoal-600"
+                >
+                  <MapPin
+                    size={13}
+                    aria-hidden="true"
+                    className="shrink-0 text-ember-600/70"
+                  />
+                  {town.name}
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <Link
             data-reveal

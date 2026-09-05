@@ -267,17 +267,32 @@ Everything under `/admin/menu` is **fully functional CRUD** via server
 actions, writing through `src/lib/admin/store/`:
 
 - `types.ts` — backend-agnostic domain model + the `StoreAdapter` interface.
-- `json-adapter.ts` — **interim, local-dev only.** Writes `.data/admin-store.json`
-  (gitignored, seeded from the static files on first read). Vercel's
-  filesystem is read-only, so **this must be replaced before deploy.**
-- `index.ts` — the repository, and the single line where the backend is
-  chosen. Swapping to Supabase means writing one more adapter and changing
-  that line; no page, form or action changes.
+- `supabase-adapter.ts` — **the production store.** One JSONB document row
+  (`store_document`, migration 0003). `StoreAdapter` is a whole-document
+  read/write interface, so a document row satisfies it exactly and the ~40
+  functions in `index.ts` never had to become SQL. At one kitchen and ~25
+  dishes the whole document is a few KB.
+- `json-adapter.ts` — fallback only: no Supabase keys (fresh clone, CI), or
+  `STORE_ADAPTER=json` in `.env.local`. **Set that when developing**, or
+  `npm run dev` edits the real shop's live menu. It can never be the
+  production store — Vercel's filesystem is read-only at runtime.
+- `index.ts` — the repository, and the single place the backend is chosen.
 
-Danish was advised to use **Supabase, Frankfurt/EU region** (Postgres,
-plus the auth and file storage the panel will need, and EU data residency
-for Dutch customer data). Ask him for the project URL and keys when
-picking this up.
+Known limitation, inherited from the JSON file: writes are last-write-wins,
+so two staff saving different screens at the same instant loses one edit.
+Fine at this team size; revisit with a version column if it grows.
+
+**Orders are not in the document** — they get real columns (migration
+0004): they grow without bound and `/admin/orders` filters and sorts them.
+Line items snapshot name/price/options so past orders keep saying what the
+customer actually agreed to pay, and all money is integer cents because it
+feeds a payment provider.
+
+`getPublicSettings()` is what the storefront calls: it falls back to seeded
+defaults if the store is unreachable, because a database hiccup taking
+kebabish.nl down is worse than serving default hours. The admin panel keeps
+using `getSettings()` and fails loudly — that's how a missing migration
+gets noticed.
 
 **The public site still reads the static `src/lib/menu-data.ts`** for
 dishes/prices/categories — admin menu edits do NOT yet appear on
@@ -370,6 +385,41 @@ action body limit to 12 MB for this.
 - Image dimensions are measured in the browser and sent with the upload —
   reading them server-side would mean an image-decoding dependency for nothing.
 
+### Extras (option groups)
+
+Reusable groups of add-ons — sauces, drinks, toppings — managed at
+`/admin/menu/extras` and attached to dishes by id, so repricing a sauce is
+one edit rather than twenty. `minChoices`/`maxChoices` drive whether the
+customer sees radios or capped checkboxes. **Seeded empty**: what the
+extras are and what they cost is Danish's to fill in, not ours to invent.
+
+The option rows submit as a single JSON field, not parallel
+`optionLabel[]`/`optionPrice[]` inputs — see the opening-hours bug below
+for why positional zipping of FormData arrays is a trap.
+
+### The delivery-area map
+
+`src/lib/map-projection.ts` holds the shared centre/zoom/size and the Web
+Mercator maths. The homepage graphic layers brand pins over a Google
+Static Maps image, and they only line up because both are computed from
+those same constants — so **don't change one without the other**.
+
+Town coordinates in `siteConfig.deliveryAreaTowns` are real (geocoded),
+not art-directed: a made-up coordinate now visibly lands in the wrong
+field. Pins are therefore fixed, which means *labels* are the only thing
+free to move — `placeLabels()` tries each corner until a label neither
+leaves the canvas nor collides, because Lutjebroek/Grootebroek/
+Bovenkarspel sit at nearly the same latitude and would otherwise stack.
+
+The map image is a plain `<img>`, and a failed request (bad key, quota)
+can error before React hydrates, so `onError` alone misses it — the
+mount-time `complete && naturalWidth === 0` check is what actually
+triggers the illustrated fallback.
+
+**Wognum is 10.34km from the kitchen**, just outside the advertised 10km
+radius, so its pin renders outside the ring. Flagged to Danish; kept
+because it's already advertised.
+
 ### Allergens are user-extendable
 
 `Allergen` is a plain string, not a union. The 14 EU-mandated ones seed the
@@ -456,14 +506,25 @@ delivery-radius diagram, and a closing CTA.
    `<html>/<body>`, or give it its own layout if you deliberately want it
    locale-independent) backed by Supabase, so Danish can edit menu items,
    prices, photos, and sold-out status without touching code.
-8. **Google Maps delivery-radius check** on the contact/checkout flow —
-   `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` placeholder is in `.env.example`.
-9. **Geocode the real kitchen coordinates** — `siteConfig.coordinates` in
-   `src/lib/site-config.ts` is currently an approximate Hoogkarspel-center
-   placeholder, not the exact address.
-10. **Confirm `siteConfig.deliveryAreaTowns`** (draft list for local-SEO
-    pages) against the real 10km driving radius from the kitchen — it was
-    estimated from general geography, not verified driving distances.
+8. **Google Maps delivery-radius check** on the contact/checkout flow.
+   ⚠️ `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is currently **invalid** — it
+   starts `Alza`, and every real Google key starts `AIza`. Geocoding and
+   the static map both 403 until Danish re-copies it. The delivery map
+   falls back to its illustration meanwhile.
+9. ~~Geocode the real kitchen coordinates~~ — **done.** Danish supplied
+   them directly; `siteConfig.coordinates` is now the real address.
+10. **Decide on Wognum.** Town coordinates are now geocoded and real, and
+    Wognum measures 10.34km straight-line — outside the advertised 10km
+    radius, and driving distance is further still. Every other town is
+    comfortably inside. Danish needs to either drop it or widen the stated
+    radius.
+11. **Menu prices.** Danish is adding them via `/admin`. Until then the
+    cart and checkout have nothing to total.
+12. **Bilingual category labels.** Category names still come from
+    `messages/*.json`, so they switch language; once categories are fully
+    admin-managed they'd be whatever Danish typed, in one language. He's
+    parked this ("currently it's fine") — revisit before the menu moves
+    fully off the static file.
 
 ## Working style Danish expects
 

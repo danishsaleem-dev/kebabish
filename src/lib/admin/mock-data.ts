@@ -475,7 +475,7 @@ export function getOrdersByTown() {
   const towns = siteConfig.deliveryAreaTowns.slice(0, 8);
   const values = series(towns.length, 909, 40, 320, 120);
   return towns
-    .map((town, i) => ({ label: town, value: values[i] }))
+    .map((town, i) => ({ label: town.name, value: values[i] }))
     .sort((a, b) => b.value - a.value);
 }
 

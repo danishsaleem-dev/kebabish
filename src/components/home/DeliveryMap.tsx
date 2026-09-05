@@ -1,40 +1,30 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import { siteConfig } from "@/lib/site-config";
+import {
+  MAP_SIZE,
+  kmToPixels,
+  latLngToPoint,
+  staticMapUrl,
+} from "@/lib/map-projection";
 
 /**
- * A stylized illustration of the delivery area — deliberately NOT a real
- * map render (no tiles, no external map provider). Pin positions below are
- * hand-placed for a pleasant, roughly-directionally-correct composition,
- * not surveyed coordinates; see CLAUDE.md if real geocoding ever replaces
- * this. Kept as one SVG so it can be fully themed and animated.
+ * The delivery area: real map underneath, brand pins and radius ring on top.
+ *
+ * Pin positions are projected from each town's real coordinates using the
+ * same centre/zoom as the map image (see lib/map-projection.ts), so they
+ * sit on the actual towns rather than being art-directed into place.
+ *
+ * A client component only so a failed map image can fall back to the
+ * illustrated background — a broken Google request otherwise renders as a
+ * grey error tile, which looks worse than no map at all.
  */
-const VIEWBOX = 520;
-const CENTER = VIEWBOX / 2;
 
-const TOWN_POSITIONS: Record<string, { x: number; y: number; side: "top" | "bottom" | "left" | "right" }> = {
-  Bovenkarspel: { x: 300, y: 288, side: "right" },
-  Grootebroek: { x: 328, y: 316, side: "right" },
-  Lutjebroek: { x: 306, y: 352, side: "right" },
-  Westwoud: { x: 200, y: 292, side: "left" },
-  "Zwaagdijk-Oost": { x: 368, y: 252, side: "right" },
-  "Zwaagdijk-West": { x: 336, y: 228, side: "top" },
-  Wognum: { x: 262, y: 388, side: "bottom" },
-  Nibbixwoud: { x: 165, y: 322, side: "left" },
-  Midwoud: { x: 146, y: 262, side: "left" },
-  Oosterblokker: { x: 280, y: 360, side: "bottom" },
-  Wervershoof: { x: 352, y: 168, side: "right" },
-  Enkhuizen: { x: 412, y: 116, side: "right" },
-  Hoorn: { x: 258, y: 452, side: "bottom" },
-};
+const CENTRE = MAP_SIZE / 2;
 
 // Tip sits at the group's local (0,0); the rounded head extends upward.
 const PIN_PATH = "M0,0 C0,0 -9,-13 -9,-20 a9,9 0 1,1 18,0 C9,-13 0,0 0,0 Z";
-
-const LABEL_OFFSET: Record<string, { dx: number; dy: number; anchor: "start" | "end" | "middle" }> = {
-  right: { dx: 13, dy: -17, anchor: "start" },
-  left: { dx: -13, dy: -17, anchor: "end" },
-  top: { dx: 0, dy: -33, anchor: "middle" },
-  bottom: { dx: 0, dy: 15, anchor: "middle" },
-};
 
 function Pin({
   x,
@@ -57,123 +47,261 @@ function Pin({
   );
 }
 
+type Placed = {
+  dx: number;
+  dy: number;
+  anchor: "start" | "end";
+  box: { x0: number; x1: number; y: number };
+};
+
+/** ~11.5px semibold — close enough to fit- and collision-test against. */
+const labelWidth = (name: string) => name.length * 6.2;
+
+/**
+ * Lay out the town labels.
+ *
+ * Pins are fixed by real coordinates, so labels are the only thing free to
+ * move — and they have to, because geography clusters them: Lutjebroek,
+ * Grootebroek and Bovenkarspel sit along the same road at nearly identical
+ * latitude, and their labels land on top of each other.
+ *
+ * Each label prefers the outward side (away from the centre cluster) and
+ * above its pin, then falls back through the remaining corners until one
+ * neither leaves the canvas nor collides with a label already placed.
+ * Towns come in nearest-first order, so the closest — the ones a customer
+ * most likely cares about — get first pick.
+ */
+function placeLabels(towns: { name: string; x: number; y: number }[]) {
+  const placed: Placed[] = [];
+
+  return towns.map((town) => {
+    const width = labelWidth(town.name);
+    const outwardRight = town.x >= CENTRE;
+
+    const candidates = [
+      { right: outwardRight, dy: -17 },
+      { right: outwardRight, dy: 24 },
+      { right: !outwardRight, dy: -17 },
+      { right: !outwardRight, dy: 24 },
+    ];
+
+    const options = candidates.map(({ right, dy }) => {
+      const dx = right ? 13 : -13;
+      const x0 = right ? town.x + dx : town.x + dx - width;
+      return {
+        dx,
+        dy,
+        anchor: (right ? "start" : "end") as "start" | "end",
+        box: { x0, x1: x0 + width, y: town.y + dy },
+      };
+    });
+
+    const fits = (o: Placed) => o.box.x0 >= 4 && o.box.x1 <= MAP_SIZE - 4;
+    const clear = (o: Placed) =>
+      !placed.some(
+        (p) =>
+          Math.abs(p.box.y - o.box.y) < 12 &&
+          p.box.x0 < o.box.x1 &&
+          o.box.x0 < p.box.x1
+      );
+
+    const chosen =
+      options.find((o) => fits(o) && clear(o)) ??
+      options.find(fits) ??
+      options[0];
+
+    placed.push(chosen);
+    return chosen;
+  });
+}
+
 export default function DeliveryMap() {
-  const towns = siteConfig.deliveryAreaTowns.filter(
-    (town) => town !== siteConfig.address.city
+  const [mapFailed, setMapFailed] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const mapUrl = staticMapUrl();
+  const showMap = Boolean(mapUrl) && !mapFailed;
+
+  // The image is server-rendered, so a failed request (bad key, quota,
+  // offline) can error before React hydrates and attaches onError — the
+  // event is simply missed. A finished-but-zero-width image is the
+  // reliable tell after mount.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (img?.complete && img.naturalWidth === 0) setMapFailed(true);
+  }, []);
+
+  const kitchen = latLngToPoint(
+    siteConfig.coordinates.lat,
+    siteConfig.coordinates.lng
   );
+  const radius = kmToPixels(siteConfig.deliveryRadiusKm);
+
+  const towns = siteConfig.deliveryAreaTowns
+    .filter((t) => t.name !== siteConfig.address.city)
+    .map((town) => ({ ...town, ...latLngToPoint(town.lat, town.lng) }));
+
+  const labels = placeLabels(towns);
 
   return (
-    <svg
-      viewBox={`0 0 ${VIEWBOX} ${VIEWBOX}`}
-      role="img"
-      aria-label={`Bezorggebied van ${siteConfig.brandName} rond ${siteConfig.address.city}`}
-      className="h-auto w-full"
-    >
-      <defs>
-        <radialGradient id="map-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#a95026" stopOpacity="0.14" />
-          <stop offset="100%" stopColor="#a95026" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* canvas */}
-      <rect width={VIEWBOX} height={VIEWBOX} rx="28" fill="#f4efe0" />
-      <circle cx={CENTER} cy={CENTER} r={230} fill="url(#map-glow)" />
-
-      {/* faint road-like grid — decorative, not literal streets */}
-      <g stroke="#3d3831" strokeOpacity="0.06" strokeWidth="1.5">
-        {[1, 2, 3, 4].map((i) => (
-          <line key={`h${i}`} x1={0} y1={(VIEWBOX / 5) * i} x2={VIEWBOX} y2={(VIEWBOX / 5) * i} />
-        ))}
-        {[1, 2, 3, 4].map((i) => (
-          <line key={`v${i}`} x1={(VIEWBOX / 5) * i} y1={0} x2={(VIEWBOX / 5) * i} y2={VIEWBOX} />
-        ))}
-      </g>
-
-      {/* static radius rings */}
-      {[80, 140, 200].map((r) => (
-        <circle
-          key={r}
-          cx={CENTER}
-          cy={CENTER}
-          r={r}
-          fill="none"
-          stroke="#a95026"
-          strokeOpacity="0.22"
-          strokeWidth="1.25"
-          strokeDasharray={r === 200 ? "3 6" : undefined}
+    <div className="relative aspect-square w-full overflow-hidden rounded-[28px] bg-cream-300">
+      {showMap && (
+        <img
+          ref={imgRef}
+          src={mapUrl!}
+          alt=""
+          aria-hidden="true"
+          onError={() => setMapFailed(true)}
+          className="absolute inset-0 h-full w-full object-cover"
         />
-      ))}
+      )}
 
-      {/* ambient radar ping, staggered */}
-      {[0, 1.2, 2.4].map((delay) => (
-        <circle
-          key={delay}
-          className="radar-ring"
-          cx={CENTER}
-          cy={CENTER}
-          r={70}
-          fill="none"
-          stroke="#a95026"
-          strokeWidth="1.5"
-          style={{ animationDelay: `${delay}s` }}
-        />
-      ))}
+      {/* Warms the greyed map into the cream palette and keeps the pins
+          legible over busy areas. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-cream-200/45 mix-blend-multiply"
+      />
 
-      {/* Placed in the sparse bottom-left quadrant so it never crowds a
-          pin label — the cluster of towns sits bottom-center/bottom-right. */}
-      <text
-        x={CENTER - 150}
-        y={CENTER + 148}
-        textAnchor="middle"
-        fontSize="12"
-        fontWeight="700"
-        letterSpacing="1.5"
-        fill="#a95026"
-        fillOpacity="0.75"
+      <svg
+        viewBox={`0 0 ${MAP_SIZE} ${MAP_SIZE}`}
+        role="img"
+        aria-label={`Bezorggebied van ${siteConfig.brandName} rond ${siteConfig.address.city}`}
+        className="absolute inset-0 h-full w-full"
       >
-        {siteConfig.deliveryRadiusKm} KM
-      </text>
+        <defs>
+          <radialGradient id="map-glow" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stopColor="#a95026" stopOpacity="0.16" />
+            <stop offset="100%" stopColor="#a95026" stopOpacity="0" />
+          </radialGradient>
+        </defs>
 
-      {/* pins — kitchen first so it leads the reveal stagger */}
-      <g data-reveal-group>
-        <g data-reveal>
-          <Pin x={CENTER} y={CENTER} scale={1.5} fill="#a95026" holeFill="#f4efe0" />
-          <text
-            x={CENTER}
-            y={CENTER + 24}
-            textAnchor="middle"
-            fontSize="13"
-            fontWeight="700"
-            fill="#3d3831"
-          >
-            {siteConfig.address.city}
-          </text>
-        </g>
-
-        {towns.map((town) => {
-          const pos = TOWN_POSITIONS[town];
-          if (!pos) return null;
-          const label = LABEL_OFFSET[pos.side];
-
-          return (
-            <g key={town} data-reveal>
-              <Pin x={pos.x} y={pos.y} scale={0.85} fill="#3d3831" holeFill="#f4efe0" />
-              <text
-                x={pos.x + label.dx}
-                y={pos.y + label.dy}
-                textAnchor={label.anchor}
-                fontSize="11.5"
-                fontWeight="600"
-                fill="#3d3831"
-                fillOpacity="0.8"
-              >
-                {town}
-              </text>
+        {/* Fallback ground when there's no map image. */}
+        {!showMap && (
+          <>
+            <rect width={MAP_SIZE} height={MAP_SIZE} fill="#f4efe0" />
+            <g stroke="#3d3831" strokeOpacity="0.06" strokeWidth="1.5">
+              {[1, 2, 3, 4].map((i) => (
+                <line
+                  key={`h${i}`}
+                  x1={0}
+                  y1={(MAP_SIZE / 5) * i}
+                  x2={MAP_SIZE}
+                  y2={(MAP_SIZE / 5) * i}
+                />
+              ))}
+              {[1, 2, 3, 4].map((i) => (
+                <line
+                  key={`v${i}`}
+                  x1={(MAP_SIZE / 5) * i}
+                  y1={0}
+                  x2={(MAP_SIZE / 5) * i}
+                  y2={MAP_SIZE}
+                />
+              ))}
             </g>
-          );
-        })}
-      </g>
-    </svg>
+          </>
+        )}
+
+        <circle cx={kitchen.x} cy={kitchen.y} r={radius} fill="url(#map-glow)" />
+
+        {/* The real 10km radius, plus two inner rings for depth. */}
+        {[radius * 0.4, radius * 0.7, radius].map((r, i) => (
+          <circle
+            key={r}
+            cx={kitchen.x}
+            cy={kitchen.y}
+            r={r}
+            fill="none"
+            stroke="#a95026"
+            strokeOpacity={i === 2 ? 0.5 : 0.25}
+            strokeWidth={i === 2 ? 1.75 : 1.25}
+            strokeDasharray={i === 2 ? "5 6" : undefined}
+          />
+        ))}
+
+        {[0, 1.2, 2.4].map((delay) => (
+          <circle
+            key={delay}
+            className="radar-ring"
+            cx={kitchen.x}
+            cy={kitchen.y}
+            r={radius * 0.35}
+            fill="none"
+            stroke="#a95026"
+            strokeWidth="1.5"
+            style={{ animationDelay: `${delay}s` }}
+          />
+        ))}
+
+        {/* Sits on the ring itself, bottom-left, where no town falls. */}
+        <text
+          x={kitchen.x - radius * 0.72}
+          y={kitchen.y + radius * 0.76}
+          textAnchor="middle"
+          fontSize="12"
+          fontWeight="700"
+          letterSpacing="1.5"
+          fill="#a95026"
+          fillOpacity="0.85"
+        >
+          {siteConfig.deliveryRadiusKm} KM
+        </text>
+
+        <g data-reveal-group>
+          <g data-reveal>
+            <Pin
+              x={kitchen.x}
+              y={kitchen.y}
+              scale={1.5}
+              fill="#a95026"
+              holeFill="#f4efe0"
+            />
+            <text
+              x={kitchen.x}
+              y={kitchen.y + 24}
+              textAnchor="middle"
+              fontSize="13"
+              fontWeight="700"
+              fill="#3d3831"
+              stroke="#f4efe0"
+              strokeWidth="3"
+              paintOrder="stroke"
+            >
+              {siteConfig.address.city}
+            </text>
+          </g>
+
+          {towns.map((town, i) => {
+            const label = labels[i];
+            return (
+              <g key={town.name} data-reveal>
+                <Pin
+                  x={town.x}
+                  y={town.y}
+                  scale={0.85}
+                  fill="#3d3831"
+                  holeFill="#f4efe0"
+                />
+                {/* Cream halo behind the text so town names stay readable
+                    wherever they land on the map. */}
+                <text
+                  x={town.x + label.dx}
+                  y={town.y + label.dy}
+                  textAnchor={label.anchor}
+                  fontSize="11.5"
+                  fontWeight="600"
+                  fill="#3d3831"
+                  stroke="#f4efe0"
+                  strokeWidth="3"
+                  paintOrder="stroke"
+                >
+                  {town.name}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+    </div>
   );
 }
