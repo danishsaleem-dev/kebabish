@@ -69,10 +69,14 @@ export default async function DeliveryAreasPage({
 
         <dl
           data-reveal-group
-          className="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-px overflow-hidden rounded-3xl border border-charcoal-600/10 bg-charcoal-600/10 lg:grid-cols-4"
+          className="mx-auto mt-10 grid max-w-4xl grid-cols-2 gap-4 lg:grid-cols-4"
         >
           {facts.map((fact) => (
-            <div key={fact.label} data-reveal className="bg-cream-50 p-5 text-center sm:p-7">
+            <div
+              key={fact.label}
+              data-reveal
+              className="rounded-2xl border border-charcoal-600/10 bg-cream-50 p-5 text-center sm:p-7"
+            >
               <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-ember-600">
                 {fact.label}
               </dt>

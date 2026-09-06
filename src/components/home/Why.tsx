@@ -34,13 +34,13 @@ export default async function Why({ locale }: { locale: string }) {
 
         <ul
           data-reveal-group
-          className="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-3xl border border-cream-200/12 bg-cream-200/12 sm:grid-cols-2 lg:grid-cols-4"
+          className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
           {reasons.map(({ icon: Icon, title, text }, i) => (
             <li
               key={title}
               data-reveal
-              className="group relative bg-charcoal-900 p-7 transition-colors duration-500 hover:bg-charcoal-800 sm:p-8"
+              className="group relative rounded-2xl border border-cream-200/12 bg-charcoal-900 p-7 transition-colors duration-500 hover:bg-charcoal-800 sm:p-8"
             >
               <span className="font-display text-xs font-semibold tracking-[0.2em] text-ember-500">
                 {String(i + 1).padStart(2, "0")}

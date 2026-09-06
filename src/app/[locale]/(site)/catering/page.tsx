@@ -126,13 +126,13 @@ export default async function CateringPage({
 
           <ul
             data-reveal-group
-            className="mt-14 grid grid-cols-1 gap-px overflow-hidden rounded-3xl border border-cream-200/12 bg-cream-200/12 sm:grid-cols-2 lg:grid-cols-4"
+            className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
           >
             {occasions.map(({ icon: Icon, title, text }) => (
               <li
                 key={title}
                 data-reveal
-                className="group relative bg-charcoal-900 p-7 transition-colors duration-500 hover:bg-charcoal-800 sm:p-8"
+                className="group relative rounded-2xl border border-cream-200/12 bg-charcoal-900 p-7 transition-colors duration-500 hover:bg-charcoal-800 sm:p-8"
               >
                 <span className="flex h-12 w-12 items-center justify-center rounded-full border border-ember-500/30 bg-ember-600/12 text-ember-400 transition-[background-color,color] duration-500 group-hover:bg-ember-600 group-hover:text-cream-50">
                   <Icon size={20} />
