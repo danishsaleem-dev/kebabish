@@ -3,6 +3,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star, MessageSquareHeart, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { reviews } from "@/lib/reviews-data";
+import { localeAlternates } from "@/lib/seo";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 
 export async function generateMetadata({
   params,
@@ -11,7 +13,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "reviews" });
-  return { title: t("title"), description: t("intro") };
+  return {
+    title: t("title"),
+    description: t("intro"),
+    alternates: localeAlternates(locale, "/reviews"),
+  };
 }
 
 export default async function ReviewsPage({
@@ -25,6 +31,7 @@ export default async function ReviewsPage({
 
   return (
     <div className="bg-cream-200">
+      <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/reviews" }]} />
       <div className="mx-auto max-w-6xl px-5 pt-16 sm:px-6 sm:pt-24">
         <div className="mx-auto max-w-2xl text-center">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-ember-600">

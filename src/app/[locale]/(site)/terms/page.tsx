@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import LegalPage from "@/components/legal/LegalPage";
+import { localeAlternates } from "@/lib/seo";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 
 export async function generateMetadata({
   params,
@@ -9,7 +11,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "terms" });
-  return { title: t("title"), robots: { index: true, follow: true } };
+  return {
+    title: t("title"),
+    robots: { index: true, follow: true },
+    alternates: localeAlternates(locale, "/terms"),
+  };
 }
 
 export default async function TermsPage({
@@ -22,11 +28,14 @@ export default async function TermsPage({
   const t = await getTranslations({ locale, namespace: "terms" });
 
   return (
-    <LegalPage
-      title={t("title")}
-      updated={t("updated")}
-      intro={t("intro")}
-      sections={t.raw("sections")}
-    />
+    <>
+      <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/terms" }]} />
+      <LegalPage
+        title={t("title")}
+        updated={t("updated")}
+        intro={t("intro")}
+        sections={t.raw("sections")}
+      />
+    </>
   );
 }

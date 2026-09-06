@@ -11,6 +11,8 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { localeAlternates } from "@/lib/seo";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import DeliveryMap from "@/components/home/DeliveryMap";
@@ -22,7 +24,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "contact" });
-  return { title: t("title"), description: t("intro") };
+  return {
+    title: t("title"),
+    description: t("intro"),
+    alternates: localeAlternates(locale, "/contact"),
+  };
 }
 
 export default async function ContactPage({
@@ -43,6 +49,7 @@ export default async function ContactPage({
 
   return (
     <div className="bg-cream-200">
+      <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/contact" }]} />
       <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
         <div className="text-center">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-ember-600">

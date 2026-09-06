@@ -5,6 +5,8 @@ import { Flame, Leaf, Clock, Smartphone, MessageCircle, UtensilsCrossed } from "
 import { Link } from "@/i18n/navigation";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import { menu } from "@/lib/menu-data";
+import { localeAlternates } from "@/lib/seo";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
@@ -16,7 +18,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "about" });
-  return { title: t("title"), description: t("intro") };
+  return {
+    title: t("title"),
+    description: t("intro"),
+    alternates: localeAlternates(locale, "/about"),
+  };
 }
 
 export default async function AboutPage({
@@ -58,6 +64,7 @@ export default async function AboutPage({
   return (
     <div className="bg-cream-200">
       <Motion />
+      <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/about" }]} />
 
       {/* ---- intro ---------------------------------------------------- */}
       <div className="mx-auto max-w-6xl px-5 pt-16 sm:px-6 sm:pt-24">

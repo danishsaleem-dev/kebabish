@@ -9,6 +9,8 @@ import { getPublicItem, getPublicItemSlugs } from "@/lib/public-menu";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { localeAlternates } from "@/lib/seo";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { formatEuro } from "@/lib/money";
 import ItemOrderPanel from "@/components/menu/ItemOrderPanel";
 
@@ -22,7 +24,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
-  const { slug } = await params;
+  const { locale, slug } = await params;
   const found = await getPublicItem(slug);
   if (!found) return {};
 
@@ -31,6 +33,7 @@ export async function generateMetadata({
     title: item.name,
     description: `${item.name} — ${siteConfig.brandName}, ${siteConfig.address.city}.`,
     openGraph: item.image ? { images: [item.image] } : undefined,
+    alternates: localeAlternates(locale, `/menu/${slug}`),
   };
 }
 
@@ -56,6 +59,13 @@ export default async function ItemPage({
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 sm:py-14">
+      <BreadcrumbSchema
+        locale={locale}
+        items={[
+          { name: t("nav.menu"), path: "/menu" },
+          { name: item.name, path: `/menu/${slug}` },
+        ]}
+      />
       <Link
         href="/menu"
         className="inline-flex items-center gap-2 text-sm font-medium text-ink/60 transition-colors hover:text-charcoal-600"

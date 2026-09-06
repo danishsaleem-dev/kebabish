@@ -11,6 +11,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { localeAlternates } from "@/lib/seo";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
@@ -22,7 +24,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "catering" });
-  return { title: t("title"), description: t("intro") };
+  return {
+    title: t("title"),
+    description: t("intro"),
+    alternates: localeAlternates(locale, "/catering"),
+  };
 }
 
 export default async function CateringPage({
@@ -53,6 +59,7 @@ export default async function CateringPage({
   return (
     <div className="bg-cream-200">
       <Motion />
+      <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/catering" }]} />
 
       {/* ---- intro ---------------------------------------------------- */}
       <div className="mx-auto max-w-6xl px-5 pt-16 sm:px-6 sm:pt-24">

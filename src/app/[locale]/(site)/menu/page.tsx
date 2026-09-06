@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import MenuBrowser from "@/components/menu/MenuBrowser";
+import MenuStructuredData from "@/components/MenuStructuredData";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
+import { localeAlternates } from "@/lib/seo";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { getPublicMenu } from "@/lib/public-menu";
@@ -16,6 +19,7 @@ export async function generateMetadata({
   return {
     title: t("title"),
     description: t("intro"),
+    alternates: localeAlternates(locale, "/menu"),
   };
 }
 
@@ -39,6 +43,9 @@ export default async function MenuPage({
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
+      <MenuStructuredData categories={categories} locale={locale} />
+      <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/menu" }]} />
+
       <div className="text-center">
         <h1 className="font-display text-4xl font-semibold text-charcoal-600 sm:text-5xl">
           {t("title")}

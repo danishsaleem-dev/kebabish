@@ -44,9 +44,12 @@ dashboard, below).
 
 1. **SEO is the top priority.** This is a local business trying to rank
    for searches like "Pakistaans eten bezorgen Hoogkarspel". Every new page
-   needs proper `generateMetadata`, and structured data
-   (`src/components/StructuredData.tsx`) should stay accurate as the site
-   grows (e.g. add `Menu`/`MenuItem` structured data once prices exist).
+   needs proper `generateMetadata`, including its own `alternates`
+   (`src/lib/seo.ts`'s `localeAlternates(locale, path)` — see "SEO &
+   structured data" below for why every page needs this, not just the
+   root layout). Structured data
+   (`src/components/StructuredData.tsx`, `MenuStructuredData.tsx`,
+   `BreadcrumbSchema.tsx`) should stay accurate as the site grows.
 2. **Mobile-first.** Most customers will be on their phones. Every UI
    decision — tap target size, sticky header, WhatsApp button placement,
    checkout flow — should be designed for mobile first, desktop second.
@@ -374,11 +377,12 @@ that helper for any new redirecting action rather than reinventing it.
 ### Media library
 
 `/admin/media` plus a shared picker. Files upload to a public Supabase
-Storage bucket (`media`, created via the Storage API, 6MB/image cap and
-mime-type restricted at the bucket level too — not just in the action);
-metadata lives in the store. `next.config.ts` allow-lists `**.supabase.co`
-in `images.remotePatterns` so `next/image` will render the URLs, and
-raises the server action body limit to 12MB for the upload itself.
+Storage bucket (`media`, created via the Storage API, mime-type restricted
+at the bucket level too — not just in the action); metadata lives in the
+store. `next.config.ts` allow-lists `**.supabase.co` in
+`images.remotePatterns` so `next/image` will render the URLs, and raises
+the server action body limit to 40MB (several 10MB originals can go up in
+one batch — see below).
 
 **This used to write to `public/uploads`**, which is why every upload
 failed with `ENOENT: no such file or directory, mkdir '/var/task/public/
@@ -393,6 +397,20 @@ menu/settings document, not media. Uploading a test image locally puts a
 real file in the live bucket; delete it afterwards the same way any other
 QA leftover gets cleaned up.
 
+**Every upload is re-encoded through `sharp` before it ever reaches
+storage** (`uploadMediaAction` → `optimiseImage`): resized to fit inside
+2400×2400 (never enlarged — a small source passes through at its own
+size) and converted to WebP at quality 82, regardless of the input
+format. A phone photo straight off a camera is routinely 3-5MB at
+4000px+; nothing on the site ever displays a dish photo wider than
+~1200px, so this cuts storage size by 90%+ with no visible loss, and does
+it once here rather than repeatedly on every request. Accepts JPEG, PNG,
+WebP or AVIF in, up to 10MB each — always writes `.webp` out. Width/
+height stored on the record are sharp's real post-resize output, not the
+original's — there's no reason to measure dimensions in the browser
+anymore now that the server decodes the image anyway, so `MediaUploader`
+doesn't.
+
 - `ImageField` — single featured image (categories).
 - `GalleryField` — ordered gallery (menu items). **The first image is the
   featured one**; that's the entire rule, which is why reordering is the way
@@ -400,8 +418,69 @@ QA leftover gets cleaned up.
   drop, with arrow buttons as the keyboard-accessible fallback.
 - Deleting an image detaches it from every item/category that referenced it,
   so no dangling ids. It warns first, and needs a second confirm if in use.
-- Image dimensions are measured in the browser and sent with the upload —
-  reading them server-side would mean an image-decoding dependency for nothing.
+
+### SEO & structured data
+
+**Every page under `[locale]/(site)` sets its own `alternates`.** This
+looks redundant with the root `[locale]/layout.tsx`'s `alternates` at
+first glance, but it isn't optional: Next's metadata resolution has a
+child page *inherit* the parent's `alternates` verbatim if the child
+doesn't set its own, and the root layout's only ever describes the
+locale *root* ("/" or "/en"). Before `src/lib/seo.ts`'s
+`localeAlternates(locale, path)` existed, every single page on the site
+— `/menu`, `/about`, every dish — was silently telling Google its
+canonical URL was the homepage. Any new page's `generateMetadata` needs
+`alternates: localeAlternates(locale, "/whatever-the-path-is")`, checkout/
+cart included even though those are `noindex` (cheap correctness, and a
+safety net if the noindex is ever removed by mistake). The one exception
+is `checkout/complete` — it's per-order via a `?ref=` query param, so
+there's no single canonical URL to claim, and it's `noindex` anyway.
+
+Structured data is split by concern rather than one giant block:
+- `StructuredData.tsx` — the site-wide `FoodEstablishment` (name,
+  address, hours, delivery radius, **`hasDeliveryMethod:
+  OnlineDelivery`**, real `paymentAccepted` from Mollie's methods,
+  `logo`/`image`). Rendered once in `[locale]/layout.tsx`, so it's on
+  every page — that's expected, same as a footer address. Also carries
+  `aggregateRating`/`review` for the whole business, but **only when
+  `src/lib/reviews-data.ts` actually has entries** — a rating with
+  nothing behind it is exactly what Google's review-snippet guidelines
+  penalise, so this stays entirely absent (not zeroed, absent) until
+  Danish supplies real reviews. No code change needed when he does; it
+  activates on its own.
+- `MenuStructuredData.tsx` — `Menu`/`MenuSection`/`MenuItem`, only on
+  `/menu`, built from the same `getPublicMenu()` data the page itself
+  renders. A dish with no price yet ships without an `offers` block
+  rather than inventing one; sold-out is `offers.availability:
+  SoldOut` rather than looking orderable.
+- `BreadcrumbSchema.tsx` — on every page except the homepage. Always
+  prepends Home so callers just pass their own page's trail.
+
+**Favicons.** `src/app/favicon.ico` was still the literal
+`create-next-app` placeholder (the generic Next/Vercel triangle) —
+Next's file-convention system auto-serves whatever's at that exact path
+and injects its own `<link rel="icon">` for it, *regardless* of what
+`metadata.icons` says, so it was silently outranking the real icon in
+some browser contexts (bookmarks, tab icon in particular) this whole
+time. `scripts/generate-favicons.mjs` is the fix — a one-off (not part
+of the build) that renders `public/logo/favicon-kebabish.png` down to
+every size actually needed (16/32/48 for the browser, 180 for Apple
+touch — flattened onto solid charcoal since iOS handles transparency
+oddly, 192/512 for `public/site.webmanifest`) and hand-assembles a real
+multi-image `favicon.ico` (ICONDIR container, PNG-in-ICO — every modern
+browser supports that, and there's no ICO encoder in the dependency
+tree to reach for instead). Re-run it if the source mark ever changes;
+nothing regenerates these automatically.
+
+**Social preview image.** `public/og-image.jpg` didn't exist —
+`StructuredData.tsx`'s `image` field and the `openGraph`/`twitter` tags
+in `[locale]/layout.tsx` were pointing at a 404, so any link shared on
+WhatsApp/social had no preview card at all. `scripts/generate-og-image.mjs`
+renders one from an inline SVG (brand gradient, the logo mark, real
+tagline/copy) — also a one-off, rendered once and committed as a static
+JPEG rather than generated at request time, specifically so it never
+depends on font availability on whatever machine ends up building the
+site.
 
 ### Extras (option groups)
 
@@ -673,10 +752,7 @@ delivery-radius diagram, and a closing CTA.
    breakpoint rather than both loading and one being hidden.
    `src/lib/hero-video.ts` checks for each independently at build time,
    so either alone still works (used for both breakpoints) if the other
-   is ever missing. Also fixed in passing: `public/favicon.ico` never
-   actually existed, so the site had no working tab icon at all —
-   `[locale]/layout.tsx` now points at Danish's real
-   `public/logo/favicon-kebabish.png` instead.
+   is ever missing.
 4. **Real food photography.** Everything in `public/images/` is a Pexels
    placeholder (see `public/images/CREDITS.md`). Replacing a photo is a
    file drop at the same path.

@@ -3,6 +3,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { MapPin, MessageCircle, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { localeAlternates } from "@/lib/seo";
+import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { getPublicSettings } from "@/lib/admin/store";
 import { formatEuro } from "@/lib/money";
 import Motion from "@/components/motion/Motion";
@@ -17,7 +19,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "deliveryAreas" });
-  return { title: t("title"), description: t("intro") };
+  return {
+    title: t("title"),
+    description: t("intro"),
+    alternates: localeAlternates(locale, "/delivery-areas"),
+  };
 }
 
 export default async function DeliveryAreasPage({
@@ -49,6 +55,10 @@ export default async function DeliveryAreasPage({
   return (
     <div className="bg-cream-200">
       <Motion />
+      <BreadcrumbSchema
+        locale={locale}
+        items={[{ name: t("title"), path: "/delivery-areas" }]}
+      />
 
       {/* ---- intro ---------------------------------------------------- */}
       <div className="mx-auto max-w-6xl px-5 pt-16 sm:px-6 sm:pt-24">
