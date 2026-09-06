@@ -68,6 +68,33 @@
   --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/*
+ * Everything on the public site is sized in rem, so scaling the root font
+ * size scales text AND spacing (padding/gap/width utilities are also
+ * rem-based in Tailwind v4) together, proportionally, without having to
+ * touch every component. A 14" laptop (~1440-1512px wide) is the size the
+ * whole design was built and reviewed against, so that stays the 16px
+ * baseline — this only scales up beyond it, for the wider desktop monitors
+ * it was looking undersized on. Scoped to `html.js`, which only the public
+ * `[locale]` layout sets (admin/auth/dashboard don't), so the dashboard's
+ * denser tables are unaffected.
+ */
+@media (min-width: 1536px) {
+  html.js {
+    font-size: 17px;
+  }
+}
+@media (min-width: 1920px) {
+  html.js {
+    font-size: 18px;
+  }
+}
+@media (min-width: 2560px) {
+  html.js {
+    font-size: 19px;
+  }
+}
+
 @layer base {
   html {
     -webkit-tap-highlight-color: transparent;
