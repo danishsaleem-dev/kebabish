@@ -7,9 +7,14 @@ import LoginForm from "@/components/shared/LoginForm";
 export const metadata = { title: "Sign in" };
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string }>;
+}) {
   const session = await auth();
   if (session?.user) redirect(homeForRole(session.user.role));
+  const { email } = await searchParams;
 
   let userCount: number;
   try {
@@ -46,5 +51,5 @@ export default async function LoginPage() {
     );
   }
 
-  return <LoginForm isBootstrap={userCount === 0} />;
+  return <LoginForm isBootstrap={userCount === 0} defaultEmail={email} />;
 }

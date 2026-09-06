@@ -19,7 +19,7 @@ export default function WhatsAppButton({ isOpen }: { isOpen: boolean }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label={tCommon("whatsappUs")}
-      className="group fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-charcoal-950/25 transition-transform duration-300 hover:scale-110 md:bottom-7 md:right-7"
+      className="print:hidden group fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg shadow-charcoal-950/25 transition-transform duration-300 hover:scale-110 md:bottom-7 md:right-7"
     >
       {/* Soft pulse ring — draws the eye without the button ever moving. */}
       <span

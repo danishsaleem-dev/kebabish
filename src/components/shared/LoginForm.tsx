@@ -10,7 +10,13 @@ import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 
 const EMPTY: FormState = { ok: false };
 
-export default function LoginForm({ isBootstrap }: { isBootstrap: boolean }) {
+export default function LoginForm({
+  isBootstrap,
+  defaultEmail,
+}: {
+  isBootstrap: boolean;
+  defaultEmail?: string;
+}) {
   const [state, formAction] = useActionState(
     isBootstrap ? bootstrapOwnerAction : loginAction,
     EMPTY
@@ -62,6 +68,7 @@ export default function LoginForm({ isBootstrap }: { isBootstrap: boolean }) {
                 name="email"
                 type="email"
                 autoComplete="email"
+                defaultValue={defaultEmail}
                 required
               />
             </Field>

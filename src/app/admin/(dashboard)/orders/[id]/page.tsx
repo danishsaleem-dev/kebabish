@@ -9,13 +9,13 @@ import {
   MapPin,
   MessageCircle,
   Phone,
-  Printer,
   ShoppingBag,
   User,
 } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
+import PrintButton from "@/components/admin/ui/PrintButton";
 import { formatMoney } from "@/lib/admin/units";
 import { getOrder, getCustomer, listOrders } from "@/lib/admin/orders-data";
 import { ORDER_STATUS_LABELS } from "@/lib/admin/order-types";
@@ -62,18 +62,12 @@ export default async function OrderDetailPage({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href="/admin/orders"
-            className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-heading"
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-heading print:hidden"
           >
             <ArrowLeft size={16} />
             Back to orders
           </Link>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-hairline px-4 py-2.5 text-sm font-semibold text-body-text transition-colors hover:bg-canvas"
-          >
-            <Printer size={15} />
-            Print ticket
-          </button>
+          <PrintButton />
         </div>
 
         {/* header */}

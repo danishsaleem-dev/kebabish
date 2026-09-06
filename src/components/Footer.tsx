@@ -30,7 +30,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="relative overflow-hidden bg-charcoal-950 text-cream-100">
+    <footer className="print:hidden relative overflow-hidden bg-charcoal-950 text-cream-100">
       <div className="grain absolute inset-0" />
 
       <div className="relative z-10 mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-6 sm:py-20 sm:grid-cols-2 lg:grid-cols-5">

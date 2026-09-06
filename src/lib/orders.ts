@@ -326,6 +326,15 @@ export async function syncPaymentStatus(
   return mapped;
 }
 
+export interface ReceiptLine {
+  name: string;
+  quantity: number;
+  unitPriceCents: number;
+  options: PricedOption[];
+  instructions: string | null;
+  lineTotalCents: number;
+}
+
 export interface OrderSummary {
   reference: string;
   status: string;
@@ -333,6 +342,91 @@ export interface OrderSummary {
   totalCents: number;
   molliePaymentId: string | null;
   fulfilment: "delivery" | "pickup";
+  placedAt: string;
+  customerId: string | null;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  addressStreet: string;
+  addressPostcode: string;
+  addressCity: string;
+  notes: string | null;
+  subtotalCents: number;
+  discountCents: number;
+  promoCode: string | null;
+  deliveryFeeCents: number;
+  lines: ReceiptLine[];
+}
+
+const ORDER_SELECT =
+  "reference, status, payment_status, total_cents, mollie_payment_id, fulfilment, " +
+  "created_at, customer_id, customer_name, customer_email, customer_phone, " +
+  "address_street, address_postcode, address_city, notes, subtotal_cents, " +
+  "discount_cents, promo_code, delivery_fee_cents, " +
+  "order_items(name, quantity, unit_price_cents, options, instructions, line_total_cents)";
+
+interface OrderRow {
+  reference: string;
+  status: string;
+  payment_status: string;
+  total_cents: number;
+  mollie_payment_id: string | null;
+  fulfilment: "delivery" | "pickup";
+  created_at: string;
+  customer_id: string | null;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  address_street: string;
+  address_postcode: string;
+  address_city: string;
+  notes: string | null;
+  subtotal_cents: number;
+  discount_cents: number | null;
+  promo_code: string | null;
+  delivery_fee_cents: number;
+  order_items:
+    | {
+        name: string;
+        quantity: number;
+        unit_price_cents: number;
+        options: PricedOption[] | null;
+        instructions: string | null;
+        line_total_cents: number;
+      }[]
+    | null;
+}
+
+function mapOrderRow(row: OrderRow): OrderSummary {
+  return {
+    reference: row.reference,
+    status: row.status,
+    paymentStatus: row.payment_status,
+    totalCents: row.total_cents,
+    molliePaymentId: row.mollie_payment_id,
+    fulfilment: row.fulfilment,
+    placedAt: row.created_at,
+    customerId: row.customer_id,
+    customerName: row.customer_name,
+    customerEmail: row.customer_email,
+    customerPhone: row.customer_phone,
+    addressStreet: row.address_street,
+    addressPostcode: row.address_postcode,
+    addressCity: row.address_city,
+    notes: row.notes,
+    subtotalCents: row.subtotal_cents,
+    discountCents: row.discount_cents ?? 0,
+    promoCode: row.promo_code,
+    deliveryFeeCents: row.delivery_fee_cents,
+    lines: (row.order_items ?? []).map((l) => ({
+      name: l.name,
+      quantity: l.quantity,
+      unitPriceCents: l.unit_price_cents,
+      options: l.options ?? [],
+      instructions: l.instructions,
+      lineTotalCents: l.line_total_cents,
+    })),
+  };
 }
 
 export async function getOrderByReference(
@@ -340,21 +434,25 @@ export async function getOrderByReference(
 ): Promise<OrderSummary | null> {
   const { data, error } = await supabaseAdmin()
     .from("orders")
-    .select(
-      "reference, status, payment_status, total_cents, mollie_payment_id, fulfilment"
-    )
+    .select(ORDER_SELECT)
     .eq("reference", reference)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
   if (!data) return null;
+  return mapOrderRow(data as unknown as OrderRow);
+}
 
-  return {
-    reference: data.reference,
-    status: data.status,
-    paymentStatus: data.payment_status,
-    totalCents: data.total_cents,
-    molliePaymentId: data.mollie_payment_id,
-    fulfilment: data.fulfilment,
-  };
+/** A signed-in customer's own order history, newest first. */
+export async function listCustomerOrders(
+  customerId: string
+): Promise<OrderSummary[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => mapOrderRow(row as unknown as OrderRow));
 }

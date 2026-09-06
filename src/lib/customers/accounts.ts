@@ -31,6 +31,27 @@ async function findByEmailWithHash(email: string) {
   return data;
 }
 
+/**
+ * Attach any guest orders placed under this email to the now-authenticated
+ * account, so a customer who checked out before creating an account still
+ * sees that order history the moment they sign in. Safe to call on every
+ * login — it only ever touches orders with no customer_id yet, so it can
+ * never steal an order that already belongs to someone.
+ */
+async function claimGuestOrders(customerId: string, email: string) {
+  const { error } = await supabaseAdmin()
+    .from("orders")
+    .update({ customer_id: customerId })
+    .ilike("customer_email", email.trim())
+    .is("customer_id", null);
+
+  if (error) {
+    // Never block a sign-in over this — it's a nice-to-have, not the point
+    // of authenticating.
+    console.error("[customers] could not claim guest orders:", error.message);
+  }
+}
+
 export async function verifyCustomerCredentials(
   email: string,
   password: string
@@ -45,6 +66,8 @@ export async function verifyCustomerCredentials(
     .from("customers")
     .update({ last_signed_in_at: new Date().toISOString() })
     .eq("id", customer.id);
+
+  await claimGuestOrders(customer.id, customer.email);
 
   return {
     id: customer.id,
