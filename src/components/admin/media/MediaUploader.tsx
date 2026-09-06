@@ -8,21 +8,10 @@ import { useToast } from "@/components/admin/ui/Toast";
 /**
  * Drop-zone / file picker.
  *
- * Image dimensions are measured here in the browser and sent along, so the
- * server doesn't need an image-decoding dependency just to record width and
- * height.
+ * Dimensions aren't measured here — the server re-encodes every upload
+ * through sharp anyway (resize + WebP), so the dimensions it records are
+ * the real post-resize ones, not whatever the original happened to be.
  */
-async function measure(file: File): Promise<{ width: number; height: number }> {
-  try {
-    const bitmap = await createImageBitmap(file);
-    const size = { width: bitmap.width, height: bitmap.height };
-    bitmap.close();
-    return size;
-  } catch {
-    return { width: 0, height: 0 };
-  }
-}
-
 export default function MediaUploader({
   onUploaded,
   compact = false,
@@ -45,10 +34,7 @@ export default function MediaUploader({
     startTransition(async () => {
       const formData = new FormData();
       for (const file of files) {
-        const { width, height } = await measure(file);
         formData.append("files", file);
-        formData.append("widths", String(width));
-        formData.append("heights", String(height));
       }
 
       const result = await uploadMediaAction({ ok: false }, formData);
@@ -97,7 +83,8 @@ export default function MediaUploader({
         </p>
         {!compact && (
           <p className="text-xs text-muted">
-            or click to browse · JPEG, PNG, WebP or AVIF · up to 6 MB each
+            or click to browse · JPEG, PNG, WebP or AVIF · up to 10 MB each ·
+            automatically optimized
           </p>
         )}
       </div>
