@@ -13,6 +13,7 @@ import {
 } from "@/lib/admin/order-types";
 
 type StatusOption = CustomerStatus | "all";
+type AccountOption = "all" | "registered" | "guest";
 type SortKey = "name" | "orderCount" | "totalSpent" | "lastOrderAt";
 
 const STATUS_TONE: Record<CustomerStatus, string> = {
@@ -29,6 +30,7 @@ export default function CustomersTable({
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusOption>("all");
+  const [account, setAccount] = useState<AccountOption>("all");
   const [town, setTown] = useState("all");
   const [sort, setSort] = useState<SortKey>("totalSpent");
   const [desc, setDesc] = useState(true);
@@ -43,6 +45,7 @@ export default function CustomersTable({
 
     const filtered = customers.filter((c) => {
       if (status !== "all" && c.status !== status) return false;
+      if (account !== "all" && c.accountType !== account) return false;
       if (town !== "all" && c.town !== town) return false;
       if (!q) return true;
       return (
@@ -63,7 +66,7 @@ export default function CustomersTable({
       const bt = b.lastOrderAt ? Date.parse(b.lastOrderAt) : -Infinity;
       return (at - bt) * dir;
     });
-  }, [customers, query, status, town, sort, desc]);
+  }, [customers, query, status, account, town, sort, desc]);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDesc((d) => !d);
@@ -116,6 +119,17 @@ export default function CustomersTable({
           />
 
           <Dropdown
+            label="Account"
+            value={account}
+            onChange={setAccount}
+            options={[
+              { value: "all", label: "All accounts" },
+              { value: "registered", label: "Registered" },
+              { value: "guest", label: "Guest" },
+            ]}
+          />
+
+          <Dropdown
             label="Town"
             value={town}
             onChange={setTown}
@@ -137,16 +151,28 @@ export default function CustomersTable({
               <Th onClick={() => toggleSort("totalSpent")}>Lifetime value</Th>
               <Th onClick={() => toggleSort("lastOrderAt")}>Last order</Th>
               <Th>Channel</Th>
+              <Th>Account</Th>
               <Th>Status</Th>
             </tr>
           </thead>
 
           <tbody className="divide-y divide-hairline">
-            {rows.map((customer) => (
+            {rows.map((customer) => {
+              const registered = customer.accountType === "registered";
+              return (
               <tr
                 key={customer.id}
-                onClick={() => router.push(`/admin/customers/${customer.id}`)}
-                className="cursor-pointer transition-colors hover:bg-canvas/60"
+                onClick={
+                  registered
+                    ? () => router.push(`/admin/customers/${customer.id}`)
+                    : undefined
+                }
+                title={registered ? undefined : "Guest checkout — no account to view"}
+                className={
+                  registered
+                    ? "cursor-pointer transition-colors hover:bg-canvas/60"
+                    : "transition-colors hover:bg-canvas/60"
+                }
               >
                 <td className="px-5 py-4 sm:px-6">
                   <div className="flex items-center gap-3">
@@ -195,13 +221,25 @@ export default function CustomersTable({
                 </td>
                 <td className="px-4 py-4">
                   <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      registered
+                        ? "bg-blue-50 text-blue-700"
+                        : "bg-canvas text-muted"
+                    }`}
+                  >
+                    {registered ? "Registered" : "Guest"}
+                  </span>
+                </td>
+                <td className="px-4 py-4">
+                  <span
                     className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS_TONE[customer.status]}`}
                   >
                     {CUSTOMER_STATUS_LABELS[customer.status]}
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
 

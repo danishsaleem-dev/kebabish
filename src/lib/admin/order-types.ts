@@ -35,6 +35,7 @@ export interface AdminOrder {
   /** Null for guest checkout — orders don't require an account. */
   customerId: string | null;
   customerName: string;
+  customerEmail: string;
   phone: string;
   placedAt: string;
   status: OrderStatus;
@@ -67,6 +68,13 @@ export interface AdminCustomer {
   favouriteDish: string | null;
   preferredChannel: OrderChannel;
   status: CustomerStatus;
+  /**
+   * "registered" has a real row in `customers` (id is that row's uuid, safe
+   * to link to /admin/customers/[id]). "guest" is synthesized from orders
+   * with no customer_id, grouped by email — id is a `guest:<email>` token
+   * that doesn't resolve anywhere, so guest rows aren't clickable.
+   */
+  accountType: "registered" | "guest";
 }
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

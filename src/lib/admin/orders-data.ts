@@ -39,6 +39,7 @@ interface OrderRow {
   reference: string;
   customer_id: string | null;
   customer_name: string;
+  customer_email: string;
   customer_phone: string;
   fulfilment: "delivery" | "pickup";
   address_street: string | null;
@@ -87,6 +88,7 @@ function mapOrder(row: OrderRow): AdminOrder {
     reference: row.reference,
     customerId: row.customer_id,
     customerName: row.customer_name,
+    customerEmail: row.customer_email,
     phone: row.customer_phone,
     placedAt: row.created_at,
     status: row.status as AdminOrder["status"],
@@ -106,7 +108,7 @@ function mapOrder(row: OrderRow): AdminOrder {
 }
 
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, subtotal_cents, delivery_fee_cents, total_cents, created_at, order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, subtotal_cents, delivery_fee_cents, total_cents, created_at, order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
@@ -203,6 +205,65 @@ function buildCustomers(
       favouriteDish,
       preferredChannel: whatsappCount > own.length / 2 ? "whatsapp" : "website",
       status: deriveCustomerStatus(own.length, lastOrder?.placedAt ?? null),
+      accountType: "registered",
+    };
+  });
+}
+
+/**
+ * Guest checkouts never created an account, so they have no row in
+ * `customers` — only their orders exist, grouped here by email. Synthetic
+ * id (`guest:<email>`) doesn't resolve to a real record anywhere, which is
+ * the signal CustomersTable uses to not link the row.
+ */
+function buildGuestCustomers(orders: AdminOrder[]): AdminCustomer[] {
+  const byEmail = new Map<string, AdminOrder[]>();
+  for (const order of orders) {
+    if (order.customerId) continue;
+    const email = order.customerEmail?.trim().toLowerCase();
+    if (!email) continue;
+    const list = byEmail.get(email) ?? [];
+    list.push(order);
+    byEmail.set(email, list);
+  }
+
+  return [...byEmail.entries()].map(([email, own]) => {
+    const sorted = [...own].sort(
+      (a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt)
+    );
+    const delivered = sorted.filter((o) => o.fulfilment === "delivery");
+    const lastOrder = sorted[0];
+    const totalSpent = sorted.reduce(
+      (sum, o) => sum + (o.status === "cancelled" ? 0 : o.total),
+      0
+    );
+
+    const dishCounts = new Map<string, number>();
+    for (const order of sorted) {
+      for (const line of order.lines) {
+        dishCounts.set(line.name, (dishCounts.get(line.name) ?? 0) + line.quantity);
+      }
+    }
+    const favouriteDish =
+      [...dishCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+    const whatsappCount = sorted.filter((o) => o.channel === "whatsapp").length;
+
+    return {
+      id: `guest:${email}`,
+      name: lastOrder.customerName,
+      phone: lastOrder.phone,
+      email,
+      town: delivered[0]?.town ?? "—",
+      address: delivered[0]?.address ?? "—",
+      joinedAt: sorted[sorted.length - 1].placedAt,
+      lastOrderAt: lastOrder.placedAt,
+      orderCount: sorted.length,
+      totalSpent,
+      favouriteDish,
+      preferredChannel: whatsappCount > sorted.length / 2 ? "whatsapp" : "website",
+      status: deriveCustomerStatus(sorted.length, lastOrder.placedAt),
+      accountType: "guest",
     };
   });
 }
@@ -216,7 +277,10 @@ export async function listCustomers(): Promise<AdminCustomer[]> {
   ]);
 
   if (error) throw new Error(error.message);
-  return buildCustomers((data ?? []) as CustomerRow[], orders);
+  return [
+    ...buildCustomers((data ?? []) as CustomerRow[], orders),
+    ...buildGuestCustomers(orders),
+  ];
 }
 
 export async function getCustomer(id: string): Promise<AdminCustomer | null> {

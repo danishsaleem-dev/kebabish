@@ -12,12 +12,17 @@ export default async function CustomersPage() {
 
   const active = customers.filter((c) => c.status === "active").length;
   const lapsed = customers.filter((c) => c.status === "lapsed").length;
+  const guestCount = customers.filter((c) => c.accountType === "guest").length;
   const lifetime = customers.reduce((sum, c) => sum + c.totalSpent, 0);
   const avgOrder =
     orders.reduce((sum, o) => sum + o.total, 0) / Math.max(1, orders.length);
 
   const stats = [
-    { label: "Total customers", value: String(customers.length) },
+    {
+      label: "Total customers",
+      value: String(customers.length),
+      hint: `${customers.length - guestCount} registered · ${guestCount} guest`,
+    },
     { label: "Active", value: String(active) },
     { label: "Lapsed", value: String(lapsed) },
     { label: "Avg. order value", value: formatMoney(avgOrder) },
@@ -35,6 +40,9 @@ export default async function CustomersPage() {
                 <p className="mt-1.5 font-display text-2xl font-semibold text-heading">
                   {stat.value}
                 </p>
+                {stat.hint && (
+                  <p className="mt-0.5 text-xs text-faint">{stat.hint}</p>
+                )}
               </div>
             ))}
           </div>
