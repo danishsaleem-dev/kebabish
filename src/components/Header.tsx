@@ -136,7 +136,8 @@ export default function Header({
           )}
         </div>
 
-        <div className="flex items-center gap-1 md:hidden">
+        <div className="flex items-center gap-2 md:hidden">
+          <LocaleSwitch locale={locale} onHero={onHero} />
           <CartButton onHero={onHero} />
           <button
             type="button"
@@ -172,20 +173,19 @@ export default function Header({
             ))}
           </nav>
 
-          <div className="mt-4 flex items-center gap-3">
-            <LocaleSwitch locale={locale} onHero={false} />
+          <div className="mt-4">
             {isOpen ? (
               <a
                 href={whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex flex-1 items-center justify-center gap-2 rounded-full bg-ember-600 px-5 py-3.5 font-display text-sm font-semibold text-cream-50"
+                className="flex items-center justify-center gap-2 rounded-full bg-ember-600 px-5 py-3.5 font-display text-sm font-semibold text-cream-50"
               >
                 <MessageCircle size={17} />
                 {tCommon("orderNow")}
               </a>
             ) : (
-              <span className="flex flex-1 cursor-default items-center justify-center gap-2 rounded-full border border-charcoal-600/20 px-5 py-3.5 font-display text-sm font-semibold text-charcoal-600/50">
+              <span className="flex cursor-default items-center justify-center gap-2 rounded-full border border-charcoal-600/20 px-5 py-3.5 font-display text-sm font-semibold text-charcoal-600/50">
                 <MessageCircle size={17} />
                 {tCommon("closedNow")}
               </span>
