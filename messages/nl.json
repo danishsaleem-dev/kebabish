@@ -81,6 +81,26 @@
     "ctaMenu": "Bekijk het menu",
     "ctaWhatsapp": "Bestel via WhatsApp"
   },
+  "deliveryAreas": {
+    "title": "Bezorggebied",
+    "intro": "Wij bezorgen vers en snel binnen 10 km rondom Hoogkarspel",
+    "mapEyebrow": "Op de kaart",
+    "mapTitle": "Zo ver komen we",
+    "townsEyebrow": "Alle plaatsen",
+    "townsTitle": "Bezorgen wij bij jou?",
+    "townsIntro": "Hieronder alle plaatsen binnen ons bezorggebied, met de afstand vanaf onze keuken in Hoogkarspel.",
+    "townDistance": "afstand",
+    "factFee": "Bezorgkosten",
+    "factMinimum": "Minimale bestelling",
+    "factFreeOver": "Gratis bezorgen vanaf",
+    "factRadius": "Bezorgstraal",
+    "noFreeDelivery": "Niet van toepassing",
+    "outsideNote": "Woon je net buiten de kaart? Stuur ons een appje — we kijken graag of we een uitzondering kunnen maken.",
+    "ctaTitle": "Check of wij bij jou bezorgen",
+    "ctaText": "Twijfel je of jouw adres binnen ons bezorggebied valt? Stuur ons je postcode via WhatsApp.",
+    "ctaWhatsapp": "Vraag het via WhatsApp",
+    "ctaMenu": "Bekijk het menu"
+  },
   "menu": {
     "title": "Ons Menu",
     "intro": "Alle gerechten worden vers bereid. Alleen beschikbaar voor bezorging en afhalen.",
@@ -192,6 +212,8 @@
   "footer": {
     "tagline": "Kebabish — De Smaak van Thuis",
     "quickLinks": "Snel naar",
+    "more": "Meer info",
+    "deliveryAreas": "Bezorggebied",
     "contact": "Contact",
     "followUs": "Volg ons",
     "deliveryOnly": "Alleen bezorgen & afhalen",

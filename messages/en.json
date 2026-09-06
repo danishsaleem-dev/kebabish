@@ -81,6 +81,26 @@
     "ctaMenu": "View the menu",
     "ctaWhatsapp": "Order via WhatsApp"
   },
+  "deliveryAreas": {
+    "title": "Delivery area",
+    "intro": "We deliver fresh and fast within 10 km of Hoogkarspel",
+    "mapEyebrow": "On the map",
+    "mapTitle": "How far we go",
+    "townsEyebrow": "Every town",
+    "townsTitle": "Do we deliver to you?",
+    "townsIntro": "Every town in our delivery area, with the distance from our kitchen in Hoogkarspel.",
+    "townDistance": "distance",
+    "factFee": "Delivery fee",
+    "factMinimum": "Minimum order",
+    "factFreeOver": "Free delivery from",
+    "factRadius": "Delivery radius",
+    "noFreeDelivery": "Not applicable",
+    "outsideNote": "Just outside the map? Send us a WhatsApp message — we're happy to see if we can make an exception.",
+    "ctaTitle": "Check if we deliver to you",
+    "ctaText": "Not sure your address falls within our delivery area? Send us your postcode on WhatsApp.",
+    "ctaWhatsapp": "Ask on WhatsApp",
+    "ctaMenu": "View the menu"
+  },
   "menu": {
     "title": "Our Menu",
     "intro": "Every dish is freshly prepared. Available for delivery and takeaway only.",
@@ -192,6 +212,8 @@
   "footer": {
     "tagline": "Kebabish — The Taste of Home",
     "quickLinks": "Quick links",
+    "more": "More info",
+    "deliveryAreas": "Delivery area",
     "contact": "Contact",
     "followUs": "Follow us",
     "deliveryOnly": "Delivery & takeaway only",
