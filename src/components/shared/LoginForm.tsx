@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import Image from "next/image";
+import BrandLogo from "@/components/shared/BrandLogo";
 import Link from "next/link";
 import { LogIn, Sparkles } from "lucide-react";
 import { Field, FormError, Input, SubmitButton } from "@/components/admin/ui/Form";
@@ -26,7 +26,7 @@ export default function LoginForm({
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <Image
+          <BrandLogo
             src="/logo/Kebabish-light.png"
             alt="Kebabish"
             width={440}

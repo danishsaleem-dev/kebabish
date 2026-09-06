@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Image from "next/image";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
 import { Menu, X, MessageCircle } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import CartButton from "@/components/cart/CartButton";
+import BrandLogo from "@/components/shared/BrandLogo";
 
 export default function Header({
   isOpen,
@@ -71,7 +71,7 @@ export default function Header({
           aria-label={`${siteConfig.brandName} — ${tCommon("deliveryOnly")}`}
           className="shrink-0"
         >
-          <Image
+          <BrandLogo
             src={onHero ? "/logo/kebabish-dark.png" : "/logo/Kebabish-light.png"}
             alt={siteConfig.brandName}
             width={440}

@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Instagram, Facebook, Music2 } from "lucide-react";
 import { siteConfig } from "@/lib/site-config";
+import BrandLogo from "@/components/shared/BrandLogo";
 
 const SOCIALS = [
   { href: siteConfig.socials.instagram, label: "Instagram", Icon: Instagram },
@@ -35,7 +35,7 @@ export default function Footer() {
 
       <div className="relative z-10 mx-auto grid max-w-6xl gap-12 px-5 py-16 sm:px-6 sm:py-20 sm:grid-cols-2 lg:grid-cols-5">
         <div className="sm:col-span-2 lg:col-span-1">
-          <Image
+          <BrandLogo
             src="/logo/kebabish-dark.png"
             alt={siteConfig.brandName}
             width={440}

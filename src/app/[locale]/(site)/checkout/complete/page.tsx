@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import BrandLogo from "@/components/shared/BrandLogo";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { CheckCircle2, Clock, MapPin, UserPlus, LogIn, XCircle } from "lucide-react";
@@ -114,7 +114,7 @@ export default async function CheckoutCompletePage({
       {/* ---- receipt ------------------------------------------------------ */}
       <div className="mt-10 w-full rounded-3xl border border-charcoal-600/12 bg-cream-50 p-6 text-left sm:p-8 print:rounded-none print:border-0 print:bg-white print:p-0">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-charcoal-600/10 pb-6">
-          <Image
+          <BrandLogo
             src="/logo/Kebabish-light.png"
             alt={siteConfig.brandName}
             width={440}

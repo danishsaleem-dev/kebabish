@@ -3,6 +3,7 @@ import { Leaf, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { formatEuro } from "@/lib/money";
 import type { PublicMenuItem } from "@/lib/public-menu";
+import BrandLogo from "@/components/shared/BrandLogo";
 
 /**
  * A dish card. The whole card links to the item page — that's where extras
@@ -56,7 +57,7 @@ export default function FeaturedDishCard({
             aria-hidden="true"
             className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]"
           >
-            <Image
+            <BrandLogo
               src="/logo/Kebabish-light.png"
               alt=""
               width={220}

@@ -4,6 +4,7 @@ import { ArrowDown, MessageCircle, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
+import BrandLogo from "@/components/shared/BrandLogo";
 
 export default async function Hero({
   locale,
@@ -87,7 +88,7 @@ export default async function Hero({
         className="relative z-10 mx-auto w-full max-w-4xl px-5 pb-16 pt-24 text-center sm:px-6 sm:pb-28 sm:pt-28"
       >
         <div data-hero-mark data-reveal className="flex justify-center">
-          <Image
+          <BrandLogo
             src="/logo/kebabish-dark.png"
             alt={siteConfig.brandName}
             width={440}

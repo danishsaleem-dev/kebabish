@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import BrandLogo from "@/components/shared/BrandLogo";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Leaf, Flame } from "lucide-react";
@@ -77,7 +78,7 @@ export default async function ItemPage({
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]">
-                <Image
+                <BrandLogo
                   src="/logo/Kebabish-light.png"
                   alt=""
                   width={260}

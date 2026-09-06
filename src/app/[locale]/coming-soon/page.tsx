@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Image from "next/image";
+import BrandLogo from "@/components/shared/BrandLogo";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Instagram, Facebook, Mail, MapPin, MessageCircle, Music2, Phone } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -48,7 +48,7 @@ export default async function ComingSoonPage({
       <div className="relative z-10 w-full max-w-md">
         <LocaleSwitch locale={locale} />
 
-        <Image
+        <BrandLogo
           src="/logo/kebabish-dark.png"
           alt={siteConfig.brandName}
           width={440}
