@@ -94,8 +94,8 @@ export default function Sidebar({
           <Image
             src="/logo/Kebabish-light.png"
             alt="Kebabish"
-            width={440}
-            height={330}
+            width={300}
+            height={225}
             priority
             className="h-12 w-auto"
           />

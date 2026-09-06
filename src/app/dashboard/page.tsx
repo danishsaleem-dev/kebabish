@@ -23,8 +23,8 @@ export default async function DashboardPage() {
           <Image
             src="/logo/Kebabish-light.png"
             alt="Kebabish"
-            width={440}
-            height={330}
+            width={300}
+            height={225}
             priority
             className="h-9 w-auto"
           />

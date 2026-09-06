@@ -117,8 +117,8 @@ export default async function CheckoutCompletePage({
           <BrandLogo
             src="/logo/Kebabish-light.png"
             alt={siteConfig.brandName}
-            width={440}
-            height={330}
+            width={300}
+            height={225}
             className="h-12 w-auto"
           />
           <div className="text-right">

@@ -74,8 +74,8 @@ export default function Header({
           <BrandLogo
             src={onHero ? "/logo/kebabish-dark.png" : "/logo/Kebabish-light.png"}
             alt={siteConfig.brandName}
-            width={440}
-            height={330}
+            width={300}
+            height={225}
             priority
             className={`w-auto transition-[height] duration-500 ${
               scrolled || !isHome ? "h-11" : "h-14"

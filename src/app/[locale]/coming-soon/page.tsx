@@ -51,8 +51,8 @@ export default async function ComingSoonPage({
         <BrandLogo
           src="/logo/kebabish-dark.png"
           alt={siteConfig.brandName}
-          width={440}
-          height={330}
+          width={300}
+          height={225}
           priority
           className="mx-auto h-28 w-auto"
         />

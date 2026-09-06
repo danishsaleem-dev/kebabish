@@ -38,8 +38,8 @@ export default function Footer() {
           <BrandLogo
             src="/logo/kebabish-dark.png"
             alt={siteConfig.brandName}
-            width={440}
-            height={330}
+            width={300}
+            height={225}
             className="h-20 w-auto"
           />
           <p className="mt-5 text-sm text-cream-200/65">{t("tagline")}</p>
