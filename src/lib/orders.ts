@@ -220,10 +220,9 @@ export interface CreateOrderInput {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  fulfilment: "delivery" | "pickup";
-  addressStreet: string | null;
-  addressPostcode: string | null;
-  addressCity: string | null;
+  addressStreet: string;
+  addressPostcode: string;
+  addressCity: string;
   notes: string | null;
   cart: PricedCart;
   deliveryFeeCents: number;
@@ -251,7 +250,7 @@ export async function createOrder(input: CreateOrderInput) {
         customer_name: input.customerName,
         customer_email: input.customerEmail,
         customer_phone: input.customerPhone,
-        fulfilment: input.fulfilment,
+        fulfilment: "delivery",
         address_street: input.addressStreet,
         address_postcode: input.addressPostcode,
         address_city: input.addressCity,

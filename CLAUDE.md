@@ -23,10 +23,15 @@ halal. Ask; don't invent.
 
 **Kebabish** (trading name / brand) is run by **Marfah Enterprise** (legal
 company name), an authentic Pakistani food kitchen in **Hoogkarspel,
-Netherlands**. Delivery and takeaway only — there is no dine-in, and that
-fact must stay visible/consistent everywhere on the site (nav, footer,
-hero, metadata). All real business facts (KVK number, address, phone/
-WhatsApp, email, socials, delivery radius) already live in
+Netherlands**. **Delivery only** — no dine-in, and no pickup/takeaway
+either (Danish confirmed explicitly: he does not offer customer pickup,
+so don't reintroduce it). That fact must stay visible/consistent
+everywhere on the site (nav, footer, hero, metadata, checkout — there is
+deliberately no fulfilment choice at checkout, every order is delivery).
+"Marfah Enterprise" itself is only ever named on the Privacy Policy and
+Terms & Conditions pages, where the legal entity name is expected —
+nowhere else on the public site. All real business facts (KVK number,
+address, phone/WhatsApp, email, socials, delivery radius) already live in
 `src/lib/site-config.ts` — treat that file as the single source of truth,
 don't hardcode business details anywhere else.
 

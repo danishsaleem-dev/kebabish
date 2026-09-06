@@ -13,7 +13,7 @@
     "description": "Verse, huisgemaakte Pakistaanse gerechten — bezorgd of afgehaald binnen 10 km van Hoogkarspel.",
     "ctaOrder": "Bekijk menu & bestel",
     "ctaWhatsapp": "Bestel via WhatsApp",
-    "badge": "Alleen bezorgen & afhalen — geen dine-in",
+    "badge": "Alleen bezorgen — geen dine-in",
     "scrollCue": "Scroll"
   },
   "home": {
@@ -44,7 +44,7 @@
       "Vers bereid",
       "Authentiek Pakistaans",
       "Bezorgd binnen 10 km",
-      "Alleen bezorgen & afhalen",
+      "Alleen bezorgen",
       "Bestel via WhatsApp"
     ],
     "storyStat1Label": "Bezorgstraal",
@@ -73,7 +73,7 @@
     "factCuisineValue": "Authentiek Pakistaans",
     "factLocation": "Gevestigd in",
     "factService": "Werkwijze",
-    "factServiceValue": "Alleen bezorgen & afhalen — geen dine-in",
+    "factServiceValue": "Alleen bezorgen — geen dine-in",
     "factRadius": "Bezorggebied",
     "factRadiusValue": "Binnen 10 km van Hoogkarspel",
     "ctaTitle": "Proef het verschil",
@@ -103,7 +103,7 @@
   },
   "menu": {
     "title": "Ons Menu",
-    "intro": "Alle gerechten worden vers bereid. Alleen beschikbaar voor bezorging en afhalen.",
+    "intro": "Alle gerechten worden vers bereid. Alleen beschikbaar voor bezorging.",
     "categories": {
       "mainDishes": "Hoofdgerechten",
       "kebabsStarters": "Kebabs & Voorgerechten",
@@ -130,9 +130,9 @@
   "contact": {
     "title": "Contact & Bezorggebied",
     "intro": "Vragen over je bestelling of ons bezorggebied? Neem contact op.",
-    "addressTitle": "Adres (afhalen na afspraak)",
-    "hoursTitle": "Bezorgen & Afhalen",
-    "hoursNote": "Geen dine-in — alleen bezorgen en afhalen.",
+    "addressTitle": "Onze keuken",
+    "hoursTitle": "Openingstijden",
+    "hoursNote": "Geen dine-in — alleen bezorgen.",
     "deliveryCheckTitle": "Check of wij bij jou bezorgen",
     "deliveryCheckText": "Vul je postcode in om te zien of je binnen ons bezorggebied van 10 km valt.",
     "socialsTitle": "Volg ons"
@@ -183,10 +183,6 @@
     "name": "Naam",
     "email": "E-mail",
     "phone": "Telefoon",
-    "fulfilment": "Bezorgen of afhalen",
-    "delivery": "Bezorgen",
-    "pickup": "Afhalen",
-    "pickupNote": "Afhalen bij {address}.",
     "address": "Bezorgadres",
     "street": "Straat en huisnummer",
     "postcode": "Postcode",
@@ -196,7 +192,7 @@
     "summary": "Overzicht",
     "payNow": "Betaal {amount}",
     "paying": "Je wordt doorgestuurd naar de betaling…",
-    "outsideArea": "We bezorgen daar nog niet — kies afhalen of stuur ons een appje.",
+    "outsideArea": "We bezorgen daar helaas nog niet — stuur ons een appje.",
     "belowMinimum": "Minimale bestelling voor bezorging is {amount}.",
     "emptyCart": "Je winkelwagen is leeg.",
     "failed": "Er ging iets mis bij het starten van de betaling. Er is niets afgeschreven — probeer het opnieuw.",
@@ -229,7 +225,7 @@
     "deliveryAreas": "Bezorggebied",
     "contact": "Contact",
     "followUs": "Volg ons",
-    "deliveryOnly": "Alleen bezorgen & afhalen",
+    "deliveryOnly": "Alleen bezorgen",
     "rights": "Alle rechten voorbehouden.",
     "reviews": "Reviews",
     "privacy": "Privacybeleid",
@@ -239,7 +235,7 @@
     "eyebrow": "Binnenkort open",
     "title": "Onze website is bijna klaar",
     "description": "Kebabish brengt de authentieke smaken van Pakistan naar Hoogkarspel en omgeving. Terwijl wij de laatste details afronden, kun je nu al bestellen via WhatsApp.",
-    "badge": "Alleen bezorgen & afhalen — geen dine-in",
+    "badge": "Alleen bezorgen — geen dine-in",
     "ctaWhatsapp": "Bestel via WhatsApp",
     "deliveryNote": "Bezorging binnen 10 km van Hoogkarspel",
     "followTitle": "Volg ons voor updates",
@@ -401,9 +397,9 @@
         ]
       },
       {
-        "heading": "Bezorgen en afhalen",
+        "heading": "Bezorgen",
         "body": [
-          "Kebabish biedt uitsluitend bezorging en afhalen aan — er is geen mogelijkheid om bij ons te dineren. Wij bezorgen binnen ons aangegeven bezorggebied rondom Hoogkarspel; buiten dit gebied kunnen wij helaas niet bezorgen.",
+          "Kebabish biedt uitsluitend bezorging aan — er is geen mogelijkheid om bij ons te dineren of je bestelling af te halen. Wij bezorgen binnen ons aangegeven bezorggebied rondom Hoogkarspel; buiten dit gebied kunnen wij helaas niet bezorgen.",
           "Opgegeven bezorgtijden zijn een indicatie en geen harde garantie, bijvoorbeeld bij drukte of weersomstandigheden."
         ]
       },
@@ -456,7 +452,7 @@
     "whatsappUs": "WhatsApp ons",
     "orderNow": "Nu bestellen",
     "viewMenu": "Bekijk menu",
-    "deliveryTakeawayOnly": "Alleen bezorgen & afhalen",
+    "deliveryOnly": "Alleen bezorgen",
     "readMore": "Lees meer",
     "closedNow": "Nu gesloten"
   },

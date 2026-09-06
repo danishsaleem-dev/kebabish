@@ -30,7 +30,7 @@ export const siteConfig = {
   },
 
   deliveryRadiusKm: 10,
-  serviceType: "delivery_takeaway_only" as const, // no dine-in
+  serviceType: "delivery_only" as const, // no dine-in, no pickup
 
   contact: {
     phone: "+31684011572",

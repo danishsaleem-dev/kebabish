@@ -39,23 +39,15 @@ async function requestOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
-const checkoutSchema = z
-  .object({
-    name: z.string().trim().min(2),
-    email: z.string().trim().email(),
-    phone: z.string().trim().min(6),
-    fulfilment: z.enum(["delivery", "pickup"]),
-    street: z.string().trim().default(""),
-    postcode: z.string().trim().default(""),
-    city: z.string().trim().default(""),
-    notes: z.string().trim().max(500).default(""),
-  })
-  .refine(
-    (v) =>
-      v.fulfilment === "pickup" ||
-      (v.street.length > 2 && v.postcode.length > 3 && v.city.length > 1),
-    { path: ["street"] }
-  );
+const checkoutSchema = z.object({
+  name: z.string().trim().min(2),
+  email: z.string().trim().email(),
+  phone: z.string().trim().min(6),
+  street: z.string().trim().min(3),
+  postcode: z.string().trim().min(4),
+  city: z.string().trim().min(2),
+  notes: z.string().trim().max(500).default(""),
+});
 
 export interface PromoState {
   ok: boolean;
@@ -93,7 +85,6 @@ export async function checkoutAction(
     name: formData.get("name"),
     email: formData.get("email"),
     phone: formData.get("phone"),
-    fulfilment: formData.get("fulfilment"),
     street: formData.get("street") ?? "",
     postcode: formData.get("postcode") ?? "",
     city: formData.get("city") ?? "",
@@ -120,10 +111,7 @@ export async function checkoutAction(
     return { ok: false, error: "closed" };
   }
 
-  if (
-    details.fulfilment === "delivery" &&
-    !isDeliverableTown(details.city)
-  ) {
+  if (!isDeliverableTown(details.city)) {
     return { ok: false, error: "outsideArea" };
   }
 
@@ -137,17 +125,11 @@ export async function checkoutAction(
     throw error;
   }
 
-  if (
-    details.fulfilment === "delivery" &&
-    cart.subtotalCents < toCents(store.settings.minimumOrder)
-  ) {
+  if (cart.subtotalCents < toCents(store.settings.minimumOrder)) {
     return { ok: false, error: "belowMinimum" };
   }
 
-  const fee =
-    details.fulfilment === "delivery"
-      ? await deliveryFeeCents(cart.subtotalCents)
-      : 0;
+  const fee = await deliveryFeeCents(cart.subtotalCents);
 
   // Re-validate the promo code against the real, server-priced subtotal —
   // the amount the client "applied" earlier was only ever a preview. An
@@ -177,10 +159,9 @@ export async function checkoutAction(
     customerName: details.name,
     customerEmail: details.email,
     customerPhone: details.phone,
-    fulfilment: details.fulfilment,
-    addressStreet: details.fulfilment === "delivery" ? details.street : null,
-    addressPostcode: details.fulfilment === "delivery" ? details.postcode : null,
-    addressCity: details.fulfilment === "delivery" ? details.city : null,
+    addressStreet: details.street,
+    addressPostcode: details.postcode,
+    addressCity: details.city,
     notes: details.notes || null,
     cart,
     deliveryFeeCents: fee,

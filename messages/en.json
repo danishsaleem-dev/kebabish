@@ -13,7 +13,7 @@
     "description": "Fresh, homemade Pakistani dishes — delivered or picked up within 10 km of Hoogkarspel.",
     "ctaOrder": "View menu & order",
     "ctaWhatsapp": "Order via WhatsApp",
-    "badge": "Delivery & takeaway only — no dine-in",
+    "badge": "Delivery only — no dine-in",
     "scrollCue": "Scroll"
   },
   "home": {
@@ -44,7 +44,7 @@
       "Freshly made",
       "Authentically Pakistani",
       "Delivered within 10 km",
-      "Delivery & takeaway only",
+      "Delivery only",
       "Order via WhatsApp"
     ],
     "storyStat1Label": "Delivery radius",
@@ -73,7 +73,7 @@
     "factCuisineValue": "Authentic Pakistani",
     "factLocation": "Based in",
     "factService": "How we work",
-    "factServiceValue": "Delivery & takeaway only — no dine-in",
+    "factServiceValue": "Delivery only — no dine-in",
     "factRadius": "Delivery area",
     "factRadiusValue": "Within 10 km of Hoogkarspel",
     "ctaTitle": "Taste the difference",
@@ -103,7 +103,7 @@
   },
   "menu": {
     "title": "Our Menu",
-    "intro": "Every dish is freshly prepared. Available for delivery and takeaway only.",
+    "intro": "Every dish is freshly prepared. Available for delivery only.",
     "categories": {
       "mainDishes": "Main Dishes",
       "kebabsStarters": "Kebabs & Starters",
@@ -130,9 +130,9 @@
   "contact": {
     "title": "Contact & Delivery Area",
     "intro": "Questions about your order or our delivery area? Get in touch.",
-    "addressTitle": "Address (pickup by appointment)",
-    "hoursTitle": "Delivery & Takeaway",
-    "hoursNote": "No dine-in — delivery and takeaway only.",
+    "addressTitle": "Our kitchen",
+    "hoursTitle": "Opening Hours",
+    "hoursNote": "No dine-in — delivery only.",
     "deliveryCheckTitle": "Check if we deliver to you",
     "deliveryCheckText": "Enter your postcode to see if you're within our 10 km delivery area.",
     "socialsTitle": "Follow us"
@@ -183,10 +183,6 @@
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
-    "fulfilment": "Delivery or pickup",
-    "delivery": "Delivery",
-    "pickup": "Pickup",
-    "pickupNote": "Collect from {address}.",
     "address": "Delivery address",
     "street": "Street and number",
     "postcode": "Postcode",
@@ -196,7 +192,7 @@
     "summary": "Order summary",
     "payNow": "Pay {amount}",
     "paying": "Taking you to payment…",
-    "outsideArea": "We don't deliver to that town yet — choose pickup instead, or message us.",
+    "outsideArea": "We don't deliver to that town yet — message us instead.",
     "belowMinimum": "Minimum order for delivery is {amount}.",
     "emptyCart": "Your cart is empty.",
     "failed": "Something went wrong starting the payment. Nothing has been charged — please try again.",
@@ -229,7 +225,7 @@
     "deliveryAreas": "Delivery area",
     "contact": "Contact",
     "followUs": "Follow us",
-    "deliveryOnly": "Delivery & takeaway only",
+    "deliveryOnly": "Delivery only",
     "rights": "All rights reserved.",
     "reviews": "Reviews",
     "privacy": "Privacy Policy",
@@ -239,7 +235,7 @@
     "eyebrow": "Opening soon",
     "title": "Our website is almost ready",
     "description": "Kebabish brings the authentic flavors of Pakistan to Hoogkarspel and the surrounding area. While we put the finishing touches on the site, you can already order via WhatsApp.",
-    "badge": "Delivery & takeaway only — no dine-in",
+    "badge": "Delivery only — no dine-in",
     "ctaWhatsapp": "Order via WhatsApp",
     "deliveryNote": "Delivery within 10 km of Hoogkarspel",
     "followTitle": "Follow us for updates",
@@ -401,9 +397,9 @@
         ]
       },
       {
-        "heading": "Delivery and takeaway",
+        "heading": "Delivery",
         "body": [
-          "Kebabish offers delivery and takeaway only — there is no option to dine in. We deliver within our stated delivery area around Hoogkarspel; unfortunately we're unable to deliver outside it.",
+          "Kebabish offers delivery only — there is no option to dine in or collect your order in person. We deliver within our stated delivery area around Hoogkarspel; unfortunately we're unable to deliver outside it.",
           "Stated delivery times are an estimate, not a guarantee — for example during busy periods or in poor weather."
         ]
       },
@@ -456,7 +452,7 @@
     "whatsappUs": "WhatsApp us",
     "orderNow": "Order now",
     "viewMenu": "View menu",
-    "deliveryTakeawayOnly": "Delivery & takeaway only",
+    "deliveryOnly": "Delivery only",
     "readMore": "Read more",
     "closedNow": "Closed now"
   },

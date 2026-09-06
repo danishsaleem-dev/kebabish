@@ -68,7 +68,7 @@ export default function Header({
       >
         <Link
           href="/"
-          aria-label={`${siteConfig.brandName} — ${tCommon("deliveryTakeawayOnly")}`}
+          aria-label={`${siteConfig.brandName} — ${tCommon("deliveryOnly")}`}
           className="shrink-0"
         >
           <Image

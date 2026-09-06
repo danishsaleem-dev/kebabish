@@ -36,7 +36,6 @@ export default async function CheckoutPage({
           deliveryFee={settings.deliveryFee}
           freeDeliveryOver={settings.freeDeliveryOver}
           minimumOrder={settings.minimumOrder}
-          pickupAddress={`${siteConfig.address.street}, ${siteConfig.address.city}`}
           deliveryTowns={siteConfig.deliveryAreaTowns.map((t) => t.name)}
         />
       </div>

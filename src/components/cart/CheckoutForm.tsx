@@ -24,13 +24,11 @@ export default function CheckoutForm({
   deliveryFee,
   freeDeliveryOver,
   minimumOrder,
-  pickupAddress,
   deliveryTowns,
 }: {
   deliveryFee: number;
   freeDeliveryOver: number | null;
   minimumOrder: number;
-  pickupAddress: string;
   deliveryTowns: string[];
 }) {
   const t = useTranslations("checkout");
@@ -38,9 +36,6 @@ export default function CheckoutForm({
   const locale = useLocale();
   const { lines, subtotal, ready } = useCart();
   const [state, formAction] = useActionState(checkoutAction, EMPTY);
-  const [fulfilment, setFulfilment] = useState<"delivery" | "pickup">(
-    "delivery"
-  );
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
@@ -64,13 +59,12 @@ export default function CheckoutForm({
     );
   }
 
-  const isDelivery = fulfilment === "delivery";
   const qualifiesFree =
     freeDeliveryOver != null && subtotal >= freeDeliveryOver;
-  const fee = isDelivery && !qualifiesFree ? deliveryFee : 0;
+  const fee = qualifiesFree ? 0 : deliveryFee;
   const discount = promo ? Math.min(fromCents(promo.discountCents), subtotal) : 0;
   const total = Math.max(subtotal - discount + fee, 0);
-  const belowMinimum = isDelivery && subtotal < minimumOrder;
+  const belowMinimum = subtotal < minimumOrder;
 
   function applyPromo() {
     const code = promoInput.trim();
@@ -109,7 +103,6 @@ export default function CheckoutForm({
   return (
     <form action={formAction} className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
       <input type="hidden" name="cart" value={cartPayload} />
-      <input type="hidden" name="fulfilment" value={fulfilment} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="promoCode" value={promo?.code ?? ""} />
 
@@ -145,75 +138,44 @@ export default function CheckoutForm({
 
         <section>
           <h2 className="font-display text-lg font-semibold text-charcoal-600">
-            {t("fulfilment")}
+            {t("address")}
           </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {(["delivery", "pickup"] as const).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setFulfilment(mode)}
-                aria-pressed={fulfilment === mode}
-                className={`rounded-2xl border px-5 py-4 text-left font-display text-sm font-semibold transition-colors ${
-                  fulfilment === mode
-                    ? "border-ember-600 bg-ember-600/5 text-charcoal-600"
-                    : "border-charcoal-600/15 bg-cream-50 text-charcoal-600/70 hover:border-charcoal-600/30"
-                }`}
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label={t("street")} className="sm:col-span-2">
+              <input
+                name="street"
+                required
+                autoComplete="street-address"
+                className={inputClass}
+              />
+            </Field>
+            <Field label={t("postcode")}>
+              <input
+                name="postcode"
+                required
+                autoComplete="postal-code"
+                className={inputClass}
+              />
+            </Field>
+            <Field label={t("city")}>
+              {/* A list, not a free-text box: it's also the delivery-area
+                  check, and the server re-validates the same way. */}
+              <select
+                name="city"
+                required
+                defaultValue=""
+                className={inputClass}
               >
-                {t(mode)}
-              </button>
-            ))}
+                <option value="" disabled />
+                {deliveryTowns.map((town) => (
+                  <option key={town} value={town}>
+                    {town}
+                  </option>
+                ))}
+              </select>
+            </Field>
           </div>
-
-          {!isDelivery && (
-            <p className="mt-3 text-sm text-ink/60">
-              {t("pickupNote", { address: pickupAddress })}
-            </p>
-          )}
         </section>
-
-        {isDelivery && (
-          <section>
-            <h2 className="font-display text-lg font-semibold text-charcoal-600">
-              {t("address")}
-            </h2>
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Field label={t("street")} className="sm:col-span-2">
-                <input
-                  name="street"
-                  required
-                  autoComplete="street-address"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label={t("postcode")}>
-                <input
-                  name="postcode"
-                  required
-                  autoComplete="postal-code"
-                  className={inputClass}
-                />
-              </Field>
-              <Field label={t("city")}>
-                {/* A list, not a free-text box: it's also the delivery-area
-                    check, and the server re-validates the same way. */}
-                <select
-                  name="city"
-                  required
-                  defaultValue=""
-                  className={inputClass}
-                >
-                  <option value="" disabled />
-                  {deliveryTowns.map((town) => (
-                    <option key={town} value={town}>
-                      {town}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            </div>
-          </section>
-        )}
 
         <section>
           <h2 className="font-display text-lg font-semibold text-charcoal-600">
@@ -309,14 +271,12 @@ export default function CheckoutForm({
               </dd>
             </div>
           )}
-          {isDelivery && (
-            <div className="flex justify-between">
-              <dt className="text-ink/65">{tCart("deliveryFee")}</dt>
-              <dd className="tabular-nums text-charcoal-600">
-                {fee === 0 ? tCart("free") : formatEuro(fee)}
-              </dd>
-            </div>
-          )}
+          <div className="flex justify-between">
+            <dt className="text-ink/65">{tCart("deliveryFee")}</dt>
+            <dd className="tabular-nums text-charcoal-600">
+              {fee === 0 ? tCart("free") : formatEuro(fee)}
+            </dd>
+          </div>
         </dl>
 
         <div className="mt-4 flex justify-between border-t border-charcoal-600/10 pt-4 font-display text-lg font-semibold text-charcoal-600">
