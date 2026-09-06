@@ -111,6 +111,15 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={`${inter.variable} ${bitter.variable} js`}>
       <head>
+        {/* Every uploaded dish photo is served from here (see "Media
+            library" in CLAUDE.md) — warming up the connection ahead of the
+            first <img>/<Image> request shaves the DNS+TLS handshake off
+            that request's critical path, which matters for LCP on the menu
+            and dish pages. */}
+        {process.env.NEXT_PUBLIC_SUPABASE_URL && (
+          <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} />
+        )}
+
         {/*
           Scroll-reveal elements start hidden under `.js` so they can animate
           in. Without scripting they'd never be revealed, so drop the priming
