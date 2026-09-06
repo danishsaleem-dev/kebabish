@@ -2,6 +2,7 @@
   "nav": {
     "home": "Home",
     "menu": "Menu",
+    "about": "Over ons",
     "contact": "Contact",
     "order": "Bestellen"
   },
@@ -53,6 +54,32 @@
     "storyImageAlt2": "Verse Pakistaanse kruiden en specerijen",
     "popularNote": "Prijzen op aanvraag — stuur ons een appje voor de actuele prijslijst.",
     "deliveryTownsLabel": "Wij bezorgen onder andere in"
+  },
+  "about": {
+    "title": "Over Kebabish",
+    "intro": "Pakistaanse smaken, met liefde bereid in Hoogkarspel",
+    "storyEyebrow": "Ons verhaal",
+    "storyTitle": "Van familietafel naar jouw voordeur",
+    "storyText1": "Kebabish is opgericht in Hoogkarspel met één simpel doel: de authentieke smaken van Pakistan naar West-Friesland brengen. Geen shortcuts en geen kant-en-klare sauzen — alleen verse ingrediënten en traditionele kruiden.",
+    "storyText2": "Onze tandoor staat er niet voor de show. Alles wat je bij ons bestelt wordt dezelfde dag vers bereid, precies zoals het bij ons thuis op tafel zou komen.",
+    "statsLabel1": "Bezorgstraal",
+    "statsLabel2": "Vers bereid",
+    "statsLabel3": "Menucategorieën",
+    "valuesEyebrow": "Waar we voor staan",
+    "valuesTitle": "Wat Kebabish anders maakt",
+    "factsEyebrow": "Goed om te weten",
+    "factsTitle": "Kebabish in het kort",
+    "factCuisine": "Keuken",
+    "factCuisineValue": "Authentiek Pakistaans",
+    "factLocation": "Gevestigd in",
+    "factService": "Werkwijze",
+    "factServiceValue": "Alleen bezorgen & afhalen — geen dine-in",
+    "factRadius": "Bezorggebied",
+    "factRadiusValue": "Binnen 10 km van Hoogkarspel",
+    "ctaTitle": "Proef het verschil",
+    "ctaText": "Bekijk het menu of stuur ons direct een appje — we bezorgen binnen 10 km rondom Hoogkarspel.",
+    "ctaMenu": "Bekijk het menu",
+    "ctaWhatsapp": "Bestel via WhatsApp"
   },
   "menu": {
     "title": "Ons Menu",

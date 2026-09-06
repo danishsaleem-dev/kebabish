@@ -2,6 +2,7 @@
   "nav": {
     "home": "Home",
     "menu": "Menu",
+    "about": "About",
     "contact": "Contact",
     "order": "Order"
   },
@@ -53,6 +54,32 @@
     "storyImageAlt2": "Fresh Pakistani herbs and spices",
     "popularNote": "Prices on request — message us for the current price list.",
     "deliveryTownsLabel": "We deliver to"
+  },
+  "about": {
+    "title": "About Kebabish",
+    "intro": "Pakistani flavours, made with love in Hoogkarspel",
+    "storyEyebrow": "Our story",
+    "storyTitle": "From the family table to your front door",
+    "storyText1": "Kebabish was founded in Hoogkarspel with one simple goal: bringing the authentic flavours of Pakistan to West Friesland. No shortcuts, no ready-made sauces — just fresh ingredients and traditional spices.",
+    "storyText2": "Our tandoor isn't there for show. Everything you order is cooked fresh the same day, exactly how it would land on our own table at home.",
+    "statsLabel1": "Delivery radius",
+    "statsLabel2": "Freshly made",
+    "statsLabel3": "Menu categories",
+    "valuesEyebrow": "What we stand for",
+    "valuesTitle": "What makes Kebabish different",
+    "factsEyebrow": "Good to know",
+    "factsTitle": "Kebabish at a glance",
+    "factCuisine": "Cuisine",
+    "factCuisineValue": "Authentic Pakistani",
+    "factLocation": "Based in",
+    "factService": "How we work",
+    "factServiceValue": "Delivery & takeaway only — no dine-in",
+    "factRadius": "Delivery area",
+    "factRadiusValue": "Within 10 km of Hoogkarspel",
+    "ctaTitle": "Taste the difference",
+    "ctaText": "Browse the menu or send us a WhatsApp message — we deliver within 10 km of Hoogkarspel.",
+    "ctaMenu": "View the menu",
+    "ctaWhatsapp": "Order via WhatsApp"
   },
   "menu": {
     "title": "Our Menu",

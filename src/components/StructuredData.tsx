@@ -26,7 +26,6 @@ export default async function StructuredData({ locale }: { locale: string }) {
     "@context": "https://schema.org",
     "@type": "FoodEstablishment",
     name: siteConfig.brandName,
-    legalName: siteConfig.companyName,
     image: `${siteConfig.website}/og-image.jpg`,
     url: siteConfig.website,
     telephone: siteConfig.contact.phone,
