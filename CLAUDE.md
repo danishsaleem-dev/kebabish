@@ -688,11 +688,17 @@ delivery-radius diagram, and a closing CTA.
    `MOLLIE_API_KEY` for the `live_…` one, no code change. WhatsApp
    ordering still works alongside it.
 7. ~~Admin dashboard~~ — **done**, and now Supabase-backed.
-8. **Google Maps delivery-radius check** on the contact/checkout flow.
-   ⚠️ `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is currently **invalid** — it
-   starts `Alza`, and every real Google key starts `AIza`. Geocoding and
-   the static map both 403 until Danish re-copies it. The delivery map
-   falls back to its illustration meanwhile.
+8. ~~Google Maps key~~ — **fixed.** `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` now
+   starts `AIza` (a real key) and the Static Maps API works — the delivery
+   map renders real tiles instead of falling back to its illustration.
+   ⚠️ **Places API is still blocked for this key**, though (confirmed via a
+   direct API call: `API_KEY_SERVICE_BLOCKED`/`REQUEST_DENIED`) — the
+   checkout street-address autocomplete (`useAddressAutocomplete.ts`) is
+   fully wired up and will start working the moment Danish enables
+   "Places API" (or "Places API (New)") for this key in Google Cloud
+   Console → APIs & Services. Until then it fails silently and the
+   street/postcode/city fields stay plain manual inputs — no regression,
+   just no suggestions yet.
 9. ~~Geocode the real kitchen coordinates~~ — **done.** Danish supplied
    them directly; `siteConfig.coordinates` is now the real address.
 10. **Decide on Wognum.** Town coordinates are now geocoded and real, and

@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useFormStatus } from "react-dom";
 import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
+import { useAddressAutocomplete } from "@/components/cart/useAddressAutocomplete";
 import {
   checkoutAction,
   checkPromoCodeAction,
@@ -40,6 +41,24 @@ export default function CheckoutForm({
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoPending, startPromoTransition] = useTransition();
+
+  const postcodeRef = useRef<HTMLInputElement>(null);
+  const cityRef = useRef<HTMLSelectElement>(null);
+  const streetRef = useAddressAutocomplete(
+    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
+    ({ street, postcode, city }) => {
+      const streetInput = streetRef.current;
+      if (streetInput && street) streetInput.value = street;
+      if (postcodeRef.current && postcode) postcodeRef.current.value = postcode;
+
+      if (cityRef.current && city) {
+        const match = Array.from(cityRef.current.options).find(
+          (o) => o.value.toLowerCase() === city.toLowerCase()
+        );
+        if (match) cityRef.current.value = match.value;
+      }
+    }
+  );
 
   if (!ready) return <div className="min-h-[40vh]" aria-hidden="true" />;
 
@@ -142,15 +161,27 @@ export default function CheckoutForm({
           </h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label={t("street")} className="sm:col-span-2">
+              {/* Google Places suggests matches as you type; picking one
+                  auto-fills postcode and (when it matches) the city below.
+                  Falls back to a plain text field if the script/API is
+                  unavailable. */}
               <input
+                ref={streetRef}
                 name="street"
                 required
                 autoComplete="street-address"
+                placeholder={t("streetPlaceholder")}
+                // Google's dropdown uses Enter to pick a suggestion; without
+                // this guard that Enter also submits the surrounding form.
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.preventDefault();
+                }}
                 className={inputClass}
               />
             </Field>
             <Field label={t("postcode")}>
               <input
+                ref={postcodeRef}
                 name="postcode"
                 required
                 autoComplete="postal-code"
@@ -161,6 +192,7 @@ export default function CheckoutForm({
               {/* A list, not a free-text box: it's also the delivery-area
                   check, and the server re-validates the same way. */}
               <select
+                ref={cityRef}
                 name="city"
                 required
                 defaultValue=""

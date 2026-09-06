@@ -185,6 +185,7 @@
     "phone": "Phone",
     "address": "Delivery address",
     "street": "Street and number",
+    "streetPlaceholder": "Start typing for suggestions…",
     "postcode": "Postcode",
     "city": "Town",
     "notes": "Notes for your order",

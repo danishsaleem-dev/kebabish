@@ -185,6 +185,7 @@
     "phone": "Telefoon",
     "address": "Bezorgadres",
     "street": "Straat en huisnummer",
+    "streetPlaceholder": "Begin te typen voor suggesties…",
     "postcode": "Postcode",
     "city": "Plaats",
     "notes": "Opmerkingen bij je bestelling",
