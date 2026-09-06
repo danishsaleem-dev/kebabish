@@ -1,17 +1,24 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useFormStatus } from "react-dom";
+import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
-import { formatEuro } from "@/lib/money";
+import { formatEuro, toCents, fromCents } from "@/lib/money";
 import {
   checkoutAction,
+  checkPromoCodeAction,
   type CheckoutState,
 } from "@/app/[locale]/(site)/checkout/actions";
 
 const EMPTY: CheckoutState = { ok: false };
+
+interface AppliedPromo {
+  code: string;
+  discountCents: number;
+}
 
 export default function CheckoutForm({
   deliveryFee,
@@ -34,6 +41,10 @@ export default function CheckoutForm({
   const [fulfilment, setFulfilment] = useState<"delivery" | "pickup">(
     "delivery"
   );
+  const [promoInput, setPromoInput] = useState("");
+  const [promo, setPromo] = useState<AppliedPromo | null>(null);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoPending, startPromoTransition] = useTransition();
 
   if (!ready) return <div className="min-h-[40vh]" aria-hidden="true" />;
 
@@ -57,8 +68,30 @@ export default function CheckoutForm({
   const qualifiesFree =
     freeDeliveryOver != null && subtotal >= freeDeliveryOver;
   const fee = isDelivery && !qualifiesFree ? deliveryFee : 0;
-  const total = subtotal + fee;
+  const discount = promo ? Math.min(fromCents(promo.discountCents), subtotal) : 0;
+  const total = Math.max(subtotal - discount + fee, 0);
   const belowMinimum = isDelivery && subtotal < minimumOrder;
+
+  function applyPromo() {
+    const code = promoInput.trim();
+    if (!code) return;
+    startPromoTransition(async () => {
+      const result = await checkPromoCodeAction(code, toCents(subtotal));
+      if (result.ok && result.code && result.discountCents != null) {
+        setPromo({ code: result.code, discountCents: result.discountCents });
+        setPromoError(null);
+      } else {
+        setPromo(null);
+        setPromoError(result.error ?? "notFound");
+      }
+    });
+  }
+
+  function removePromo() {
+    setPromo(null);
+    setPromoError(null);
+    setPromoInput("");
+  }
 
   // Only what was ordered — never prices. The server rebuilds those.
   const cartPayload = JSON.stringify(
@@ -78,6 +111,7 @@ export default function CheckoutForm({
       <input type="hidden" name="cart" value={cartPayload} />
       <input type="hidden" name="fulfilment" value={fulfilment} />
       <input type="hidden" name="locale" value={locale} />
+      <input type="hidden" name="promoCode" value={promo?.code ?? ""} />
 
       <div className="space-y-8">
         <section>
@@ -218,13 +252,63 @@ export default function CheckoutForm({
           ))}
         </ul>
 
-        <dl className="mt-5 space-y-2 border-t border-charcoal-600/10 pt-4 text-sm">
+        <div className="mt-5 border-t border-charcoal-600/10 pt-4">
+          {promo ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-ember-600/10 px-3.5 py-2.5 text-sm">
+              <span className="flex items-center gap-1.5 font-medium text-ember-700">
+                <Tag size={14} />
+                {t("promoApplied", { code: promo.code })}
+              </span>
+              <button
+                type="button"
+                onClick={removePromo}
+                aria-label={t("promoRemove")}
+                className="text-ember-700/70 hover:text-ember-700"
+              >
+                <X size={15} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                value={promoInput}
+                onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
+                placeholder={t("promoPlaceholder")}
+                aria-label={t("promoCode")}
+                className="h-11 flex-1 rounded-xl border border-charcoal-600/15 bg-cream-50 px-3.5 text-sm text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={applyPromo}
+                disabled={promoPending || !promoInput.trim()}
+                className="shrink-0 rounded-xl border border-charcoal-600/20 px-4 text-sm font-semibold text-charcoal-600 transition-colors hover:border-ember-600 hover:text-ember-600 disabled:opacity-50"
+              >
+                {promoPending ? t("promoChecking") : t("promoApply")}
+              </button>
+            </div>
+          )}
+          {promoError && (
+            <p className="mt-2 text-xs text-red-700">
+              {t(`promo${promoError.charAt(0).toUpperCase()}${promoError.slice(1)}`)}
+            </p>
+          )}
+        </div>
+
+        <dl className="mt-4 space-y-2 border-t border-charcoal-600/10 pt-4 text-sm">
           <div className="flex justify-between">
             <dt className="text-ink/65">{tCart("subtotal")}</dt>
             <dd className="tabular-nums text-charcoal-600">
               {formatEuro(subtotal)}
             </dd>
           </div>
+          {discount > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-ink/65">{tCart("discount")}</dt>
+              <dd className="tabular-nums text-ember-600">
+                −{formatEuro(discount)}
+              </dd>
+            </div>
+          )}
           {isDelivery && (
             <div className="flex justify-between">
               <dt className="text-ink/65">{tCart("deliveryFee")}</dt>

@@ -63,6 +63,9 @@ export function buildSeed(): StoreShape {
     // invented sauces and prices would be worse than starting empty.
     optionGroups: [],
 
+    // Promo codes are entirely Danish's to create — no default codes.
+    promoCodes: [],
+
     ingredients: ingredients.map((i) => ({
       id: i.id,
       name: i.name,

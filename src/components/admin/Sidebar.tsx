@@ -68,7 +68,7 @@ const OTHERS: NavItem[] = [
     href: "/admin/marketing",
     icon: Megaphone,
     children: [
-      { label: "Promotions", href: "/admin/marketing/promotions" },
+      { label: "Promo codes", href: "/admin/marketing/promotions" },
       { label: "Campaigns", href: "/admin/marketing/campaigns" },
     ],
   },

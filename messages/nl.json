@@ -143,6 +143,7 @@
     "emptyHint": "Voeg een gerecht uit het menu toe om te beginnen.",
     "subtotal": "Subtotaal",
     "deliveryFee": "Bezorgkosten",
+    "discount": "Korting",
     "free": "Gratis",
     "total": "Totaal",
     "checkout": "Afrekenen",
@@ -207,7 +208,18 @@
     "completeReference": "Je bestelnummer is {reference}.",
     "backToMenu": "Terug naar het menu",
     "invalidDetails": "Controleer je gegevens hierboven.",
-    "closed": "We nemen op dit moment geen bestellingen aan — probeer het tijdens openingstijden opnieuw."
+    "closed": "We nemen op dit moment geen bestellingen aan — probeer het tijdens openingstijden opnieuw.",
+    "promoCode": "Kortingscode",
+    "promoPlaceholder": "Voer een code in",
+    "promoApply": "Toepassen",
+    "promoChecking": "Controleren…",
+    "promoRemove": "Verwijderen",
+    "promoApplied": "“{code}” toegepast",
+    "promoNotFound": "Deze code is niet geldig.",
+    "promoExpired": "Deze code is verlopen.",
+    "promoBelowMinimum": "Je bestelling is nog niet hoog genoeg voor deze code.",
+    "promoAlreadyUsed": "Deze code heb je al eens gebruikt.",
+    "promoInvalid": "Deze kortingscode is niet (meer) geldig. Verwijder de code en probeer het opnieuw."
   },
   "footer": {
     "tagline": "Kebabish — De Smaak van Thuis",

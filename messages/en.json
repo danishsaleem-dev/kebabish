@@ -143,6 +143,7 @@
     "emptyHint": "Add a dish from the menu to get started.",
     "subtotal": "Subtotal",
     "deliveryFee": "Delivery fee",
+    "discount": "Discount",
     "free": "Free",
     "total": "Total",
     "checkout": "Checkout",
@@ -207,7 +208,18 @@
     "completeReference": "Your order number is {reference}.",
     "backToMenu": "Back to the menu",
     "invalidDetails": "Please check the details above.",
-    "closed": "We've stopped taking orders for now — please try again during opening hours."
+    "closed": "We've stopped taking orders for now — please try again during opening hours.",
+    "promoCode": "Promo code",
+    "promoPlaceholder": "Enter a code",
+    "promoApply": "Apply",
+    "promoChecking": "Checking…",
+    "promoRemove": "Remove",
+    "promoApplied": "“{code}” applied",
+    "promoNotFound": "That code isn't valid.",
+    "promoExpired": "That code has expired.",
+    "promoBelowMinimum": "Your order isn't quite big enough for this code yet.",
+    "promoAlreadyUsed": "You've already used this code before.",
+    "promoInvalid": "This promo code is no longer valid. Remove it and try again."
   },
   "footer": {
     "tagline": "Kebabish — The Taste of Home",

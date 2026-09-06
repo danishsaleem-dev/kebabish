@@ -14,7 +14,9 @@ import {
   deliveryFeeCents,
   isDeliverableTown,
   priceCart,
+  validatePromoCode,
   type SubmittedLine,
+  type PromoError,
 } from "@/lib/orders";
 import { readStore } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
@@ -54,6 +56,27 @@ const checkoutSchema = z
       (v.street.length > 2 && v.postcode.length > 3 && v.city.length > 1),
     { path: ["street"] }
   );
+
+export interface PromoState {
+  ok: boolean;
+  code?: string;
+  discountCents?: number;
+  error?: PromoError;
+}
+
+/**
+ * Live "Apply" preview on the checkout page — no email yet, so the
+ * single-use-per-customer check is skipped here and re-enforced for real
+ * inside `checkoutAction` below. Never trusted for the actual charge.
+ */
+export async function checkPromoCodeAction(
+  code: string,
+  subtotalCents: number
+): Promise<PromoState> {
+  const result = await validatePromoCode(code, subtotalCents);
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, code: result.code, discountCents: result.discountCents };
+}
 
 /**
  * Turn a cart into a paid-for order.
@@ -126,6 +149,23 @@ export async function checkoutAction(
       ? await deliveryFeeCents(cart.subtotalCents)
       : 0;
 
+  // Re-validate the promo code against the real, server-priced subtotal —
+  // the amount the client "applied" earlier was only ever a preview. An
+  // empty field is not an error: promo codes are optional.
+  const submittedPromo = String(formData.get("promoCode") ?? "").trim();
+  let promoCode: string | null = null;
+  let discountCents = 0;
+  if (submittedPromo) {
+    const promo = await validatePromoCode(
+      submittedPromo,
+      cart.subtotalCents,
+      details.email
+    );
+    if (!promo.ok) return { ok: false, error: "promoInvalid" };
+    promoCode = promo.code;
+    discountCents = promo.discountCents;
+  }
+
   // Attach the order to a signed-in customer so it shows on their
   // dashboard; guests check out fine without one.
   const session = await auth();
@@ -144,6 +184,8 @@ export async function checkoutAction(
     notes: details.notes || null,
     cart,
     deliveryFeeCents: fee,
+    promoCode,
+    discountCents,
   });
 
   // Return to whichever origin the customer is actually on — localhost in

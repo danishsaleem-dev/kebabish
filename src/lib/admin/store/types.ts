@@ -141,6 +141,23 @@ export interface StoredAllergen {
   statutory: boolean;
 }
 
+export interface StoredPromoCode {
+  id: string;
+  /** Stored uppercase; matching is case-insensitive at lookup time. */
+  code: string;
+  type: "percentage" | "fixed";
+  /** A percentage (1-100) when `type` is "percentage", euros when "fixed". */
+  value: number;
+  active: boolean;
+  /** Euros; null means no minimum order. */
+  minOrder: number | null;
+  /** ISO date (yyyy-mm-dd); null means it never expires. */
+  expiresAt: string | null;
+  /** Once true, a customer email can redeem this code on at most one paid order. */
+  singleUsePerCustomer: boolean;
+  createdAt: string;
+}
+
 export interface StoreShape {
   categories: StoredCategory[];
   items: StoredItem[];
@@ -148,6 +165,7 @@ export interface StoreShape {
   ingredients: StoredIngredient[];
   recipes: StoredRecipe[];
   allergens: StoredAllergen[];
+  promoCodes: StoredPromoCode[];
   media: StoredMedia[];
   settings: StoredSettings;
 }

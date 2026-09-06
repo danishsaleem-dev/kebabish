@@ -11,6 +11,7 @@ import type {
   StoredIngredient,
   StoredItem,
   StoredOptionGroup,
+  StoredPromoCode,
   StoredRecipe,
 } from "@/lib/admin/store/types";
 
@@ -43,6 +44,7 @@ const adapter: StoreAdapter =
  */
 function normalise(data: StoreShape): StoreShape {
   data.optionGroups ??= [];
+  data.promoCodes ??= [];
   for (const item of data.items) {
     item.optionGroupIds ??= [];
     item.tags ??= [];
@@ -406,6 +408,74 @@ export async function deleteAllergen(id: string) {
     }
 
     data.allergens = data.allergens.filter((a) => a.id !== id);
+  });
+}
+
+/* --------------------------------------------------------------- promo codes */
+
+export async function listPromoCodes(): Promise<StoredPromoCode[]> {
+  const { promoCodes } = await readStore();
+  return [...(promoCodes ?? [])].sort((a, b) => a.code.localeCompare(b.code));
+}
+
+export async function getPromoCode(id: string) {
+  const { promoCodes } = await readStore();
+  return promoCodes?.find((p) => p.id === id);
+}
+
+/** Case-insensitive lookup — how the checkout flow resolves what a customer typed. */
+export async function findPromoCodeByCode(code: string) {
+  const { promoCodes } = await readStore();
+  const target = code.trim().toUpperCase();
+  return promoCodes?.find((p) => p.code === target);
+}
+
+export async function createPromoCode(
+  input: Omit<StoredPromoCode, "id" | "code" | "createdAt"> & { code: string }
+) {
+  return mutate((data) => {
+    data.promoCodes ??= [];
+    const code = input.code.trim().toUpperCase();
+    if (data.promoCodes.some((p) => p.code === code)) {
+      throw new Error(`Promo code "${code}" already exists.`);
+    }
+    const id = uniqueId(
+      slugify(code),
+      data.promoCodes.map((p) => p.id)
+    );
+    const promo: StoredPromoCode = {
+      ...input,
+      code,
+      id,
+      createdAt: new Date().toISOString(),
+    };
+    data.promoCodes.push(promo);
+    return promo;
+  });
+}
+
+export async function updatePromoCode(
+  id: string,
+  input: Partial<Omit<StoredPromoCode, "id" | "createdAt">>
+) {
+  return mutate((data) => {
+    const promo = data.promoCodes?.find((p) => p.id === id);
+    if (!promo) throw new Error(`Promo code "${id}" not found`);
+    if (input.code) {
+      const code = input.code.trim().toUpperCase();
+      if (data.promoCodes.some((p) => p.id !== id && p.code === code)) {
+        throw new Error(`Promo code "${code}" already exists.`);
+      }
+      input = { ...input, code };
+    }
+    Object.assign(promo, input);
+    return promo;
+  });
+}
+
+export async function deletePromoCode(id: string) {
+  return mutate((data) => {
+    data.promoCodes = (data.promoCodes ?? []).filter((p) => p.id !== id);
   });
 }
 

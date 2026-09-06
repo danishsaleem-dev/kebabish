@@ -5,6 +5,7 @@ import { siteConfig } from "@/lib/site-config";
 import { toCents } from "@/lib/money";
 import type { MolliePaymentStatus } from "@/lib/mollie";
 import { toPaymentStatus } from "@/lib/mollie";
+import type { StoredPromoCode } from "@/lib/admin/store/types";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -134,6 +135,81 @@ export function isDeliverableTown(town: string): boolean {
   return siteConfig.deliveryAreaTowns.some((t) => normalise(t.name) === target);
 }
 
+export type PromoError = "notFound" | "expired" | "belowMinimum" | "alreadyUsed";
+
+export type PromoValidation =
+  | { ok: true; code: string; discountCents: number }
+  | { ok: false; error: PromoError };
+
+/**
+ * Validate a promo code against the server-priced subtotal.
+ *
+ * Called twice: once from the checkout page (no `customerEmail` yet, so the
+ * single-use check is skipped) as a live preview while typing, and again
+ * inside `checkoutAction` with the real email, which is the only check that
+ * actually gates payment — never trust the client's own "applied" state for
+ * money, same as `priceCart`.
+ */
+export async function validatePromoCode(
+  rawCode: string,
+  subtotalCents: number,
+  customerEmail?: string
+): Promise<PromoValidation> {
+  const { promoCodes } = await readStore();
+  const code = rawCode.trim().toUpperCase();
+  const promo = (promoCodes ?? []).find((p) => p.code === code);
+
+  if (!promo || !promo.active) return { ok: false, error: "notFound" };
+
+  if (promo.expiresAt) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (promo.expiresAt < today) return { ok: false, error: "expired" };
+  }
+
+  if (promo.minOrder != null && subtotalCents < toCents(promo.minOrder)) {
+    return { ok: false, error: "belowMinimum" };
+  }
+
+  if (promo.singleUsePerCustomer && customerEmail) {
+    const used = await promoAlreadyUsedBy(promo.code, customerEmail);
+    if (used) return { ok: false, error: "alreadyUsed" };
+  }
+
+  const discountCents = discountFor(promo, subtotalCents);
+  return { ok: true, code: promo.code, discountCents };
+}
+
+function discountFor(promo: StoredPromoCode, subtotalCents: number): number {
+  const raw =
+    promo.type === "percentage"
+      ? Math.round((subtotalCents * promo.value) / 100)
+      : toCents(promo.value);
+  return Math.min(Math.max(raw, 0), subtotalCents);
+}
+
+/**
+ * Has this email already completed a paid order redeeming this code?
+ *
+ * Deliberately not a `head: true` count query — against a missing column or
+ * table that gotcha silently returns a false "0" instead of a real error
+ * (see `countAdminUsers`). A normal select surfaces failures honestly.
+ */
+async function promoAlreadyUsedBy(
+  code: string,
+  customerEmail: string
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select("id")
+    .eq("promo_code", code)
+    .ilike("customer_email", customerEmail)
+    .eq("payment_status", "paid")
+    .limit(1);
+
+  if (error) throw new Error(error.message);
+  return (data?.length ?? 0) > 0;
+}
+
 /** #KB-000000 — short enough to read down the phone. */
 function newReference(): string {
   return `#KB-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -151,11 +227,16 @@ export interface CreateOrderInput {
   notes: string | null;
   cart: PricedCart;
   deliveryFeeCents: number;
+  promoCode: string | null;
+  discountCents: number;
 }
 
 export async function createOrder(input: CreateOrderInput) {
   const supabase = supabaseAdmin();
-  const totalCents = input.cart.subtotalCents + input.deliveryFeeCents;
+  const totalCents = Math.max(
+    input.cart.subtotalCents - input.discountCents + input.deliveryFeeCents,
+    0
+  );
 
   // The reference is unique in the database; on the rare collision, try a
   // new one rather than failing someone's checkout.
@@ -177,6 +258,8 @@ export async function createOrder(input: CreateOrderInput) {
         notes: input.notes,
         subtotal_cents: input.cart.subtotalCents,
         delivery_fee_cents: input.deliveryFeeCents,
+        promo_code: input.promoCode,
+        discount_cents: input.discountCents,
         total_cents: totalCents,
       })
       .select("id, reference")
