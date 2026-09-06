@@ -53,6 +53,9 @@ export function buildSeed(): StoreShape {
         soldOut: Boolean(item.soldOut),
         imageIds: [],
         optionGroupIds: [],
+        tags: [],
+        allergenIds: [],
+        visible: true,
       }))
     ),
 

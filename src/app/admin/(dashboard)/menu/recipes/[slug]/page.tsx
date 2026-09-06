@@ -9,10 +9,18 @@ import {
   Scale,
   TriangleAlert,
 } from "lucide-react";
+import Image from "next/image";
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import ScaleCalculator from "@/components/admin/ScaleCalculator";
-import { getItem, getRecipe, listAllergens, listIngredients } from "@/lib/admin/store";
+import {
+  getItem,
+  getRecipe,
+  listAllergens,
+  listCategories,
+  listIngredients,
+  listMedia,
+} from "@/lib/admin/store";
 import { analyseRecipe, indexIngredients } from "@/lib/admin/recipe-math";
 import { formatMoney, formatQuantity } from "@/lib/admin/units";
 import { GROUP_LABELS } from "@/lib/admin/ingredients";
@@ -35,15 +43,23 @@ export default async function RecipePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [item, recipe, ingredients, allergenList] = await Promise.all([
-    getItem(slug),
-    getRecipe(slug),
-    listIngredients(),
-    listAllergens(),
-  ]);
+  const [item, recipe, ingredients, allergenList, categories, media] =
+    await Promise.all([
+      getItem(slug),
+      getRecipe(slug),
+      listIngredients(),
+      listAllergens(),
+      listCategories(),
+      listMedia(),
+    ]);
   const allergenLabel = (id: string) =>
     allergenList.find((a) => a.id === id)?.label ?? id;
   if (!item) notFound();
+
+  const category = categories.find((c) => c.id === item.categoryId);
+  const featuredImage = item.imageIds[0]
+    ? media.find((m) => m.id === item.imageIds[0])
+    : undefined;
 
   const lookup = indexIngredients(ingredients);
   const a = recipe ? analyseRecipe(recipe, lookup, item.price) : null;
@@ -75,6 +91,34 @@ export default async function RecipePage({
           </Link>
         </div>
 
+        <Card className="flex flex-wrap items-center gap-4">
+          <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-canvas">
+            {featuredImage ? (
+              <Image
+                src={featuredImage.url}
+                alt={featuredImage.alt || item.name}
+                width={64}
+                height={64}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Scale size={22} className="text-faint" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-lg font-semibold text-heading">
+              {item.name}
+            </p>
+            <p className="text-sm text-muted">
+              {category?.label ?? "No category"}
+              {item.soldOut && " · Sold out"}
+            </p>
+          </div>
+          <p className="shrink-0 font-display text-lg font-semibold text-heading">
+            {item.price != null ? formatMoney(item.price) : "Price not set"}
+          </p>
+        </Card>
+
         {!recipe || !a ? (
           <Card className="flex min-h-[380px] flex-col items-center justify-center text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-ember-600/10 text-ember-600">
@@ -88,7 +132,7 @@ export default async function RecipePage({
               batch calculator and the production planner.
             </p>
             <Link
-              href={`/admin/menu/recipes/${slug}/edit`}
+              href={`/admin/menu/items/${slug}/edit#recipe`}
               className="mt-6 inline-flex items-center gap-2 rounded-lg bg-ember-600 px-4 py-2.5 text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
             >
               <Plus size={16} />
@@ -104,7 +148,7 @@ export default async function RecipePage({
                   subtitle={`As written this batch makes ${recipe.batchPortions} portions of ${recipe.portionWeightG} g.`}
                   action={
                     <Link
-                      href={`/admin/menu/recipes/${slug}/edit`}
+                      href={`/admin/menu/items/${slug}/edit#recipe`}
                       className="inline-flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-sm font-semibold text-body-text transition-colors hover:bg-canvas"
                     >
                       <Pencil size={15} />
@@ -228,7 +272,7 @@ export default async function RecipePage({
                   subtitle={`${a.lines.length} lines · quantities for ${recipe.batchPortions} portions`}
                   action={
                     <Link
-                      href={`/admin/menu/recipes/${slug}/edit`}
+                      href={`/admin/menu/items/${slug}/edit#recipe`}
                       className="inline-flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-sm font-semibold text-body-text transition-colors hover:bg-canvas"
                     >
                       <Plus size={15} />

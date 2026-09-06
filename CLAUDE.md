@@ -540,6 +540,68 @@ testing) was left untouched throughout.
 store flagged `statutory: true` — renameable but not deletable. Danish can add
 his own at `/admin/menu/allergens`.
 
+### The menu editor — one page per dish, WordPress-style
+
+`/admin/menu/items/new` and `/admin/menu/items/[slug]/edit` are now the
+single place a dish gets managed: name, price, variants, gallery, extras
+and (once the dish exists) its recipe in the wide left column; category,
+manually-flagged allergens, tags and status (visible/vegetarian/spicy/
+sold-out) in the narrow right sidebar — the WordPress post-editor layout,
+because that's a well-worn pattern for "one thing, its content, and its
+metadata."
+
+This replaced a flow where clicking any dish from `/admin/menu` landed on
+`/admin/menu/recipes/[slug]` — a recipe-only page with no visible name,
+price, category or photo — and creating a new dish bounced you to *that*
+same recipe-only screen before you could see the dish you'd just made.
+`createItemAction`/`updateItemAction`/`saveRecipeAction` all redirect to
+the unified edit page now; `/admin/menu/recipes/[slug]` still exists as a
+deliberately separate **view**, for the cost/margin breakdown and the
+batch calculator — it's a different task (costing a dish you already
+know) from editing one, and now also shows the dish's own name, category,
+price and photo at the top rather than assuming you already know them.
+
+**Two `<form>`s share one page, not one giant form.** Dish details and
+the recipe save independently — different server actions, different
+data — but the *sidebar* fields (category, allergens, tags, status) are
+visually outside the main dish-details `<form>` while still needing to
+submit with it. They're linked via the HTML `form="item-form"` attribute
+rather than being physically nested inside it. Get this wrong — inputs
+sitting outside the form with no `form` attribute — and they silently
+don't submit at all; this was caught and fixed during testing, verified
+by checking the saved record afterward, not just that the page redirected.
+
+Two fields exist only for this editor and aren't consumed anywhere else
+yet: `StoredItem.tags` (free-form, comma-separated, admin-side only —
+not a public filter) and `StoredItem.allergenIds` (manually flagged,
+separate from a recipe's own auto-rolled-up allergens from its
+ingredients — a dish can be flagged before its recipe exists).
+
+**`StoredItem.visible`** is the new "show on website" flag, separate
+from `soldOut` (a sold-out dish still shows, marked unavailable; an
+invisible one is a draft that doesn't appear at all). `getPublicMenu()`/
+`getPublicItem()`/`getPublicItemSlugs()` in `public-menu.ts` all filter
+on it. `/admin/menu` is a proper filterable table now (search, category,
+shown/hidden) instead of a card-per-category list, with an inline toggle
+button (`toggleItemVisibilityAction`) that flips it without opening the
+full editor — verified end-to-end: toggling to "Hidden" in the table
+immediately dropped the dish from the live `/menu` page.
+
+### Menu wiped to a blank slate
+
+Danish's ask, verbatim: *"I DONT NEED THEM, i need a blank slate to add
+myself."* All categories, items, recipes and ingredients were cleared
+from the live Supabase document — including his own test entries
+(Chicken Biryani's price, "Vegetable Rice", "NEW DISH"), confirmed
+explicitly rather than assumed. **The 14 EU-mandated allergens were kept**
+(the whole list already was statutory, so nothing to filter), and so was
+his real "Sauces" extras group — extras were never part of this ask, and
+that group has a real price he set himself, not a leftover.
+
+If anything needs restoring, the pre-wipe document was saved to this
+session's scratchpad before deleting — ask Claude Code to check its
+memory/history for the backup rather than assuming it's gone for good.
+
 ### Menu & recipe system
 
 Built under `/admin/menu`: items by category, category management,
@@ -601,10 +663,15 @@ delivery-radius diagram, and a closing CTA.
    WhatsApp button, `MenuItemCard`). The `/menu` and `/contact` page
    bodies inherit the palette and typography but haven't had a dedicated
    design pass yet — that's the next styling job.
-3. **Hero background video.** Danish is supplying an MP4. Drop it at
-   `public/video/hero.mp4` and rebuild — `src/lib/hero-video.ts` detects
-   it at build time and the hero switches from the poster still to the
-   video with no code change.
+3. ~~Hero background video~~ — **done.** Two variants, not one:
+   `public/video/hero-web.mp4` and `hero-mobile.mp4`, swapped via CSS
+   breakpoint rather than both loading and one being hidden.
+   `src/lib/hero-video.ts` checks for each independently at build time,
+   so either alone still works (used for both breakpoints) if the other
+   is ever missing. Also fixed in passing: `public/favicon.ico` never
+   actually existed, so the site had no working tab icon at all —
+   `[locale]/layout.tsx` now points at Danish's real
+   `public/logo/favicon-kebabish.png` instead.
 4. **Real food photography.** Everything in `public/images/` is a Pexels
    placeholder (see `public/images/CREDITS.md`). Replacing a photo is a
    file drop at the same path.

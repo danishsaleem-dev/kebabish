@@ -43,7 +43,12 @@ const adapter: StoreAdapter =
  */
 function normalise(data: StoreShape): StoreShape {
   data.optionGroups ??= [];
-  for (const item of data.items) item.optionGroupIds ??= [];
+  for (const item of data.items) {
+    item.optionGroupIds ??= [];
+    item.tags ??= [];
+    item.allergenIds ??= [];
+    item.visible ??= true;
+  }
   return data;
 }
 

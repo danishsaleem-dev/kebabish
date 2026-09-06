@@ -59,7 +59,10 @@ export async function generateMetadata({
       type: "website",
     },
     icons: {
-      icon: "/favicon.ico",
+      // public/favicon.ico never existed, so the site had no working
+      // favicon at all — this is Danish's real logo mark, in the format
+      // browsers actually use for tab icons.
+      icon: "/logo/favicon-kebabish.png",
     },
   };
 }

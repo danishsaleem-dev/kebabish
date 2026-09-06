@@ -7,13 +7,15 @@ import MaskedWords from "@/components/motion/MaskedWords";
 
 export default async function Hero({
   locale,
-  hasVideo,
+  heroVideo,
   isOpen,
 }: {
   locale: string;
-  hasVideo: boolean;
+  heroVideo: { web: boolean; mobile: boolean };
   isOpen: boolean;
 }) {
+  const { web, mobile } = heroVideo;
+  const hasVideo = web || mobile;
   const t = await getTranslations({ locale });
   const whatsappHref = whatsappOrderLink(t("whatsapp.orderGeneric"));
 
@@ -26,17 +28,34 @@ export default async function Hero({
       {/* Inset past the edges so the parallax drift never exposes a seam. */}
       <div data-hero-media className="absolute -inset-y-[10%] inset-x-0">
         {hasVideo ? (
-          <video
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            poster="/images/hero-poster.jpg"
-            className="h-full w-full object-cover"
-          >
-            <source src="/video/hero.mp4" type="video/mp4" />
-          </video>
+          <>
+            {mobile && (
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster="/images/hero-poster.jpg"
+                className={`h-full w-full object-cover ${web ? "sm:hidden" : ""}`}
+              >
+                <source src="/video/hero-mobile.mp4" type="video/mp4" />
+              </video>
+            )}
+            {web && (
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster="/images/hero-poster.jpg"
+                className={`h-full w-full object-cover ${mobile ? "hidden sm:block" : ""}`}
+              >
+                <source src="/video/hero-web.mp4" type="video/mp4" />
+              </video>
+            )}
+          </>
         ) : (
           <Image
             src="/images/hero-poster.jpg"

@@ -170,8 +170,14 @@ const itemSchema = z.object({
   vegetarian: z.boolean(),
   spicy: z.boolean(),
   soldOut: z.boolean(),
+  visible: z.boolean(),
   imageIds: z.array(z.string()),
   optionGroupIds: z.array(z.string()),
+  tags: z
+    .string()
+    .default("")
+    .transform((v) => v.split(",").map((s) => s.trim()).filter(Boolean)),
+  allergenIds: z.array(z.string()),
 });
 
 function readItemForm(formData: FormData) {
@@ -183,11 +189,14 @@ function readItemForm(formData: FormData) {
     vegetarian: formData.get("vegetarian") === "on",
     spicy: formData.get("spicy") === "on",
     soldOut: formData.get("soldOut") === "on",
+    visible: formData.get("visible") === "on",
     imageIds: formData.getAll("imageIds").map(String).filter(Boolean),
     optionGroupIds: formData
       .getAll("optionGroupIds")
       .map(String)
       .filter(Boolean),
+    tags: formData.get("tags") ?? "",
+    allergenIds: formData.getAll("allergenIds").map(String).filter(Boolean),
   });
 }
 
@@ -201,7 +210,7 @@ export async function createItemAction(
   const item = await createItem(parsed.data);
   refreshMenu();
   redirect(
-    flashRedirect(`/admin/menu/recipes/${item.slug}`, `“${item.name}” added to the menu.`)
+    flashRedirect(`/admin/menu/items/${item.slug}/edit`, `“${item.name}” added to the menu.`)
   );
 }
 
@@ -217,7 +226,7 @@ export async function updateItemAction(
   refreshMenu();
   revalidatePath(`/admin/menu/recipes/${slug}`);
   redirect(
-    flashRedirect(`/admin/menu/recipes/${slug}`, `“${item.name}” saved.`)
+    flashRedirect(`/admin/menu/items/${slug}/edit`, `“${item.name}” saved.`)
   );
 }
 
@@ -228,6 +237,16 @@ export async function deleteItemAction(
   await deleteItem(String(formData.get("slug") ?? ""));
   refreshMenu();
   redirect(flashRedirect("/admin/menu", "Dish deleted."));
+}
+
+/** Inline "show on website" toggle in the items table — no full edit needed. */
+export async function toggleItemVisibilityAction(
+  formData: FormData
+): Promise<void> {
+  const slug = String(formData.get("slug") ?? "");
+  const visible = formData.get("visible") === "true";
+  await updateItem(slug, { visible: !visible });
+  refreshMenu();
 }
 
 /* --------------------------------------------------------------- ingredients */
@@ -425,7 +444,7 @@ export async function saveRecipeAction(
   revalidatePath(`/admin/menu/recipes/${parsed.data.menuItemSlug}`);
   redirect(
     flashRedirect(
-      `/admin/menu/recipes/${parsed.data.menuItemSlug}`,
+      `/admin/menu/items/${parsed.data.menuItemSlug}/edit`,
       "Recipe saved."
     )
   );

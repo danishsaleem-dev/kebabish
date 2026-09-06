@@ -101,7 +101,7 @@ export async function getPublicMenu(): Promise<PublicMenuCategory[]> {
       label: category.label,
       description: category.description,
       items: data.items
-        .filter((i) => i.categoryId === category.id)
+        .filter((i) => i.categoryId === category.id && i.visible)
         .map((i) => toPublicItem(i, data.optionGroups ?? [], data.media ?? [])),
     }))
     .filter((c) => c.items.length > 0);
@@ -113,7 +113,7 @@ export async function getPublicItem(slug: string): Promise<{
 } | null> {
   const data = await read();
   const item = data.items.find((i) => i.slug === slug);
-  if (!item) return null;
+  if (!item || !item.visible) return null;
 
   const category = data.categories.find((c) => c.id === item.categoryId);
   if (!category?.visible) return null;
@@ -127,8 +127,10 @@ export async function getPublicItem(slug: string): Promise<{
 /** Slugs for generateStaticParams on the item pages. */
 export async function getPublicItemSlugs(): Promise<string[]> {
   const data = await read();
-  const visible = new Set(
+  const visibleCategories = new Set(
     data.categories.filter((c) => c.visible).map((c) => c.id)
   );
-  return data.items.filter((i) => visible.has(i.categoryId)).map((i) => i.slug);
+  return data.items
+    .filter((i) => i.visible && visibleCategories.has(i.categoryId))
+    .map((i) => i.slug);
 }

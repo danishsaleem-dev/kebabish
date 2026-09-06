@@ -1,5 +1,5 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { hasHeroVideo } from "@/lib/hero-video";
+import { getHeroVideoAvailability } from "@/lib/hero-video";
 import Motion from "@/components/motion/Motion";
 import Hero from "@/components/home/Hero";
 import Marquee from "@/components/home/Marquee";
@@ -30,7 +30,7 @@ export default async function HomePage({
           client island that drives the GSAP timelines and smooth scrolling. */}
       <Motion />
 
-      <Hero locale={locale} hasVideo={hasHeroVideo()} isOpen={isOpen} />
+      <Hero locale={locale} heroVideo={getHeroVideoAvailability()} isOpen={isOpen} />
       <Marquee items={marqueeItems} />
       <Story locale={locale} />
       <Popular locale={locale} isOpen={isOpen} />

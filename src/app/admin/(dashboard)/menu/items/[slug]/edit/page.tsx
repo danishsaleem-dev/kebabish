@@ -2,16 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
-import Card, { CardHeader } from "@/components/admin/ui/Card";
+import Card from "@/components/admin/ui/Card";
 import ItemForm from "@/components/admin/ItemForm";
 import DeleteButton from "@/components/admin/ui/DeleteButton";
 import {
   getItem,
+  getRecipe,
+  listAllergens,
   listCategories,
+  listIngredients,
   listMedia,
   listOptionGroups,
 } from "@/lib/admin/store";
-import { deleteItemAction, updateItemAction } from "@/app/admin/(dashboard)/menu/actions";
+import {
+  deleteItemAction,
+  saveRecipeAction,
+  updateItemAction,
+} from "@/app/admin/(dashboard)/menu/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -31,37 +38,40 @@ export default async function EditItemPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [item, categories, library, optionGroups] = await Promise.all([
-    getItem(slug),
-    listCategories(),
-    listMedia(),
-    listOptionGroups(),
-  ]);
+  const [item, categories, library, optionGroups, allergens, recipe, ingredients] =
+    await Promise.all([
+      getItem(slug),
+      listCategories(),
+      listMedia(),
+      listOptionGroups(),
+      listAllergens(),
+      getRecipe(slug),
+      listIngredients(),
+    ]);
   if (!item) notFound();
 
   return (
-    <AdminShell title={`Edit ${item.name}`}>
-      <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
+    <AdminShell title={item.name}>
+      <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
         <Link
-          href={`/admin/menu/recipes/${item.slug}`}
+          href="/admin/menu"
           className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-heading"
         >
           <ArrowLeft size={16} />
-          Back to {item.name}
+          Back to menu
         </Link>
 
-        <Card>
-          <CardHeader title="Dish details" />
-          <div className="mt-6">
-            <ItemForm
-              action={updateItemAction}
-              categories={categories}
-              item={item}
-              library={library}
-              optionGroups={optionGroups}
-            />
-          </div>
-        </Card>
+        <ItemForm
+          action={updateItemAction}
+          categories={categories}
+          item={item}
+          library={library}
+          optionGroups={optionGroups}
+          allergens={allergens}
+          recipe={recipe}
+          ingredients={ingredients}
+          recipeAction={saveRecipeAction}
+        />
 
         <Card className="flex flex-wrap items-center justify-between gap-4">
           <div>

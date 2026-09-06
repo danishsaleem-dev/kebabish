@@ -1,46 +1,49 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
-import Card, { CardHeader } from "@/components/admin/ui/Card";
 import ItemForm from "@/components/admin/ItemForm";
-import { listCategories, listMedia, listOptionGroups } from "@/lib/admin/store";
+import {
+  listAllergens,
+  listCategories,
+  listMedia,
+  listOptionGroups,
+} from "@/lib/admin/store";
 import { createItemAction } from "@/app/admin/(dashboard)/menu/actions";
 
 export const metadata = { title: "Add item" };
 export const dynamic = "force-dynamic";
 
 export default async function NewItemPage() {
-  const [categories, library, optionGroups] = await Promise.all([
+  const [categories, library, optionGroups, allergens] = await Promise.all([
     listCategories(),
     listMedia(),
     listOptionGroups(),
+    listAllergens(),
   ]);
 
   return (
     <AdminShell title="Add item">
-      <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
-        <Link
-          href="/admin/menu"
-          className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-heading"
-        >
-          <ArrowLeft size={16} />
-          Back to menu
-        </Link>
+      <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/admin/menu"
+            className="inline-flex items-center gap-2 text-sm font-medium text-muted transition-colors hover:text-heading"
+          >
+            <ArrowLeft size={16} />
+            Back to menu
+          </Link>
+          <p className="text-sm text-muted">
+            You can add its recipe straight after saving.
+          </p>
+        </div>
 
-        <Card>
-          <CardHeader
-            title="New dish"
-            subtitle="You can add its recipe straight after saving."
-          />
-          <div className="mt-6">
-            <ItemForm
-              action={createItemAction}
-              categories={categories}
-              library={library}
-              optionGroups={optionGroups}
-            />
-          </div>
-        </Card>
+        <ItemForm
+          action={createItemAction}
+          categories={categories}
+          library={library}
+          optionGroups={optionGroups}
+          allergens={allergens}
+        />
       </div>
     </AdminShell>
   );

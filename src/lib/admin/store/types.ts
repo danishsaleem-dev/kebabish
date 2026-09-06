@@ -44,10 +44,25 @@ export interface StoredItem {
   vegetarian: boolean;
   spicy: boolean;
   soldOut: boolean;
+  /**
+   * Shown on the public menu at all. Separate from `soldOut` — a sold-out
+   * dish still shows (marked unavailable); an invisible one is a draft
+   * that doesn't appear yet, e.g. while you're still setting it up.
+   */
+  visible: boolean;
   /** Media ids, in display order. The first is the featured image. */
   imageIds: string[];
   /** Extras offered with this dish, by option-group id. */
   optionGroupIds: string[];
+  /** Free-form labels, admin-side only for now — not yet a public filter. */
+  tags: string[];
+  /**
+   * Manually flagged allergens, by allergen id. Separate from a recipe's
+   * own auto-rolled-up allergens (from its ingredients) — a dish can be
+   * flagged here before its recipe exists, or for an allergen that isn't
+   * traceable to one ingredient line.
+   */
+  allergenIds: string[];
 }
 
 /** One choice inside an option group, e.g. "Garlic sauce" at +€0.75. */
