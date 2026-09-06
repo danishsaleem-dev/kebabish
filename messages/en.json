@@ -218,7 +218,10 @@
     "contact": "Contact",
     "followUs": "Follow us",
     "deliveryOnly": "Delivery & takeaway only",
-    "rights": "All rights reserved."
+    "rights": "All rights reserved.",
+    "reviews": "Reviews",
+    "privacy": "Privacy Policy",
+    "terms": "Terms & Conditions"
   },
   "comingSoon": {
     "eyebrow": "Opening soon",
@@ -262,6 +265,179 @@
     "ctaText": "Get in touch to discuss what's possible for your event — we're happy to think it through with you.",
     "ctaWhatsapp": "Discuss it on WhatsApp",
     "ctaCall": "Call us"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "intro": "What our customers are saying",
+    "emptyTitle": "Our first reviews are on their way",
+    "emptyText": "We're currently gathering feedback from our customers. Ordered from us before? We'd love to hear what you thought.",
+    "ctaTitle": "Want to taste it yourself?",
+    "ctaText": "Order today and find out why our customers keep choosing Kebabish.",
+    "ctaMenu": "View the menu"
+  },
+  "privacy": {
+    "title": "Privacy Policy",
+    "updated": "Last updated: 6 September 2026",
+    "intro": "Kebabish takes protecting your personal data seriously. This privacy policy explains what data we collect, why, and what rights you have.",
+    "sections": [
+      {
+        "heading": "Who we are",
+        "body": [
+          "This website, kebabish.nl, is operated by Marfah Enterprise, trading as Kebabish, located at De Overstoep 49, 1616RK Hoogkarspel, and registered with the Dutch Chamber of Commerce (KVK) under number 42147417.",
+          "For any questions about this privacy policy or how we handle your data, contact us at info@kebabish.nl or +31 6 84011572."
+        ]
+      },
+      {
+        "heading": "What data we collect",
+        "body": ["Depending on how you use our services, we process the following data:"],
+        "list": [
+          "Name, delivery address, phone number and (optionally) email address when placing an order",
+          "Order history and the contents of your order",
+          "Account details if you create a customer account (name, email, password stored in encrypted form)",
+          "Communication via WhatsApp, phone or email when you contact us",
+          "Technical data such as IP address and browser type, for website security and functionality"
+        ]
+      },
+      {
+        "heading": "Why we use this data",
+        "body": ["We use your data only to:"],
+        "list": [
+          "Process, deliver and handle your order",
+          "Contact you about your order",
+          "Offer a customer account and order history, if you choose to create one",
+          "Meet legal obligations, such as our tax record-keeping",
+          "Keep our website secure and technically sound"
+        ]
+      },
+      {
+        "heading": "Legal basis",
+        "body": [
+          "We process your data based on the performance of a contract (placing and delivering your order), a legal obligation (such as our bookkeeping duties), or our legitimate interest in a secure, well-functioning website."
+        ]
+      },
+      {
+        "heading": "Sharing with third parties",
+        "body": [
+          "We never sell your data to third parties. To provide our service, we share data with a small number of carefully chosen partners:"
+        ],
+        "list": [
+          "Mollie, to securely process online payments — we never store payment details such as card numbers ourselves",
+          "Google Maps, to place your address within our delivery area",
+          "Our hosting and database providers (Vercel and Supabase), who act solely as processors on our behalf"
+        ]
+      },
+      {
+        "heading": "Retention period",
+        "body": [
+          "We do not keep your data longer than necessary for the purpose it was collected for. Order data is kept for as long as the law requires of us as a business (including our tax record-keeping obligations)."
+        ]
+      },
+      {
+        "heading": "Cookies and local storage",
+        "body": [
+          "We currently do not use third-party tracking or advertising cookies. Your shopping cart is stored locally in your browser so it's kept between visits — this data never leaves your own device."
+        ]
+      },
+      {
+        "heading": "Your rights",
+        "body": ["You have the right to:"],
+        "list": [
+          "Access the data we hold about you",
+          "Have inaccurate data corrected",
+          "Have your data deleted, where legally possible",
+          "Object to certain processing",
+          "Lodge a complaint with the Dutch Data Protection Authority (Autoriteit Persoonsgegevens)"
+        ],
+        "footer": "To exercise any of these rights, contact us at info@kebabish.nl."
+      },
+      {
+        "heading": "Security",
+        "body": [
+          "We take appropriate technical and organisational measures to protect your data against loss or unauthorised use."
+        ]
+      },
+      {
+        "heading": "Changes",
+        "body": [
+          "We may update this privacy policy from time to time. The most current version is always available on this page."
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Terms & Conditions",
+    "updated": "Last updated: 6 September 2026",
+    "intro": "These terms and conditions apply to every order you place with Kebabish, whether through the website or via WhatsApp.",
+    "sections": [
+      {
+        "heading": "Who we are",
+        "body": [
+          "Kebabish is the trading name of Marfah Enterprise, located at De Overstoep 49, 1616RK Hoogkarspel, registered with the Dutch Chamber of Commerce (KVK) under number 42147417. You can reach us at info@kebabish.nl and +31 6 84011572."
+        ]
+      },
+      {
+        "heading": "Orders",
+        "body": [
+          "An order is only concluded once we've confirmed it via the website or WhatsApp. You're responsible for providing an accurate delivery address and contact details."
+        ]
+      },
+      {
+        "heading": "Prices and payment",
+        "body": [
+          "All prices on the website are in euros and include VAT. Any delivery fee and minimum order amount are shown clearly before you check out.",
+          "Online orders are paid for in advance through our payment partner Mollie (iDEAL, credit card, Apple Pay, Google Pay or Klarna). Orders placed via WhatsApp are arranged directly with us."
+        ]
+      },
+      {
+        "heading": "Delivery and takeaway",
+        "body": [
+          "Kebabish offers delivery and takeaway only — there is no option to dine in. We deliver within our stated delivery area around Hoogkarspel; unfortunately we're unable to deliver outside it.",
+          "Stated delivery times are an estimate, not a guarantee — for example during busy periods or in poor weather."
+        ]
+      },
+      {
+        "heading": "Right of withdrawal",
+        "body": [
+          "Because we prepare fresh food that spoils quickly, the standard 14-day right of withdrawal that normally applies to online purchases does not apply to our orders once confirmed, under the statutory exception in the Dutch Civil Code (Article 6:230p BW) for perishable goods."
+        ]
+      },
+      {
+        "heading": "Cancellations",
+        "body": [
+          "Need to cancel an order? Contact us as soon as possible. Once we've started preparing your order, we're unfortunately no longer able to cancel it."
+        ]
+      },
+      {
+        "heading": "Allergens and food safety",
+        "body": [
+          "Our dishes indicate which of the 14 legally declarable allergens they may contain. If you have an allergy or food intolerance, please contact us before ordering so we can advise you properly."
+        ]
+      },
+      {
+        "heading": "Liability",
+        "body": [
+          "Our liability is limited to direct damages and to a maximum of the value of the relevant order, except in cases of intent or gross negligence. We are not liable for delays or failure to meet our obligations due to circumstances beyond our control."
+        ]
+      },
+      {
+        "heading": "Complaints",
+        "body": [
+          "Not happy with your order? Let us know as soon as possible at info@kebabish.nl or +31 6 84011572, so we can work out a solution together."
+        ]
+      },
+      {
+        "heading": "Governing law",
+        "body": [
+          "These terms and conditions are governed by Dutch law. Disputes will be submitted to the competent court in the Netherlands."
+        ]
+      },
+      {
+        "heading": "Changes",
+        "body": [
+          "We may update these terms and conditions from time to time. The most current version is always available on this page."
+        ]
+      }
+    ]
   },
   "common": {
     "callUs": "Call us",

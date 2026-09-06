@@ -113,8 +113,21 @@ export default function Footer() {
         </div>
       </div>
 
-      <div className="relative z-10 border-t border-cream-200/10 px-5 py-6 text-center text-xs leading-relaxed text-cream-200/50 sm:px-6">
-        © {year} {siteConfig.brandName}. {t("rights")}
+      <div className="relative z-10 flex flex-col items-center justify-between gap-3 border-t border-cream-200/10 px-5 py-6 text-center text-xs leading-relaxed text-cream-200/50 sm:flex-row sm:px-6 sm:text-left">
+        <p>
+          © {year} {siteConfig.brandName}. {t("rights")}
+        </p>
+        <div className="flex items-center gap-5">
+          <Link href="/reviews" className="link-underline">
+            {t("reviews")}
+          </Link>
+          <Link href="/privacy" className="link-underline">
+            {t("privacy")}
+          </Link>
+          <Link href="/terms" className="link-underline">
+            {t("terms")}
+          </Link>
+        </div>
       </div>
     </footer>
   );

@@ -218,7 +218,10 @@
     "contact": "Contact",
     "followUs": "Volg ons",
     "deliveryOnly": "Alleen bezorgen & afhalen",
-    "rights": "Alle rechten voorbehouden."
+    "rights": "Alle rechten voorbehouden.",
+    "reviews": "Reviews",
+    "privacy": "Privacybeleid",
+    "terms": "Algemene voorwaarden"
   },
   "comingSoon": {
     "eyebrow": "Binnenkort open",
@@ -262,6 +265,179 @@
     "ctaText": "Neem contact met ons op om de mogelijkheden voor jouw evenement te bespreken — we denken graag met je mee.",
     "ctaWhatsapp": "Bespreek het via WhatsApp",
     "ctaCall": "Bel ons"
+  },
+  "reviews": {
+    "title": "Reviews",
+    "intro": "Wat onze klanten zeggen",
+    "emptyTitle": "Onze eerste reviews komen er binnenkort aan",
+    "emptyText": "We verzamelen op dit moment de reacties van onze klanten. Heb je bij ons besteld? We horen graag wat je ervan vond.",
+    "ctaTitle": "Zelf proeven?",
+    "ctaText": "Bestel vandaag nog en ontdek waarom onze klanten voor Kebabish kiezen.",
+    "ctaMenu": "Bekijk het menu"
+  },
+  "privacy": {
+    "title": "Privacybeleid",
+    "updated": "Laatst bijgewerkt: 6 september 2026",
+    "intro": "Kebabish hecht veel waarde aan de bescherming van jouw persoonsgegevens. In dit privacybeleid leggen we uit welke gegevens we verzamelen, waarom, en welke rechten je hebt.",
+    "sections": [
+      {
+        "heading": "Wie wij zijn",
+        "body": [
+          "Deze website, kebabish.nl, wordt beheerd door Marfah Enterprise, handelend onder de naam Kebabish, gevestigd aan De Overstoep 49, 1616RK Hoogkarspel en ingeschreven bij de Kamer van Koophandel onder nummer 42147417.",
+          "Voor vragen over dit privacybeleid of over hoe wij met jouw gegevens omgaan kun je contact met ons opnemen via info@kebabish.nl of +31 6 84011572."
+        ]
+      },
+      {
+        "heading": "Welke gegevens wij verwerken",
+        "body": ["Afhankelijk van hoe je van onze diensten gebruikmaakt, verwerken wij de volgende gegevens:"],
+        "list": [
+          "Naam, bezorgadres, telefoonnummer en (optioneel) e-mailadres bij het plaatsen van een bestelling",
+          "Bestelgeschiedenis en de inhoud van je bestelling",
+          "Accountgegevens als je een klantaccount aanmaakt (naam, e-mailadres, wachtwoord in versleutelde vorm)",
+          "Communicatie via WhatsApp, telefoon of e-mail wanneer je contact met ons opneemt",
+          "Technische gegevens zoals IP-adres en browsertype, voor de beveiliging en werking van de website"
+        ]
+      },
+      {
+        "heading": "Waarvoor wij deze gegevens gebruiken",
+        "body": ["Wij gebruiken jouw gegevens uitsluitend om:"],
+        "list": [
+          "Je bestelling te verwerken, te bezorgen en af te handelen",
+          "Contact met je op te nemen over je bestelling",
+          "Een klantaccount en bestelgeschiedenis aan te bieden, als je daarvoor kiest",
+          "Te voldoen aan wettelijke verplichtingen, zoals onze fiscale administratie",
+          "Onze website te beveiligen en technisch te verbeteren"
+        ]
+      },
+      {
+        "heading": "Rechtsgrondslag",
+        "body": [
+          "Wij verwerken jouw gegevens op basis van de uitvoering van de overeenkomst (het plaatsen en bezorgen van je bestelling), het voldoen aan een wettelijke verplichting (zoals onze boekhoudplicht), of ons gerechtvaardigd belang bij een veilig en goed functionerende website."
+        ]
+      },
+      {
+        "heading": "Delen met derden",
+        "body": [
+          "Wij verkopen jouw gegevens nooit aan derden. Om onze dienstverlening mogelijk te maken, delen wij gegevens met een beperkt aantal zorgvuldig gekozen partijen:"
+        ],
+        "list": [
+          "Mollie, voor het veilig verwerken van online betalingen — wij slaan zelf geen betaalgegevens (zoals kaartnummers) op",
+          "Google Maps, om je adres binnen ons bezorggebied te kunnen plaatsen",
+          "Onze hosting- en databaseleveranciers (Vercel en Supabase), die uitsluitend als verwerker voor ons optreden"
+        ]
+      },
+      {
+        "heading": "Bewaartermijn",
+        "body": [
+          "Wij bewaren jouw gegevens niet langer dan noodzakelijk voor het doel waarvoor ze zijn verzameld. Bestelgegevens bewaren wij zo lang als de wet dat van ons als ondernemer vereist (onder andere voor onze fiscale administratie)."
+        ]
+      },
+      {
+        "heading": "Cookies en lokale opslag",
+        "body": [
+          "Wij gebruiken op dit moment geen tracking- of advertentiecookies van derden. Je winkelwagentje wordt lokaal in je browser opgeslagen zodat je bestelling bewaard blijft tussen bezoeken — deze gegevens verlaten je eigen apparaat niet."
+        ]
+      },
+      {
+        "heading": "Jouw rechten",
+        "body": ["Je hebt het recht om:"],
+        "list": [
+          "Inzage te krijgen in de gegevens die wij van je verwerken",
+          "Onjuiste gegevens te laten corrigeren",
+          "Je gegevens te laten verwijderen, voor zover wettelijk mogelijk",
+          "Bezwaar te maken tegen bepaalde verwerkingen",
+          "Een klacht in te dienen bij de Autoriteit Persoonsgegevens"
+        ],
+        "footer": "Neem voor het uitoefenen van deze rechten contact met ons op via info@kebabish.nl."
+      },
+      {
+        "heading": "Beveiliging",
+        "body": [
+          "Wij nemen passende technische en organisatorische maatregelen om jouw gegevens te beschermen tegen verlies of onrechtmatig gebruik."
+        ]
+      },
+      {
+        "heading": "Wijzigingen",
+        "body": [
+          "Wij kunnen dit privacybeleid van tijd tot tijd aanpassen. De meest actuele versie staat altijd op deze pagina."
+        ]
+      }
+    ]
+  },
+  "terms": {
+    "title": "Algemene Voorwaarden",
+    "updated": "Laatst bijgewerkt: 6 september 2026",
+    "intro": "Deze algemene voorwaarden zijn van toepassing op elke bestelling die je bij Kebabish plaatst, via de website of via WhatsApp.",
+    "sections": [
+      {
+        "heading": "Wie wij zijn",
+        "body": [
+          "Kebabish is de handelsnaam van Marfah Enterprise, gevestigd aan De Overstoep 49, 1616RK Hoogkarspel, ingeschreven bij de Kamer van Koophandel onder nummer 42147417. Wij zijn bereikbaar via info@kebabish.nl en +31 6 84011572."
+        ]
+      },
+      {
+        "heading": "Bestellingen",
+        "body": [
+          "Een bestelling komt tot stand zodra wij deze via de website of WhatsApp hebben bevestigd. Je bent zelf verantwoordelijk voor het correct doorgeven van je bezorgadres en contactgegevens."
+        ]
+      },
+      {
+        "heading": "Prijzen en betaling",
+        "body": [
+          "Alle prijzen op de website zijn in euro's en inclusief btw. Eventuele bezorgkosten en een minimale bestelwaarde worden duidelijk getoond voordat je afrekent.",
+          "Online bestellingen worden vooraf betaald via onze betaalpartner Mollie (iDEAL, creditcard, Apple Pay, Google Pay of Klarna). Bestellingen via WhatsApp worden onderling afgestemd."
+        ]
+      },
+      {
+        "heading": "Bezorgen en afhalen",
+        "body": [
+          "Kebabish biedt uitsluitend bezorging en afhalen aan — er is geen mogelijkheid om bij ons te dineren. Wij bezorgen binnen ons aangegeven bezorggebied rondom Hoogkarspel; buiten dit gebied kunnen wij helaas niet bezorgen.",
+          "Opgegeven bezorgtijden zijn een indicatie en geen harde garantie, bijvoorbeeld bij drukte of weersomstandigheden."
+        ]
+      },
+      {
+        "heading": "Herroepingsrecht",
+        "body": [
+          "Omdat wij verse levensmiddelen bereiden die snel bederven, is het wettelijke herroepingsrecht van 14 dagen (dat normaal geldt bij online aankopen) op grond van artikel 6:230p van het Burgerlijk Wetboek niet van toepassing op onze bestellingen zodra deze zijn bevestigd."
+        ]
+      },
+      {
+        "heading": "Annuleren",
+        "body": [
+          "Wil je een bestelling annuleren? Neem dan zo snel mogelijk contact met ons op. Zodra we gestart zijn met de bereiding, kunnen wij een bestelling helaas niet meer annuleren."
+        ]
+      },
+      {
+        "heading": "Allergenen en voedselveiligheid",
+        "body": [
+          "Bij onze gerechten is aangegeven welke van de 14 wettelijk verplichte allergenen erin kunnen voorkomen. Heb je een allergie of voedselintolerantie, neem dan voor het bestellen contact met ons op, zodat wij je goed kunnen adviseren."
+        ]
+      },
+      {
+        "heading": "Aansprakelijkheid",
+        "body": [
+          "Onze aansprakelijkheid is beperkt tot directe schade en tot maximaal het bedrag van de betreffende bestelling, behalve in geval van opzet of grove nalatigheid. Wij zijn niet aansprakelijk voor vertraging of het niet nakomen van onze verplichtingen als gevolg van overmacht."
+        ]
+      },
+      {
+        "heading": "Klachten",
+        "body": [
+          "Ben je niet tevreden over je bestelling? Laat het ons zo snel mogelijk weten via info@kebabish.nl of +31 6 84011572, zodat we samen tot een oplossing kunnen komen."
+        ]
+      },
+      {
+        "heading": "Toepasselijk recht",
+        "body": [
+          "Op deze algemene voorwaarden is Nederlands recht van toepassing. Geschillen worden voorgelegd aan de bevoegde rechter in Nederland."
+        ]
+      },
+      {
+        "heading": "Wijzigingen",
+        "body": [
+          "Wij kunnen deze algemene voorwaarden van tijd tot tijd aanpassen. De meest actuele versie staat altijd op deze pagina."
+        ]
+      }
+    ]
   },
   "common": {
     "callUs": "Bel ons",
