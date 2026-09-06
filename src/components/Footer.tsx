@@ -24,7 +24,10 @@ export default function Footer() {
     { href: "/contact", label: tNav("contact") },
   ];
 
-  const moreLinks = [{ href: "/delivery-areas", label: t("deliveryAreas") }];
+  const moreLinks = [
+    { href: "/catering", label: t("catering") },
+    { href: "/delivery-areas", label: t("deliveryAreas") },
+  ];
 
   return (
     <footer className="relative overflow-hidden bg-charcoal-950 text-cream-100">
