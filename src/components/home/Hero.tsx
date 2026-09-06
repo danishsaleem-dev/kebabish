@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import BrandLogo from "@/components/shared/BrandLogo";
+import HeroVideo from "@/components/home/HeroVideo";
 
 export default async function Hero({
   locale,
@@ -28,45 +29,17 @@ export default async function Hero({
       {/* ---- background media ------------------------------------------ */}
       {/* Inset past the edges so the parallax drift never exposes a seam. */}
       <div data-hero-media className="absolute -inset-y-[10%] inset-x-0">
-        {hasVideo ? (
-          <>
-            {mobile && (
-              <video
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                poster="/images/hero-poster.jpg"
-                className={`h-full w-full object-cover ${web ? "sm:hidden" : ""}`}
-              >
-                <source src="/video/hero-mobile.mp4" type="video/mp4" />
-              </video>
-            )}
-            {web && (
-              <video
-                autoPlay
-                muted
-                loop
-                playsInline
-                preload="metadata"
-                poster="/images/hero-poster.jpg"
-                className={`h-full w-full object-cover ${mobile ? "hidden sm:block" : ""}`}
-              >
-                <source src="/video/hero-web.mp4" type="video/mp4" />
-              </video>
-            )}
-          </>
-        ) : (
-          <Image
-            src="/images/hero-poster.jpg"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-          />
-        )}
+        {/* Always the base layer — what a no-JS/slow-JS visitor sees, and
+            what shows through until HeroVideo below picks a variant. */}
+        <Image
+          src="/images/hero-poster.jpg"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
+        {hasVideo && <HeroVideo web={web} mobile={mobile} />}
       </div>
 
       {/* ---- scrims ------------------------------------------------------ */}
@@ -91,8 +64,8 @@ export default async function Hero({
           <BrandLogo
             src="/logo/kebabish-dark.png"
             alt={siteConfig.brandName}
-            width={440}
-            height={330}
+            width={300}
+            height={225}
             priority
             className="h-auto w-20 sm:w-28"
           />

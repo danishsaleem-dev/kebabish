@@ -172,6 +172,12 @@ export default function Motion() {
           defaults: { ease: "power3.out", duration: 0.9 },
         });
 
+        // Compressed to roughly 60% of the original timing — the title
+        // (the page's LCP element) doesn't finish revealing until this
+        // whole chain resolves, and the original pacing was measured
+        // adding ~2.5s of pure LCP delay with nothing else going on yet.
+        // Background zoom/veil are unaffected since they don't gate text
+        // visibility; everything downstream of them is what got tightened.
         intro
           .fromTo(
             q("[data-hero-media]"),
@@ -180,18 +186,18 @@ export default function Motion() {
             0
           )
           .to(q("[data-hero-veil]"), { opacity: 0, duration: 1.2 }, 0)
-          .to(q("[data-hero-mark]"), { opacity: 1, y: 0 }, 0.45)
-          .to(q("[data-hero-eyebrow]"), { opacity: 1, y: 0 }, 0.62)
+          .to(q("[data-hero-mark]"), { opacity: 1, y: 0 }, 0.25)
+          .to(q("[data-hero-eyebrow]"), { opacity: 1, y: 0 }, 0.35)
           .to(
             titleWords,
-            { yPercent: 0, duration: 1.15, stagger: 0.075, ease: "power4.out" },
-            0.75
+            { yPercent: 0, duration: 0.75, stagger: 0.05, ease: "power4.out" },
+            0.45
           )
-          .to(q("[data-hero-sub]"), { opacity: 1, y: 0 }, 1.15)
-          .to(q("[data-hero-desc]"), { opacity: 1, y: 0 }, 1.3)
-          .to(q("[data-hero-cta]"), { opacity: 1, y: 0, stagger: 0.09 }, 1.45)
-          .to(q("[data-hero-badge]"), { opacity: 1, y: 0 }, 1.68)
-          .to(q("[data-hero-cue]"), { opacity: 1, y: 0 }, 1.85);
+          .to(q("[data-hero-sub]"), { opacity: 1, y: 0 }, 0.75)
+          .to(q("[data-hero-desc]"), { opacity: 1, y: 0 }, 0.85)
+          .to(q("[data-hero-cta]"), { opacity: 1, y: 0, stagger: 0.09 }, 0.95)
+          .to(q("[data-hero-badge]"), { opacity: 1, y: 0 }, 1.1)
+          .to(q("[data-hero-cue]"), { opacity: 1, y: 0 }, 1.25);
 
         // Media drifts slower than the page; copy lifts away and dims.
         gsap.to(q("[data-hero-media]"), {
