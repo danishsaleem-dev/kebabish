@@ -59,8 +59,9 @@ export default function proxy(request: NextRequest) {
 
 export const config = {
   // Skip API routes, the admin dashboard, the auth pages, the customer
-  // dashboard, static files and Next internals — all locale-independent.
+  // dashboard, the rider dashboard, static files and Next internals — all
+  // locale-independent.
   matcher: [
-    "/((?!api|admin|login|signup|dashboard|_next|_vercel|.*\\..*).*)",
+    "/((?!api|admin|login|signup|dashboard|rider|_next|_vercel|.*\\..*).*)",
   ],
 };

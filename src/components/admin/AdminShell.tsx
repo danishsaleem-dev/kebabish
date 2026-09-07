@@ -36,12 +36,13 @@ export default async function AdminShell({
     }),
   ]);
 
-  // Narrows the broader `Role` (which also includes "customer") down to
-  // what this shell actually renders for — the (dashboard) layout guard
-  // already guarantees this at runtime, but TypeScript can't see across
-  // that boundary, so it's re-asserted here.
+  // Narrows the broader `Role` (which also includes "customer" and
+  // "rider") down to what this shell actually renders for — the
+  // (dashboard) layout guard already guarantees this at runtime, but
+  // TypeScript can't see across that boundary, so it's re-asserted here.
   const user =
-    session?.user && session.user.role !== "customer"
+    session?.user &&
+    (session.user.role === "owner" || session.user.role === "staff")
       ? {
           name: session.user.name,
           email: session.user.email,

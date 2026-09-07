@@ -2,7 +2,7 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
-export type AdminRole = "owner" | "staff";
+export type AdminRole = "owner" | "staff" | "rider";
 
 export interface AdminUser {
   id: string;
@@ -57,6 +57,26 @@ export async function listAdminUsers(): Promise<AdminUser[]> {
     .from("admin_users")
     .select("id, email, name, role, created_at, last_signed_in_at")
     .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map((row) => ({
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    createdAt: row.created_at,
+    lastSignedInAt: row.last_signed_in_at,
+  }));
+}
+
+/** For the "assign a rider" dropdown on an order. */
+export async function listRiders(): Promise<AdminUser[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("admin_users")
+    .select("id, email, name, role, created_at, last_signed_in_at")
+    .eq("role", "rider")
+    .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
 

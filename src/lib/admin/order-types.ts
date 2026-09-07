@@ -48,7 +48,29 @@ export interface AdminOrder {
   deliveryFee: number;
   total: number;
   note?: string;
+  assignedRiderId: string | null;
+  assignedRiderName: string | null;
 }
+
+/**
+ * The one valid "next stage" from any given status — what both the admin
+ * status control and a rider's dashboard offer as the primary action.
+ * `null` means terminal (delivered/cancelled) — nowhere to advance to.
+ */
+export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
+  new: "preparing",
+  preparing: "on_the_way",
+  on_the_way: "delivered",
+  delivered: null,
+  cancelled: null,
+};
+
+/**
+ * What a rider is allowed to move an order through themselves — starts
+ * once it's ready to leave the kitchen. "new -> preparing" is a kitchen
+ * decision, not a delivery one, so riders don't get that transition.
+ */
+export const RIDER_STATUSES: OrderStatus[] = ["preparing", "on_the_way", "delivered"];
 
 export interface AdminCustomer {
   id: string;

@@ -7,9 +7,12 @@ import { auth, homeForRole } from "@/lib/auth";
  * `/login` lives at the top level (outside /admin entirely) so signing in
  * doesn't loop back through this guard.
  *
- * A customer session landing here (shouldn't normally happen, but e.g. an
- * old bookmark) bounces to /dashboard instead — the two views are kept
- * strictly separate.
+ * Allow-listed (owner/staff only) rather than deny-listed ("not customer")
+ * — a customer *or* a rider session landing here (shouldn't normally
+ * happen, but e.g. an old bookmark) bounces to their own home instead via
+ * homeForRole. Written this way so a future role doesn't silently fall
+ * through into the admin shell the way a rider would have under a
+ * customer-only exclusion.
  *
  * AdminShell (rendered inside every page below) reads the session itself to
  * display the signed-in user, so by the time it runs here a session is
@@ -22,7 +25,9 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role === "customer") redirect(homeForRole(session.user.role));
+  if (session.user.role !== "owner" && session.user.role !== "staff") {
+    redirect(homeForRole(session.user.role));
+  }
 
   return children;
 }
