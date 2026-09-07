@@ -50,10 +50,12 @@ interface OrderRow {
   notes: string | null;
   channel: "website" | "whatsapp";
   status: string;
+  payment_status: string;
   subtotal_cents: number;
   delivery_fee_cents: number;
   total_cents: number;
   created_at: string;
+  delivered_at: string | null;
   order_items: OrderItemRow[];
   assigned_rider_id: string | null;
   assigned_rider: { name: string } | null;
@@ -96,6 +98,7 @@ function mapOrder(row: OrderRow): AdminOrder {
     phone: row.customer_phone,
     placedAt: row.created_at,
     status: row.status as AdminOrder["status"],
+    paymentStatus: row.payment_status as AdminOrder["paymentStatus"],
     channel: row.channel,
     fulfilment,
     town: fulfilment === "delivery" ? (row.address_city ?? "—") : "Pickup",
@@ -110,11 +113,12 @@ function mapOrder(row: OrderRow): AdminOrder {
     note: row.notes ?? undefined,
     assignedRiderId: row.assigned_rider_id,
     assignedRiderName: row.assigned_rider?.name ?? null,
+    deliveredAt: row.delivered_at,
   };
 }
 
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, subtotal_cents, delivery_fee_cents, total_cents, created_at, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
@@ -170,7 +174,7 @@ export async function listOrdersForRider(riderId: string): Promise<AdminOrder[]>
 export async function updateOrderStatus(
   orderId: string,
   nextStatus: OrderStatus,
-  actor: { id: string; role: "owner" | "staff" | "rider" }
+  actor: { id: string; role: "owner" | "staff" | "manager" | "rider" }
 ): Promise<void> {
   const { data: row, error: fetchError } = await supabaseAdmin()
     .from("orders")
@@ -198,10 +202,65 @@ export async function updateOrderStatus(
 
   const { error } = await supabaseAdmin()
     .from("orders")
-    .update({ status: nextStatus })
+    .update({
+      status: nextStatus,
+      ...(nextStatus === "delivered" ? { delivered_at: new Date().toISOString() } : {}),
+    })
     .eq("id", orderId);
 
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Owner/staff/manager only — the "Decline" side of the new-order popup,
+ * and available generally for cancelling a live order. Not part of
+ * `NEXT_STATUS`'s linear chain (cancelling isn't "the next stage"), so it
+ * gets its own function rather than being squeezed into `updateOrderStatus`.
+ */
+export async function cancelOrder(
+  orderId: string,
+  actor: { role: "owner" | "staff" | "manager" }
+): Promise<void> {
+  if (actor.role !== "owner" && actor.role !== "staff" && actor.role !== "manager") {
+    throw new Error("Only staff can cancel an order.");
+  }
+
+  const { data: row, error: fetchError } = await supabaseAdmin()
+    .from("orders")
+    .select("status")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!row) throw new Error("Order not found.");
+  if (row.status === "delivered" || row.status === "cancelled") {
+    throw new Error(`Can't cancel an order that's already "${row.status}".`);
+  }
+
+  const { error } = await supabaseAdmin()
+    .from("orders")
+    .update({ status: "cancelled" })
+    .eq("id", orderId);
+
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Orders waiting on a kitchen decision — paid, but not yet accepted or
+ * declined. This is exactly what the new-order popup polls: once an order
+ * is accepted (-> preparing) or declined (-> cancelled) it naturally drops
+ * out of this list, so there's no separate "seen" flag to maintain.
+ */
+export async function listPendingOrders(): Promise<AdminOrder[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("status", "new")
+    .eq("payment_status", "paid")
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => mapOrder(row as unknown as OrderRow));
 }
 
 /** Owner/staff only — assigning `null` unassigns. */

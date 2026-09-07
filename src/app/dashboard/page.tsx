@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
@@ -13,7 +14,11 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const session = await auth();
-  const user = session!.user;
+  // The layout above already redirects an unauthenticated request — this is
+  // a defensive fallback for the rare case this page renders before that
+  // redirect lands, so a null session can't crash the page instead.
+  if (!session?.user) redirect("/login");
+  const user = session.user;
   const orders = await listCustomerOrders(user.id);
 
   return (

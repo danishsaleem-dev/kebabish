@@ -1,22 +1,50 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { LogOut, MapPin, Phone } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
 import { listOrdersForRider } from "@/lib/admin/orders-data";
-import { formatMoney } from "@/lib/admin/units";
 import Card from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import OrderStatusControl from "@/components/admin/OrderStatusControl";
+import { PAYMENT_STATUS_LABELS, type PaymentStatus } from "@/lib/admin/order-types";
 
 export const dynamic = "force-dynamic";
 
+const PAYMENT_TONE: Record<PaymentStatus, string> = {
+  open: "text-warn",
+  paid: "text-success",
+  failed: "text-danger",
+  expired: "text-danger",
+  canceled: "text-danger",
+  refunded: "text-muted",
+};
+
+const dateTime = (iso: string) =>
+  new Date(iso).toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 export default async function RiderPage() {
   const session = await auth();
-  const user = session!.user;
+  // The layout above already redirects an unauthenticated request — this is
+  // a defensive fallback for the rare case this page renders before that
+  // redirect lands (seen in dev under Turbopack's parallel layout/page
+  // rendering), so a null session can't crash the page instead.
+  if (!session?.user) redirect("/login");
+  const user = session.user;
   const orders = await listOrdersForRider(user.id);
 
   const active = orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled");
-  const done = orders.filter((o) => o.status === "delivered" || o.status === "cancelled");
+  // Newest delivery first — this is the rider's own timeline of what they've
+  // actually delivered, so a cancelled order (never delivered) doesn't belong.
+  const delivered = orders
+    .filter((o) => o.status === "delivered")
+    .sort((a, b) => Date.parse(b.deliveredAt ?? b.placedAt) - Date.parse(a.deliveredAt ?? a.placedAt));
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -75,9 +103,9 @@ export default async function RiderPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <OrderStatusPill status={order.status} />
-                      <p className="font-display text-sm font-semibold text-heading">
-                        {formatMoney(order.total)}
-                      </p>
+                      <span className={`text-xs font-semibold ${PAYMENT_TONE[order.paymentStatus]}`}>
+                        {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                      </span>
                     </div>
                   </div>
 
@@ -95,22 +123,30 @@ export default async function RiderPage() {
           )}
         </div>
 
-        {done.length > 0 && (
+        {delivered.length > 0 && (
           <div>
             <h2 className="font-display text-lg font-semibold text-heading">
-              Delivered
+              Your delivery timeline
             </h2>
-            <div className="mt-3 space-y-2">
-              {done.map((order) => (
-                <Card key={order.id} className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-medium text-heading">{order.reference}</p>
-                    <p className="text-xs text-muted">{order.town}</p>
-                  </div>
-                  <OrderStatusPill status={order.status} />
-                </Card>
+
+            <ol className="mt-3 space-y-0 border-l-2 border-hairline pl-4">
+              {delivered.map((order) => (
+                <li key={order.id} className="relative pb-4 last:pb-0">
+                  <span className="absolute -left-[21px] top-1 h-2.5 w-2.5 rounded-full bg-success" />
+                  <Card className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-heading">
+                        {order.reference} · {order.town}
+                      </p>
+                      <p className="text-xs text-muted">
+                        Delivered {order.deliveredAt ? dateTime(order.deliveredAt) : "—"}
+                      </p>
+                    </div>
+                    <OrderStatusPill status={order.status} />
+                  </Card>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         )}
       </main>

@@ -17,6 +17,13 @@ export type OrderStatus =
 export type OrderChannel = "whatsapp" | "website";
 export type Fulfilment = "delivery" | "takeaway";
 export type CustomerStatus = "new" | "active" | "lapsed";
+export type PaymentStatus =
+  | "open"
+  | "paid"
+  | "failed"
+  | "expired"
+  | "canceled"
+  | "refunded";
 
 export interface AdminOrderLine {
   /** Display name — dish plus any chosen extras/instructions in parens. */
@@ -39,6 +46,7 @@ export interface AdminOrder {
   phone: string;
   placedAt: string;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
   channel: OrderChannel;
   fulfilment: Fulfilment;
   town: string;
@@ -50,6 +58,8 @@ export interface AdminOrder {
   note?: string;
   assignedRiderId: string | null;
   assignedRiderName: string | null;
+  /** Set once the status actually reaches "delivered" — null until then. */
+  deliveredAt: string | null;
 }
 
 /**
@@ -105,6 +115,16 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   on_the_way: "On the way",
   delivered: "Delivered",
   cancelled: "Cancelled",
+};
+
+/** For a rider — never the amount, just whether it's settled. */
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  open: "Payment pending",
+  paid: "Payment received",
+  failed: "Payment failed",
+  expired: "Payment expired",
+  canceled: "Payment cancelled",
+  refunded: "Refunded",
 };
 
 export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {

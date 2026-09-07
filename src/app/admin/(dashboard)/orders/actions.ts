@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { updateOrderStatus, assignRider } from "@/lib/admin/orders-data";
+import { updateOrderStatus, assignRider, cancelOrder } from "@/lib/admin/orders-data";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/admin/order-types";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 
@@ -14,7 +14,10 @@ export async function updateOrderStatusAction(
   const session = await auth();
   const user = session?.user;
   const role = user?.role;
-  if (!user || (role !== "owner" && role !== "staff" && role !== "rider")) {
+  if (
+    !user ||
+    (role !== "owner" && role !== "staff" && role !== "manager" && role !== "rider")
+  ) {
     return { ok: false, message: "Sign in again to do that." };
   }
 
@@ -33,13 +36,14 @@ export async function updateOrderStatusAction(
   return { ok: true, message: `Marked as ${ORDER_STATUS_LABELS[nextStatus]}.` };
 }
 
-/** Owner/staff only — riders don't assign themselves. */
+/** Owner/staff/manager only — riders don't assign themselves. */
 export async function assignRiderAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
   const session = await auth();
-  if (session?.user.role !== "owner" && session?.user.role !== "staff") {
+  const role = session?.user.role;
+  if (role !== "owner" && role !== "staff" && role !== "manager") {
     return { ok: false, message: "Only staff can assign a rider." };
   }
 
@@ -55,4 +59,53 @@ export async function assignRiderAction(
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/rider");
   return { ok: true, message: riderId ? "Rider assigned." : "Rider unassigned." };
+}
+
+export interface SimpleActionResult {
+  ok: boolean;
+  message?: string;
+}
+
+/**
+ * Accept/decline, called directly (not via useActionState/FormData) by the
+ * new-order popup, which polls for pending orders rather than living on a
+ * `<form>`. Accept is just the "new -> preparing" step everything else
+ * already goes through; decline cancels the order outright, which is a
+ * kitchen-only call the same way accepting is.
+ */
+export async function acceptOrderAction(orderId: string): Promise<SimpleActionResult> {
+  const session = await auth();
+  const user = session?.user;
+  const role = user?.role;
+  if (!user || (role !== "owner" && role !== "staff" && role !== "manager")) {
+    return { ok: false, message: "Sign in again to do that." };
+  }
+
+  try {
+    await updateOrderStatus(orderId, "preparing", { id: user.id, role });
+  } catch (error) {
+    return { ok: false, message: (error as Error).message };
+  }
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  return { ok: true };
+}
+
+export async function declineOrderAction(orderId: string): Promise<SimpleActionResult> {
+  const session = await auth();
+  const role = session?.user.role;
+  if (role !== "owner" && role !== "staff" && role !== "manager") {
+    return { ok: false, message: "Sign in again to do that." };
+  }
+
+  try {
+    await cancelOrder(orderId, { role });
+  } catch (error) {
+    return { ok: false, message: (error as Error).message };
+  }
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  return { ok: true };
 }

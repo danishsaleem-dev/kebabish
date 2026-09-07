@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Menu, Search } from "lucide-react";
 import Sidebar from "@/components/admin/Sidebar";
 import NotificationsMenu from "@/components/admin/NotificationsMenu";
+import NewOrderAlert from "@/components/admin/NewOrderAlert";
 import type { SessionUser } from "@/components/admin/AdminShell";
 import type { AdminNotification } from "@/lib/admin/order-types";
 
@@ -28,6 +29,8 @@ export default function AdminShellClient({
 
   return (
     <div className="min-h-screen bg-canvas">
+      {user && <NewOrderAlert />}
+
       {/* desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 hidden w-64 lg:block">
         <Sidebar user={user} />
