@@ -15,9 +15,12 @@ import {
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
+import OrderStatusControl from "@/components/admin/OrderStatusControl";
+import AssignRiderControl from "@/components/admin/AssignRiderControl";
 import PrintButton from "@/components/admin/ui/PrintButton";
 import { formatMoney } from "@/lib/admin/units";
 import { getOrder, getCustomer, listOrders } from "@/lib/admin/orders-data";
+import { listRiders } from "@/lib/admin/auth-users";
 import { ORDER_STATUS_LABELS } from "@/lib/admin/order-types";
 
 export const dynamic = "force-dynamic";
@@ -44,9 +47,10 @@ export default async function OrderDetailPage({
   const order = await getOrder(id);
   if (!order) notFound();
 
-  const [customer, allOrders] = await Promise.all([
+  const [customer, allOrders, riders] = await Promise.all([
     order.customerId ? getCustomer(order.customerId) : Promise.resolve(null),
     listOrders(),
+    listRiders(),
   ]);
   const history = order.customerId
     ? allOrders.filter((o) => o.customerId === order.customerId)
@@ -132,6 +136,12 @@ export default async function OrderDetailPage({
               </ol>
             )}
           </div>
+
+          {!cancelled && (
+            <div className="mt-5 flex justify-end print:hidden">
+              <OrderStatusControl orderId={order.id} status={order.status} />
+            </div>
+          )}
         </Card>
 
         <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.4fr_1fr]">
@@ -270,6 +280,30 @@ export default async function OrderDetailPage({
                   </li>
                 )}
               </ul>
+
+              {order.fulfilment === "delivery" && (
+                <div className="mt-4 border-t border-hairline pt-4 print:hidden">
+                  <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-faint">
+                    <Bike size={13} />
+                    Rider
+                  </p>
+                  {riders.length === 0 ? (
+                    <p className="text-sm text-muted">
+                      No riders yet — add one from{" "}
+                      <Link href="/admin/team" className="font-medium text-ember-700 hover:underline">
+                        Team
+                      </Link>
+                      .
+                    </p>
+                  ) : (
+                    <AssignRiderControl
+                      orderId={order.id}
+                      riders={riders}
+                      assignedRiderId={order.assignedRiderId}
+                    />
+                  )}
+                </div>
+              )}
             </Card>
           </div>
         </div>

@@ -8,7 +8,9 @@ import type {
   AdminNotification,
   AdminOrder,
   CustomerStatus,
+  OrderStatus,
 } from "@/lib/admin/order-types";
+import { NEXT_STATUS, RIDER_STATUSES } from "@/lib/admin/order-types";
 
 /**
  * Real orders, customers, dashboard and report data — replaces
@@ -53,6 +55,8 @@ interface OrderRow {
   total_cents: number;
   created_at: string;
   order_items: OrderItemRow[];
+  assigned_rider_id: string | null;
+  assigned_rider: { name: string } | null;
 }
 
 const PICKUP_ADDRESS = `${siteConfig.address.street}, ${siteConfig.address.postalCode} ${siteConfig.address.city}`;
@@ -104,11 +108,13 @@ function mapOrder(row: OrderRow): AdminOrder {
     deliveryFee: fromCents(row.delivery_fee_cents),
     total: fromCents(row.total_cents),
     note: row.notes ?? undefined,
+    assignedRiderId: row.assigned_rider_id,
+    assignedRiderName: row.assigned_rider?.name ?? null,
   };
 }
 
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, subtotal_cents, delivery_fee_cents, total_cents, created_at, order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, subtotal_cents, delivery_fee_cents, total_cents, created_at, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
@@ -135,6 +141,80 @@ export async function getOrder(id: string): Promise<AdminOrder | null> {
 
   if (error) throw new Error(error.message);
   return data ? mapOrder(data as unknown as OrderRow) : null;
+}
+
+/** Every order assigned to this rider, newest first — their dashboard's whole feed. */
+export async function listOrdersForRider(riderId: string): Promise<AdminOrder[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("assigned_rider_id", riderId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => mapOrder(row as unknown as OrderRow));
+}
+
+/**
+ * The only place an order's status can change. Never trust a status handed
+ * in from the client (same rule as `priceCart()`) — this re-derives what's
+ * actually allowed from the current row and the actor's role:
+ *
+ * - Owner/staff can advance any order along `NEXT_STATUS`, from any status.
+ * - A rider can only move an order that's assigned to them, and only
+ *   through `RIDER_STATUSES` (kitchen owns "new -> preparing").
+ *
+ * Anything else — wrong actor, wrong order, wrong transition — throws
+ * rather than silently no-opping, so a bug here fails loudly.
+ */
+export async function updateOrderStatus(
+  orderId: string,
+  nextStatus: OrderStatus,
+  actor: { id: string; role: "owner" | "staff" | "rider" }
+): Promise<void> {
+  const { data: row, error: fetchError } = await supabaseAdmin()
+    .from("orders")
+    .select("status, assigned_rider_id")
+    .eq("id", orderId)
+    .maybeSingle();
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!row) throw new Error("Order not found.");
+
+  const currentStatus = row.status as OrderStatus;
+  const allowed = NEXT_STATUS[currentStatus];
+  if (allowed !== nextStatus) {
+    throw new Error(`Can't move an order from "${currentStatus}" to "${nextStatus}".`);
+  }
+
+  if (actor.role === "rider") {
+    if (row.assigned_rider_id !== actor.id) {
+      throw new Error("This order isn't assigned to you.");
+    }
+    if (!RIDER_STATUSES.includes(nextStatus)) {
+      throw new Error("Riders can't make that change.");
+    }
+  }
+
+  const { error } = await supabaseAdmin()
+    .from("orders")
+    .update({ status: nextStatus })
+    .eq("id", orderId);
+
+  if (error) throw new Error(error.message);
+}
+
+/** Owner/staff only — assigning `null` unassigns. */
+export async function assignRider(
+  orderId: string,
+  riderId: string | null
+): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("orders")
+    .update({ assigned_rider_id: riderId })
+    .eq("id", orderId);
+
+  if (error) throw new Error(error.message);
 }
 
 /* ------------------------------------------------------------- customers */

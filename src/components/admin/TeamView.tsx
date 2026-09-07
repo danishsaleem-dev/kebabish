@@ -114,6 +114,7 @@ function UserRow({
             className="h-8 rounded-lg border border-hairline bg-panel px-2 text-xs font-semibold text-heading focus:border-ember-500 focus:outline-none"
           >
             <option value="staff">Staff</option>
+            <option value="rider">Rider</option>
             <option value="owner">Owner</option>
           </select>
         </form>
@@ -193,6 +194,7 @@ function AddStaffCard() {
         <Field label="Role">
           <Select name="role" defaultValue="staff">
             <option value="staff">Staff</option>
+            <option value="rider">Rider</option>
             <option value="owner">Owner</option>
           </Select>
         </Field>

@@ -26,7 +26,7 @@ const addStaffSchema = z.object({
   name: z.string().trim().min(2, "Give them a name."),
   email: z.string().trim().email("That doesn't look like an email address."),
   password: z.string().min(8, "Password needs to be at least 8 characters."),
-  role: z.enum(["owner", "staff"]),
+  role: z.enum(["owner", "staff", "rider"]),
 });
 
 export async function addStaffAction(
@@ -107,9 +107,11 @@ export async function changeRoleAction(
   }
 
   const id = String(formData.get("id") ?? "");
-  const role = formData.get("role") === "owner" ? "owner" : "staff" satisfies AdminRole;
+  const rawRole = formData.get("role");
+  const role: AdminRole =
+    rawRole === "owner" || rawRole === "rider" ? rawRole : "staff";
 
-  if (role === "staff") {
+  if (role !== "owner") {
     const users = await listAdminUsers();
     const remainingOwners = users.filter(
       (u) => u.role === "owner" && u.id !== id
