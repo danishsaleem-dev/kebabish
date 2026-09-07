@@ -77,6 +77,30 @@ const OTHERS: NavItem[] = [
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
+/**
+ * Manager's whole admin surface: Dashboard, Orders, Menu (food items
+ * only — no Categories/Recipes/Extras/Ingredients/Allergens/Production),
+ * Customers. Nothing in `OTHERS` at all. This is UI-only — the actual
+ * enforcement is the `OwnerStaffOnly` layout guard on every section a
+ * manager shouldn't reach, so a stale link or a typed URL can't get
+ * further than the nav does.
+ */
+function navForRole(role: SessionUser["role"] | undefined) {
+  if (role !== "manager") return { main: MAIN, others: OTHERS };
+
+  const main = MAIN.filter((item) =>
+    ["/admin", "/admin/orders", "/admin/menu", "/admin/customers"].includes(
+      item.href
+    )
+  ).map((item) =>
+    item.href === "/admin/menu"
+      ? { ...item, children: item.children?.filter((c) => c.href === "/admin/menu") }
+      : item
+  );
+
+  return { main, others: [] };
+}
+
 export default function Sidebar({
   user,
   onClose,
@@ -84,6 +108,8 @@ export default function Sidebar({
   user: SessionUser | undefined;
   onClose?: () => void;
 }) {
+  const { main, others } = navForRole(user?.role);
+
   return (
     <div className="flex h-full flex-col border-r border-hairline bg-panel">
       <div className="flex items-center justify-between px-5 py-5">
@@ -140,17 +166,21 @@ export default function Sidebar({
 
       <nav className="flex-1 overflow-y-auto px-4 pb-6">
         <ul className="space-y-1">
-          {MAIN.map((item) => (
+          {main.map((item) => (
             <NavRow key={item.href} item={item} />
           ))}
         </ul>
 
-        <p className="px-3 pb-2 pt-6 text-xs font-semibold text-faint">Others</p>
-        <ul className="space-y-1">
-          {OTHERS.map((item) => (
-            <NavRow key={item.href} item={item} />
-          ))}
-        </ul>
+        {others.length > 0 && (
+          <>
+            <p className="px-3 pb-2 pt-6 text-xs font-semibold text-faint">Others</p>
+            <ul className="space-y-1">
+              {others.map((item) => (
+                <NavRow key={item.href} item={item} />
+              ))}
+            </ul>
+          </>
+        )}
       </nav>
     </div>
   );

@@ -6,7 +6,7 @@ import { getRecentNotifications } from "@/lib/admin/orders-data";
 export interface SessionUser {
   name: string;
   email: string;
-  role: "owner" | "staff";
+  role: "owner" | "staff" | "manager";
 }
 
 /**
@@ -42,7 +42,9 @@ export default async function AdminShell({
   // TypeScript can't see across that boundary, so it's re-asserted here.
   const user =
     session?.user &&
-    (session.user.role === "owner" || session.user.role === "staff")
+    (session.user.role === "owner" ||
+      session.user.role === "staff" ||
+      session.user.role === "manager")
       ? {
           name: session.user.name,
           email: session.user.email,
