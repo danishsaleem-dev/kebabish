@@ -6,6 +6,7 @@ import { toCents } from "@/lib/money";
 import type { MolliePaymentStatus } from "@/lib/mollie";
 import { toPaymentStatus } from "@/lib/mollie";
 import type { StoredPromoCode } from "@/lib/admin/store/types";
+import { sendNewOrderEmail } from "@/lib/email/new-order";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -306,13 +307,25 @@ export async function attachPayment(orderId: string, molliePaymentId: string) {
 /**
  * Apply a Mollie status to the order it belongs to. Called by both the
  * webhook and the return page, so a customer who lands back before the
- * webhook fires still sees the right thing.
+ * webhook fires still sees the right thing — which is also why the
+ * new-order email only fires here, guarded by `wasAlreadyPaid`: whichever
+ * of the two calls this first is the one that sends it, and the other
+ * (arriving moments later, same transition) doesn't send a second copy.
  */
 export async function syncPaymentStatus(
   molliePaymentId: string,
   status: MolliePaymentStatus
 ) {
   const mapped = toPaymentStatus(status);
+
+  const { data: before, error: fetchError } = await supabaseAdmin()
+    .from("orders")
+    .select("payment_status")
+    .eq("mollie_payment_id", molliePaymentId)
+    .maybeSingle();
+  if (fetchError) throw new Error(fetchError.message);
+  const wasAlreadyPaid = before?.payment_status === "paid";
+
   const { error } = await supabaseAdmin()
     .from("orders")
     .update({
@@ -323,6 +336,14 @@ export async function syncPaymentStatus(
     .eq("mollie_payment_id", molliePaymentId);
 
   if (error) throw new Error(error.message);
+
+  if (mapped === "paid" && !wasAlreadyPaid) {
+    const order = await getOrderByMolliePaymentId(molliePaymentId);
+    // A failure to notify shouldn't fail the payment reconciliation itself
+    // — the order is correctly paid either way, this is just the heads-up.
+    if (order) void sendNewOrderEmail(order);
+  }
+
   return mapped;
 }
 
@@ -436,6 +457,20 @@ export async function getOrderByReference(
     .from("orders")
     .select(ORDER_SELECT)
     .eq("reference", reference)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return mapOrderRow(data as unknown as OrderRow);
+}
+
+async function getOrderByMolliePaymentId(
+  molliePaymentId: string
+): Promise<OrderSummary | null> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("mollie_payment_id", molliePaymentId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
