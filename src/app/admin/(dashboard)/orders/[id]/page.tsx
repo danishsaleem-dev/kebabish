@@ -17,6 +17,7 @@ import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import OrderStatusControl from "@/components/admin/OrderStatusControl";
 import AssignRiderControl from "@/components/admin/AssignRiderControl";
+import OrderInvoiceHeader from "@/components/admin/OrderInvoiceHeader";
 import PrintButton from "@/components/admin/ui/PrintButton";
 import { formatMoney } from "@/lib/admin/units";
 import { getOrder, getCustomer, listOrders } from "@/lib/admin/orders-data";
@@ -71,8 +72,10 @@ export default async function OrderDetailPage({
             <ArrowLeft size={16} />
             Back to orders
           </Link>
-          <PrintButton />
+          <PrintButton label="Print invoice" />
         </div>
+
+        <OrderInvoiceHeader reference={order.reference} placedAt={order.placedAt} />
 
         {/* header */}
         <Card>
