@@ -125,7 +125,7 @@ export default function CheckoutForm({
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="promoCode" value={promo?.code ?? ""} />
 
-      <div className="space-y-8">
+      <div className="min-w-0 space-y-8">
         <section>
           <h2 className="font-display text-lg font-semibold text-charcoal-600">
             {t("yourDetails")}
@@ -223,7 +223,7 @@ export default function CheckoutForm({
         </section>
       </div>
 
-      <aside className="h-fit rounded-3xl border border-charcoal-600/12 bg-cream-50 p-6 lg:sticky lg:top-28">
+      <aside className="h-fit min-w-0 rounded-3xl border border-charcoal-600/12 bg-cream-50 p-6 lg:sticky lg:top-28">
         <h2 className="font-display text-lg font-semibold text-charcoal-600">
           {t("summary")}
         </h2>
@@ -269,7 +269,7 @@ export default function CheckoutForm({
                 onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                 placeholder={t("promoPlaceholder")}
                 aria-label={t("promoCode")}
-                className="h-11 flex-1 rounded-xl border border-charcoal-600/15 bg-cream-50 px-3.5 text-sm text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
+                className="h-11 min-w-0 flex-1 rounded-xl border border-charcoal-600/15 bg-cream-50 px-3.5 text-sm text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
               />
               <button
                 type="button"
