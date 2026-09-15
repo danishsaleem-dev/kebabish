@@ -533,6 +533,32 @@ satisfied. A hand-edited cart can change *what* someone orders, never
 *what they pay*. Delivery fee, free-delivery threshold, minimum order and
 whether we deliver to that town are all recomputed server-side too.
 
+**Checkout address entry is postcode-first, via PDOK — not Google
+Places.** A Dutch postcode already pins down a single street, so
+`PostcodeField.tsx` debounce-queries PDOK's Locatieserver (the Dutch
+government's free, keyless, CORS-open address API, built on the official
+BAG register — `api.pdok.nl/bzk/locatieserver/search/v3_1/{suggest,
+lookup}`) as the customer types, and picking a suggestion fills the
+(read-only) Street and Town fields below it. The customer only ever
+types the postcode, house number, and an optional addition
+("toevoeging", the Dutch standard — `Field` labelled accordingly).
+`orders.address_street` is still one combined column, so the three are
+joined client-side (`"{straat} {huisnummer} {toevoeging}"`) into a
+single hidden `street` field on submit — no DB/schema change needed for
+this. Town still goes through the same `isDeliverableTown()` check as
+before (duplicated client-side, in `CheckoutForm.tsx`, for an inline
+warning the moment an out-of-area postcode is picked, since it's no
+longer a closed `<select>` that made an invalid town unselectable).
+
+This replaced Google Places Autocomplete (`useAddressAutocomplete.ts`,
+now deleted): it needed the Places API enabled on
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, which was never actually turned on
+(`API_KEY_SERVICE_BLOCKED`), so it had silently never worked in
+production. PDOK needs no key at all and is a better fit for NL
+addresses specifically. `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is still used
+elsewhere (`map-projection.ts`'s Static Maps image) — this only removed
+its checkout dependency.
+
 A dish with `price: null` can't be added at all — the cart would carry a
 line it can't total. Those fall back to WhatsApp, which is how they're
 ordered today anyway.
@@ -767,14 +793,10 @@ delivery-radius diagram, and a closing CTA.
 8. ~~Google Maps key~~ — **fixed.** `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` now
    starts `AIza` (a real key) and the Static Maps API works — the delivery
    map renders real tiles instead of falling back to its illustration.
-   ⚠️ **Places API is still blocked for this key**, though (confirmed via a
-   direct API call: `API_KEY_SERVICE_BLOCKED`/`REQUEST_DENIED`) — the
-   checkout street-address autocomplete (`useAddressAutocomplete.ts`) is
-   fully wired up and will start working the moment Danish enables
-   "Places API" (or "Places API (New)") for this key in Google Cloud
-   Console → APIs & Services. Until then it fails silently and the
-   street/postcode/city fields stay plain manual inputs — no regression,
-   just no suggestions yet.
+   Google's Places API is still blocked for this key
+   (`API_KEY_SERVICE_BLOCKED`/`REQUEST_DENIED`), but that no longer
+   matters for checkout — see below, address entry doesn't use Google at
+   all anymore.
 9. ~~Geocode the real kitchen coordinates~~ — **done.** Danish supplied
    them directly; `siteConfig.coordinates` is now the real address.
 10. **Decide on Wognum.** Town coordinates are now geocoded and real, and

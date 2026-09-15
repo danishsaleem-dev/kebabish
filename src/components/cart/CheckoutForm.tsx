@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useActionState, useMemo, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useFormStatus } from "react-dom";
 import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
-import { useAddressAutocomplete } from "@/components/cart/useAddressAutocomplete";
+import PostcodeField from "@/components/cart/PostcodeField";
 import {
   checkoutAction,
   checkPromoCodeAction,
@@ -42,23 +42,24 @@ export default function CheckoutForm({
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoPending, startPromoTransition] = useTransition();
 
-  const postcodeRef = useRef<HTMLInputElement>(null);
-  const cityRef = useRef<HTMLSelectElement>(null);
-  const streetRef = useAddressAutocomplete(
-    process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
-    ({ street, postcode, city }) => {
-      const streetInput = streetRef.current;
-      if (streetInput && street) streetInput.value = street;
-      if (postcodeRef.current && postcode) postcodeRef.current.value = postcode;
+  const [resolvedStreet, setResolvedStreet] = useState("");
+  const [resolvedCity, setResolvedCity] = useState("");
+  const [houseNumber, setHouseNumber] = useState("");
+  const [addition, setAddition] = useState("");
 
-      if (cityRef.current && city) {
-        const match = Array.from(cityRef.current.options).find(
-          (o) => o.value.toLowerCase() === city.toLowerCase()
-        );
-        if (match) cityRef.current.value = match.value;
-      }
-    }
-  );
+  // Same matching rule as the server's isDeliverableTown() (orders.ts) —
+  // duplicated rather than shared because that module is server-only.
+  const deliverable = useMemo(() => {
+    if (!resolvedCity) return true; // nothing picked yet, nothing to warn about
+    const normalise = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
+    const target = normalise(resolvedCity);
+    return deliveryTowns.some((town) => normalise(town) === target);
+  }, [resolvedCity, deliveryTowns]);
+
+  const combinedStreet = [resolvedStreet, houseNumber, addition]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
 
   if (!ready) return <div className="min-h-[40vh]" aria-hidden="true" />;
 
@@ -124,6 +125,10 @@ export default function CheckoutForm({
       <input type="hidden" name="cart" value={cartPayload} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="promoCode" value={promo?.code ?? ""} />
+      {/* The server's `street` column is one combined field — street name,
+          house number and addition joined together — so that's assembled
+          here rather than adding new order/DB columns for it. */}
+      <input type="hidden" name="street" value={combinedStreet} />
 
       <div className="min-w-0 space-y-8">
         <section>
@@ -160,53 +165,64 @@ export default function CheckoutForm({
             {t("address")}
           </h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Field label={t("street")} className="sm:col-span-2">
-              {/* Google Places suggests matches as you type; picking one
-                  auto-fills postcode and (when it matches) the city below.
-                  Falls back to a plain text field if the script/API is
-                  unavailable. */}
-              <input
-                ref={streetRef}
-                name="street"
-                required
-                autoComplete="street-address"
-                placeholder={t("streetPlaceholder")}
-                // Google's dropdown uses Enter to pick a suggestion; without
-                // this guard that Enter also submits the surrounding form.
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") e.preventDefault();
-                }}
-                className={inputClass}
-              />
-            </Field>
-            <Field label={t("postcode")}>
-              <input
-                ref={postcodeRef}
+            {/* Every Dutch postcode already pins down a single street, so
+                picking one from PDOK's suggestions (the government's own
+                free address lookup) fills in the street and town below —
+                the customer only has to type the house number themselves. */}
+            <Field label={t("postcode")} className="sm:col-span-2">
+              <PostcodeField
                 name="postcode"
                 required
-                autoComplete="postal-code"
-                className={inputClass}
+                placeholder={t("postcodePlaceholder")}
+                onResolved={({ street, city }) => {
+                  setResolvedStreet(street);
+                  setResolvedCity(city);
+                }}
+              />
+            </Field>
+            <Field label={t("street")}>
+              <input
+                readOnly
+                value={resolvedStreet}
+                placeholder={t("streetPlaceholder")}
+                className={`${inputClass} bg-charcoal-600/5 text-ink/70`}
               />
             </Field>
             <Field label={t("city")}>
-              {/* A list, not a free-text box: it's also the delivery-area
-                  check, and the server re-validates the same way. */}
-              <select
-                ref={cityRef}
+              {/* readOnly (not disabled) so it still submits — a disabled
+                  field is silently dropped from FormData. */}
+              <input
                 name="city"
+                readOnly
+                value={resolvedCity}
+                placeholder={t("cityPlaceholder")}
+                className={`${inputClass} bg-charcoal-600/5 text-ink/70`}
+              />
+            </Field>
+            <Field label={t("houseNumber")}>
+              <input
+                name="houseNumber"
                 required
-                defaultValue=""
+                inputMode="numeric"
+                autoComplete="address-line2"
+                value={houseNumber}
+                onChange={(e) => setHouseNumber(e.target.value)}
                 className={inputClass}
-              >
-                <option value="" disabled />
-                {deliveryTowns.map((town) => (
-                  <option key={town} value={town}>
-                    {town}
-                  </option>
-                ))}
-              </select>
+              />
+            </Field>
+            <Field label={t("addition")}>
+              <input
+                name="addition"
+                placeholder={t("additionPlaceholder")}
+                value={addition}
+                onChange={(e) => setAddition(e.target.value)}
+                className={inputClass}
+              />
             </Field>
           </div>
+          {resolvedCity && !deliverable && (
+            <p className="mt-3 text-sm text-red-700">{t("outsideArea")}</p>
+          )}
         </section>
 
         <section>
