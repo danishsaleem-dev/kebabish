@@ -11,6 +11,7 @@ import type {
   OrderStatus,
 } from "@/lib/admin/order-types";
 import { NEXT_STATUS, RIDER_STATUSES } from "@/lib/admin/order-types";
+import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 
 /**
  * Real orders, customers, dashboard and report data — replaces
@@ -56,6 +57,9 @@ interface OrderRow {
   total_cents: number;
   created_at: string;
   delivered_at: string | null;
+  delivery_date: string | null;
+  delivery_slot_start: string | null;
+  delivery_slot_end: string | null;
   order_items: OrderItemRow[];
   assigned_rider_id: string | null;
   assigned_rider: { name: string } | null;
@@ -114,11 +118,14 @@ function mapOrder(row: OrderRow): AdminOrder {
     assignedRiderId: row.assigned_rider_id,
     assignedRiderName: row.assigned_rider?.name ?? null,
     deliveredAt: row.delivered_at,
+    deliveryDate: row.delivery_date,
+    deliverySlotStart: row.delivery_slot_start,
+    deliverySlotEnd: row.delivery_slot_end,
   };
 }
 
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
@@ -227,7 +234,7 @@ export async function cancelOrder(
 
   const { data: row, error: fetchError } = await supabaseAdmin()
     .from("orders")
-    .select("status")
+    .select("status, delivery_date, delivery_slot_start")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -243,6 +250,10 @@ export async function cancelOrder(
     .eq("id", orderId);
 
   if (error) throw new Error(error.message);
+
+  // Give the seat back — a cancelled order shouldn't go on shrinking that
+  // slot's real capacity for everyone else.
+  await releaseDeliverySlot(row.delivery_date, row.delivery_slot_start);
 }
 
 /**

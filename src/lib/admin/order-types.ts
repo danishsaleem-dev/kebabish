@@ -60,6 +60,10 @@ export interface AdminOrder {
   assignedRiderName: string | null;
   /** Set once the status actually reaches "delivered" — null until then. */
   deliveredAt: string | null;
+  /** The slot the customer picked at checkout — "YYYY-MM-DD" + "HH:MM". */
+  deliveryDate: string | null;
+  deliverySlotStart: string | null;
+  deliverySlotEnd: string | null;
 }
 
 /**

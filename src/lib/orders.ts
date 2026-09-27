@@ -7,6 +7,7 @@ import type { MolliePaymentStatus } from "@/lib/mollie";
 import { toPaymentStatus } from "@/lib/mollie";
 import type { StoredPromoCode } from "@/lib/admin/store/types";
 import { sendNewOrderEmail } from "@/lib/email/new-order";
+import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -229,6 +230,9 @@ export interface CreateOrderInput {
   deliveryFeeCents: number;
   promoCode: string | null;
   discountCents: number;
+  deliveryDate: string;
+  deliverySlotStart: string;
+  deliverySlotEnd: string;
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -261,6 +265,9 @@ export async function createOrder(input: CreateOrderInput) {
         promo_code: input.promoCode,
         discount_cents: input.discountCents,
         total_cents: totalCents,
+        delivery_date: input.deliveryDate,
+        delivery_slot_start: input.deliverySlotStart,
+        delivery_slot_end: input.deliverySlotEnd,
       })
       .select("id, reference")
       .single();
@@ -317,14 +324,16 @@ export async function syncPaymentStatus(
   status: MolliePaymentStatus
 ) {
   const mapped = toPaymentStatus(status);
+  const TERMINAL_FAILURE = new Set(["failed", "expired", "canceled"]);
 
   const { data: before, error: fetchError } = await supabaseAdmin()
     .from("orders")
-    .select("payment_status")
+    .select("payment_status, delivery_date, delivery_slot_start")
     .eq("mollie_payment_id", molliePaymentId)
     .maybeSingle();
   if (fetchError) throw new Error(fetchError.message);
   const wasAlreadyPaid = before?.payment_status === "paid";
+  const wasAlreadyTerminal = TERMINAL_FAILURE.has(before?.payment_status ?? "");
 
   const { error } = await supabaseAdmin()
     .from("orders")
@@ -342,6 +351,14 @@ export async function syncPaymentStatus(
     // A failure to notify shouldn't fail the payment reconciliation itself
     // — the order is correctly paid either way, this is just the heads-up.
     if (order) void sendNewOrderEmail(order);
+  }
+
+  // A payment that's never going to complete shouldn't go on holding a
+  // kitchen slot hostage — release it back into the pool. Guarded the same
+  // way as the email above: only on the first transition into a failure
+  // state, so a retried webhook doesn't release the same seat twice.
+  if (TERMINAL_FAILURE.has(mapped) && !wasAlreadyTerminal && before) {
+    await releaseDeliverySlot(before.delivery_date, before.delivery_slot_start);
   }
 
   return mapped;
@@ -376,6 +393,9 @@ export interface OrderSummary {
   discountCents: number;
   promoCode: string | null;
   deliveryFeeCents: number;
+  deliveryDate: string | null;
+  deliverySlotStart: string | null;
+  deliverySlotEnd: string | null;
   lines: ReceiptLine[];
 }
 
@@ -384,6 +404,7 @@ const ORDER_SELECT =
   "created_at, customer_id, customer_name, customer_email, customer_phone, " +
   "address_street, address_postcode, address_city, notes, subtotal_cents, " +
   "discount_cents, promo_code, delivery_fee_cents, " +
+  "delivery_date, delivery_slot_start, delivery_slot_end, " +
   "order_items(name, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 interface OrderRow {
@@ -406,6 +427,9 @@ interface OrderRow {
   discount_cents: number | null;
   promo_code: string | null;
   delivery_fee_cents: number;
+  delivery_date: string | null;
+  delivery_slot_start: string | null;
+  delivery_slot_end: string | null;
   order_items:
     | {
         name: string;
@@ -439,6 +463,9 @@ function mapOrderRow(row: OrderRow): OrderSummary {
     discountCents: row.discount_cents ?? 0,
     promoCode: row.promo_code,
     deliveryFeeCents: row.delivery_fee_cents,
+    deliveryDate: row.delivery_date,
+    deliverySlotStart: row.delivery_slot_start,
+    deliverySlotEnd: row.delivery_slot_end,
     lines: (row.order_items ?? []).map((l) => ({
       name: l.name,
       quantity: l.quantity,
