@@ -74,7 +74,15 @@ const OTHERS: NavItem[] = [
   },
   { label: "Team", href: "/admin/team", icon: UserCog },
   { label: "Support", href: "/admin/support", icon: LifeBuoy },
-  { label: "Settings", href: "/admin/settings", icon: Settings },
+  {
+    label: "Settings",
+    href: "/admin/settings",
+    icon: Settings,
+    children: [
+      { label: "General", href: "/admin/settings" },
+      { label: "Delivery slots", href: "/admin/settings/delivery-slots" },
+    ],
+  },
 ];
 
 /**
