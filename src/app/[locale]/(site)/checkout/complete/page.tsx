@@ -71,6 +71,22 @@ export default async function CheckoutCompletePage({
     { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
   );
 
+  // "YYYY-MM-DD" formatted via local Y/M/D parts, not a UTC parse — a
+  // scheduled delivery *date* shouldn't drift a day depending on server
+  // timezone, the same reasoning as DeliverySlotPicker's dateFromKey().
+  const deliveryDateLabel = order.deliveryDate
+    ? new Intl.DateTimeFormat(locale === "nl" ? "nl-NL" : "en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      }).format(
+        (() => {
+          const [y, m, d] = order.deliveryDate!.split("-").map(Number);
+          return new Date(y, m - 1, d);
+        })()
+      )
+    : null;
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-5 py-20 text-center sm:px-6 sm:py-28">
       {paid && <ClearCartOnPaid />}
@@ -191,6 +207,20 @@ export default async function CheckoutCompletePage({
           <span>{tCart("total")}</span>
           <span className="tabular-nums">{formatEuro(fromCents(order.totalCents))}</span>
         </div>
+
+        {deliveryDateLabel && order.deliverySlotStart && (
+          <div className="mt-6 flex items-start gap-2 border-t border-charcoal-600/10 pt-4 text-sm text-ink/70">
+            <Clock size={15} className="mt-0.5 shrink-0 text-ember-600/70" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink/45">
+                {t("receiptDeliveryTime")}
+              </p>
+              <p className="mt-0.5 capitalize">
+                {deliveryDateLabel}, {order.deliverySlotStart}–{order.deliverySlotEnd}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="mt-6 flex items-start gap-2 border-t border-charcoal-600/10 pt-4 text-sm text-ink/70">
           <MapPin size={15} className="mt-0.5 shrink-0 text-ember-600/70" />

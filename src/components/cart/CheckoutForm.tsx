@@ -8,6 +8,10 @@ import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
 import PostcodeField from "@/components/cart/PostcodeField";
+import DeliverySlotPicker, {
+  type DeliverySlotValue,
+} from "@/components/cart/DeliverySlotPicker";
+import type { StoredSettings } from "@/lib/admin/store/types";
 import {
   checkoutAction,
   checkPromoCodeAction,
@@ -26,11 +30,13 @@ export default function CheckoutForm({
   freeDeliveryOver,
   minimumOrder,
   deliveryTowns,
+  hours,
 }: {
   deliveryFee: number;
   freeDeliveryOver: number | null;
   minimumOrder: number;
   deliveryTowns: string[];
+  hours: StoredSettings["hours"];
 }) {
   const t = useTranslations("checkout");
   const tCart = useTranslations("cart");
@@ -46,6 +52,7 @@ export default function CheckoutForm({
   const [resolvedCity, setResolvedCity] = useState("");
   const [houseNumber, setHouseNumber] = useState("");
   const [addition, setAddition] = useState("");
+  const [slot, setSlot] = useState<DeliverySlotValue | null>(null);
 
   // Same matching rule as the server's isDeliverableTown() (orders.ts) —
   // duplicated rather than shared because that module is server-only.
@@ -225,6 +232,8 @@ export default function CheckoutForm({
           )}
         </section>
 
+        <DeliverySlotPicker hours={hours} value={slot} onChange={setSlot} />
+
         <section>
           <h2 className="font-display text-lg font-semibold text-charcoal-600">
             {t("notes")}
@@ -349,7 +358,11 @@ export default function CheckoutForm({
             })}
           </p>
         ) : (
-          <PayButton label={t("payNow", { amount: formatEuro(total) })} pendingLabel={t("paying")} />
+          <PayButton
+            label={t("payNow", { amount: formatEuro(total) })}
+            pendingLabel={t("paying")}
+            disabled={!slot}
+          />
         )}
       </aside>
     </form>
@@ -381,15 +394,17 @@ function Field({
 function PayButton({
   label,
   pendingLabel,
+  disabled,
 }: {
   label: string;
   pendingLabel: string;
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className="mt-5 w-full rounded-full bg-ember-600 px-6 py-4 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500 disabled:opacity-60"
     >
       {pending ? pendingLabel : label}

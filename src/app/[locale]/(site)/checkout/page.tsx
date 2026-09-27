@@ -42,6 +42,7 @@ export default async function CheckoutPage({
           freeDeliveryOver={settings.freeDeliveryOver}
           minimumOrder={settings.minimumOrder}
           deliveryTowns={siteConfig.deliveryAreaTowns.map((t) => t.name)}
+          hours={settings.hours}
         />
       </div>
     </div>

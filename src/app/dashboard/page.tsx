@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-react";
+import { Clock, LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
 import { listCustomerOrders } from "@/lib/orders";
@@ -140,9 +140,21 @@ export default async function DashboardPage() {
                     ))}
                   </ul>
 
-                  <div className="flex items-start gap-2 border-t border-hairline p-5 text-xs text-muted">
-                    <MapPin size={13} className="mt-0.5 shrink-0 text-faint" />
-                    {order.addressStreet}, {order.addressPostcode} {order.addressCity}
+                  <div className="border-t border-hairline p-5 text-xs text-muted">
+                    {order.deliveryDate && order.deliverySlotStart && (
+                      <p className="mb-2 flex items-center gap-2">
+                        <Clock size={13} className="shrink-0 text-faint" />
+                        {new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString(
+                          "en-GB",
+                          { weekday: "long", day: "numeric", month: "long" }
+                        )}
+                        , {order.deliverySlotStart}–{order.deliverySlotEnd}
+                      </p>
+                    )}
+                    <p className="flex items-start gap-2">
+                      <MapPin size={13} className="mt-0.5 shrink-0 text-faint" />
+                      {order.addressStreet}, {order.addressPostcode} {order.addressCity}
+                    </p>
                   </div>
                 </Card>
               ))}

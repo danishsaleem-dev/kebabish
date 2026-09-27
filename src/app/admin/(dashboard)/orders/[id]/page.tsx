@@ -259,6 +259,16 @@ export default async function OrderDetailPage({
             <Card>
               <CardHeader title="Fulfilment" />
               <ul className="mt-4 space-y-3 text-sm">
+                {order.deliveryDate && order.deliverySlotStart && (
+                  <li className="flex items-center gap-2 font-semibold text-heading">
+                    <Clock size={15} className="shrink-0 text-ember-600" />
+                    {new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString(
+                      "en-GB",
+                      { weekday: "long", day: "numeric", month: "long" }
+                    )}
+                    , {order.deliverySlotStart}–{order.deliverySlotEnd}
+                  </li>
+                )}
                 <li className="flex items-center gap-2 text-body-text">
                   {order.fulfilment === "delivery" ? (
                     <Bike size={15} className="shrink-0 text-faint" />
