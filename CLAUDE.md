@@ -559,6 +559,68 @@ addresses specifically. `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is still used
 elsewhere (`map-projection.ts`'s Static Maps image) — this only removed
 its checkout dependency.
 
+**Delivery time slots.** Every order — including "as soon as possible" —
+picks a 45-minute delivery window at checkout, capped at 10 orders per
+slot by default, so the kitchen never gets flooded all at once. Opening
+hours are Thu-Sun 10:00-23:00 (set in `/admin/settings`, per Danish —
+Mon-Wed are closed). Slots are never stored as rows; they're generated on
+the fly from `settings.hours` by `generateDaySlots()`
+(`src/lib/delivery-slots.ts`, a pure, isomorphic module — safe to import
+from a Client Component, unlike the `-data.ts` file below). Only two
+things need real rows, both in `0008_delivery_slots.sql`:
+
+- `delivery_slot_config` — admin overrides (max capacity, on/off),
+  **keyed by weekday + slot start time, not a specific date**: turning
+  off "Thursday 18:00" turns it off for every future Thursday. Sparse on
+  purpose — a slot nobody's touched just uses the defaults (10, enabled)
+  baked into the Postgres function below, so changing opening hours never
+  requires touching this table.
+- `delivery_slot_bookings` — the live counter, keyed by the *specific*
+  date + slot (every Thursday has its own count). This is a dedicated
+  counter table with row-level locking, not a `count(orders)` query —
+  counting rows can't stop a concurrent insert from slipping past the
+  check (the classic phantom-read problem); a locked counter row can.
+
+`reserve_delivery_slot()` (the Postgres function, called via `.rpc()`
+from `src/lib/delivery-slots-data.ts`'s `reserveDeliverySlot()`) does the
+whole check-then-increment atomically, so two customers racing for the
+last spot in a slot can't both win. Called once, in `checkoutAction`,
+right after re-validating the slot server-side (never trust the client:
+the date/slot the form posted gets re-checked against real hours, the
+real cutoff, and the real config from scratch, the same as every other
+"never trust the client" check on this page). **A reserved slot has to be
+released if the order doesn't happen** — `releaseDeliverySlot()` is
+called from three places: `checkoutAction` itself (priceCart/minimum-
+order/promo/Mollie failures, all *after* the reservation succeeds),
+`cancelOrder()` (admin/rider declining or cancelling an order), and
+`syncPaymentStatus()` (a payment that ends up failed/expired/cancelled).
+Miss one of these and the slot's real capacity quietly shrinks forever as
+abandoned checkouts pile up — this was worth getting right, since
+capping the rush is the entire point of the feature.
+
+**Cutoff is 15 minutes before the slot starts** (confirmed with Danish —
+his own spec said "10 minutes" but the worked example he gave was 15;
+went with the example). `isPastCutoff()` and `CUTOFF_MINUTES` are the one
+place this number lives. Customers can schedule up to `BOOKING_WINDOW_DAYS`
+(7) days ahead, including days the kitchen is currently closed — **checkout
+is reachable at any time**, not gated on `getStoreStatus().isOpen` the way
+it used to be, specifically so someone can open the site on a Monday
+(closed) and book Thursday evening. Only the *chosen slot* has to be
+real/open/available; "right now" isn't checked at all anymore.
+
+The customer-facing picker (`DeliverySlotPicker.tsx`, polling
+`/api/delivery-slots?date=…` every 20s) only ever shows two states —
+Available / "Volgeboekt" (fully booked) — matching Danish's spec exactly;
+it never shows the raw booked/max numbers. If the slot someone had
+selected fills up before they submit, the poll notices, reassigns them to
+the next available one, and shows an inline notice rather than letting
+them submit into a full slot. The admin view
+(`listSlotConfigForDate()`/`/admin/settings/delivery-slots`) is the
+opposite: owner/staff only, and it's the one place the real "7/10" count
+and the capacity/on-off controls live — editing a row there changes every
+future occurrence of that weekday+time, not just the date being viewed,
+which the page's copy says explicitly so it isn't a surprise.
+
 A dish with `price: null` can't be added at all — the cart would carry a
 line it can't total. Those fall back to WhatsApp, which is how they're
 ordered today anyway.
