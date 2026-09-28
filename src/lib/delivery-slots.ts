@@ -131,6 +131,20 @@ export function isPastCutoff(
   return toMinutes(slotStartHHMM) - CUTOFF_MINUTES <= now.minutes;
 }
 
+/**
+ * The next real calendar date that falls on `weekday` (today counts, if
+ * today already is that weekday) — used to show a live booked count next
+ * to a weekday's *recurring* config, which otherwise has no date of its
+ * own to point at.
+ */
+export function nextOccurrenceOfWeekday(
+  weekday: number,
+  now: AmsterdamNow = amsterdamNow()
+): string {
+  const diff = (weekday - now.weekday + 7) % 7;
+  return amsterdamDateAhead(diff).dateKey;
+}
+
 /** Every hours-configured day within the booking window, for building a date picker. */
 export function upcomingBookableDays(
   hours: StoredSettings["hours"],
