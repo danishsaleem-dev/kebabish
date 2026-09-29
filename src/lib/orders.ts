@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
@@ -350,7 +351,11 @@ export async function syncPaymentStatus(
     const order = await getOrderByMolliePaymentId(molliePaymentId);
     // A failure to notify shouldn't fail the payment reconciliation itself
     // — the order is correctly paid either way, this is just the heads-up.
-    if (order) void sendNewOrderEmail(order);
+    // after(), not a bare `void promise`: on Vercel the function can be
+    // frozen the instant the response goes out, silently dropping an
+    // email that's still mid-flight. after() keeps it alive to completion
+    // without holding up the response.
+    if (order) after(() => sendNewOrderEmail(order));
   }
 
   // A payment that's never going to complete shouldn't go on holding a

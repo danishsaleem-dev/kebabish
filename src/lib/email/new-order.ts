@@ -132,12 +132,21 @@ export async function sendNewOrderEmail(order: OrderSummary): Promise<void> {
   try {
     const domain = new URL(siteConfig.website).hostname.replace(/^www\./, "");
     const resend = new Resend(apiKey);
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: `Kebabish <orders@${domain}>`,
       to,
       subject: `New order ${order.reference} — ${money(order.totalCents)}`,
       html: newOrderEmailHtml(order),
     });
+    // The SDK reports API rejections (unverified domain, bad key, quota)
+    // as a returned `error`, not a thrown exception — without this check
+    // every one of them was swallowed silently.
+    if (error) {
+      console.error(
+        `[email] Resend rejected the new-order email for ${order.reference}:`,
+        `${error.name}: ${error.message}`
+      );
+    }
   } catch (error) {
     console.error("[email] Failed to send new-order email:", error);
   }
