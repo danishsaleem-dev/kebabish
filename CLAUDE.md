@@ -598,10 +598,23 @@ Miss one of these and the slot's real capacity quietly shrinks forever as
 abandoned checkouts pile up — this was worth getting right, since
 capping the rush is the entire point of the feature.
 
-**Cutoff is 15 minutes before the slot starts** (confirmed with Danish —
-his own spec said "10 minutes" but the worked example he gave was 15;
-went with the example). `isPastCutoff()` and `CUTOFF_MINUTES` are the one
-place this number lives. Customers can schedule up to `BOOKING_WINDOW_DAYS`
+**Each 45-minute slot is 30 minutes of live ordering + a 15-minute
+prep/delivery buffer at its tail.** The 10:00-10:45 slot takes orders
+until 10:30, 10:45-11:30 until 11:15, 11:30-12:15 until 12:00 — the slot
+is still *running* during its buffer, it just won't accept anything new,
+so the kitchen always has 15 clear minutes to cook and drive the last
+order in it. `isPastCutoff()`, `BUFFER_MINUTES` and `LIVE_MINUTES`
+(`delivery-slots.ts`) are the one place this lives; both the customer
+picker and `checkoutAction`'s server-side re-check go through that one
+function.
+
+This was wrong in the first cut and Danish caught it: the cutoff was
+applied 15 minutes *before* a slot's start (`start - 15`) rather than 30
+minutes after it, which closed every slot before it ever opened — the
+10:00 slot died at 09:45. If you touch this again, sanity-check it
+against those three worked examples above, not just the constant.
+
+Customers can schedule up to `BOOKING_WINDOW_DAYS`
 (7) days ahead, including days the kitchen is currently closed — **checkout
 is reachable at any time**, not gated on `getStoreStatus().isOpen` the way
 it used to be, specifically so someone can open the site on a Monday

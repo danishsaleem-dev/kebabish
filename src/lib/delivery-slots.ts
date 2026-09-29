@@ -7,8 +7,17 @@ import type { StoredSettings } from "@/lib/admin/store/types";
  */
 
 export const SLOT_MINUTES = 45;
-/** A slot stops taking bookings this many minutes before it starts. */
-export const CUTOFF_MINUTES = 15;
+/**
+ * The tail of every slot, reserved for the kitchen to cook and the rider
+ * to drive — no new order joins a slot once it starts. So a 45-minute
+ * slot is really 30 minutes of live ordering + this buffer: 10:00-10:45
+ * takes orders until 10:30, 10:45-11:30 until 11:15, 11:30-12:15 until
+ * 12:00. The slot is still "running" during the buffer; it just isn't
+ * accepting anything new.
+ */
+export const BUFFER_MINUTES = 15;
+/** How long a slot actually takes orders for, before its buffer begins. */
+export const LIVE_MINUTES = SLOT_MINUTES - BUFFER_MINUTES;
 /** How far ahead a customer can schedule — today plus this many days. */
 export const BOOKING_WINDOW_DAYS = 7;
 
@@ -116,8 +125,15 @@ export interface SlotAvailability extends SlotWindow {
 }
 
 /**
- * Is this specific date+slot still bookable *time-wise* — i.e. not today's
- * slot within CUTOFF_MINUTES of starting, and not a past date entirely.
+ * Has this slot's ordering window closed?
+ *
+ * A slot takes orders right up to `start + LIVE_MINUTES` — 30 minutes
+ * into its own 45-minute window — and spends its last 15 minutes as the
+ * prep/delivery buffer (see BUFFER_MINUTES). So at 10:20 the 10:00-10:45
+ * slot is still open; at 10:30 it's closed but 10:45-11:30 is open, and
+ * so on down the day. A future date is never past cutoff, a past date
+ * always is.
+ *
  * Doesn't know about capacity/enabled — that's layered on in
  * delivery-slots-data.ts, which is the only place that can see live counts.
  */
@@ -128,7 +144,7 @@ export function isPastCutoff(
 ): boolean {
   if (dateKey < now.dateKey) return true;
   if (dateKey > now.dateKey) return false;
-  return toMinutes(slotStartHHMM) - CUTOFF_MINUTES <= now.minutes;
+  return now.minutes >= toMinutes(slotStartHHMM) + LIVE_MINUTES;
 }
 
 /**
