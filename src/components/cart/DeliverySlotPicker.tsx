@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { Clock } from "lucide-react";
-import { upcomingBookableDays } from "@/lib/delivery-slots";
+import {
+  amsterdamDateAhead,
+  amsterdamNow,
+  upcomingBookableDays,
+} from "@/lib/delivery-slots";
 import type { StoredSettings } from "@/lib/admin/store/types";
 
 export interface DeliverySlotValue {
@@ -41,17 +45,36 @@ export default function DeliverySlotPicker({
   const days = useMemo(() => upcomingBookableDays(hours), [hours]);
   const [selectedDate, setSelectedDate] = useState(days[0]?.dateKey ?? "");
   const [slots, setSlots] = useState<SlotAvailability[]>([]);
+  const [loading, setLoading] = useState(true);
   const [reassignedNotice, setReassignedNotice] = useState(false);
   const valueRef = useRef(value);
   valueRef.current = value;
 
-  const dayLabel = (dateKey: string) =>
-    new Intl.DateTimeFormat(locale, { weekday: "short", day: "numeric", month: "short" }).format(
+  // "Today"/"Tomorrow" read better than a bare weekday on the two days most
+  // orders land on; anything further out gets its weekday instead.
+  const todayKey = amsterdamNow().dateKey;
+  const tomorrowKey = amsterdamDateAhead(1).dateKey;
+
+  const weekdayLabel = (dateKey: string) => {
+    if (dateKey === todayKey) return t("today");
+    if (dateKey === tomorrowKey) return t("tomorrow");
+    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(
+      dateFromKey(dateKey)
+    );
+  };
+
+  const dateLabel = (dateKey: string) =>
+    new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(
       dateFromKey(dateKey)
     );
 
   useEffect(() => {
     let cancelled = false;
+
+    // Clear immediately on a date switch, or the previous day's slots sit
+    // there looking selectable until the new ones land.
+    setSlots([]);
+    setLoading(true);
 
     async function poll() {
       if (!selectedDate) return;
@@ -61,7 +84,9 @@ export default function DeliverySlotPicker({
         });
         if (!res.ok || cancelled) return;
         const data = (await res.json()) as { slots: SlotAvailability[] };
-        const visible = data.slots.filter((s) => s.status === "available" || s.status === "full");
+        const visible = data.slots.filter(
+          (s) => s.status === "available" || s.status === "full"
+        );
         if (cancelled) return;
         setSlots(visible);
 
@@ -79,6 +104,8 @@ export default function DeliverySlotPicker({
         }
       } catch {
         // Next poll (or a date switch) tries again — nothing actionable here.
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
 
@@ -93,28 +120,50 @@ export default function DeliverySlotPicker({
 
   if (days.length === 0) return null;
 
+  const selectedSlot = value?.date === selectedDate ? value : null;
+  const showEmpty = !loading && slots.length === 0;
+
   return (
     <section>
       <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-charcoal-600">
         <Clock size={18} className="text-ember-600" />
         {t("deliveryTime")}
       </h2>
+      <p className="mt-1 text-sm text-ink/55">{t("deliveryTimeHint")}</p>
 
-      <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-        {days.map((day) => (
-          <button
-            key={day.dateKey}
-            type="button"
-            onClick={() => setSelectedDate(day.dateKey)}
-            className={`shrink-0 rounded-xl border px-3.5 py-2 text-sm font-medium capitalize transition-colors ${
-              selectedDate === day.dateKey
-                ? "border-ember-600 bg-ember-600 text-cream-50"
-                : "border-charcoal-600/15 bg-cream-50 text-ink/70 hover:border-ember-600/40"
-            }`}
-          >
-            {dayLabel(day.dateKey)}
-          </button>
-        ))}
+      {/* A fixed 4-wide grid rather than a scroll strip: equal-width chips,
+          nothing clipped mid-word, no native scrollbar underneath, and 7
+          days wrap onto two tidy rows. Stays at 4 on desktop too — the
+          checkout form column is narrow enough that 7 across would squeeze
+          "Vandaag" into an ellipsis. */}
+      <div className="mt-4 grid grid-cols-4 gap-2">
+        {days.map((day) => {
+          const active = selectedDate === day.dateKey;
+          return (
+            <button
+              key={day.dateKey}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setSelectedDate(day.dateKey)}
+              className={`rounded-xl border px-1.5 py-2.5 text-center transition-colors ${
+                active
+                  ? "border-ember-600 bg-ember-600 text-cream-50 shadow-sm"
+                  : "border-charcoal-600/15 bg-cream-50 text-ink/75 hover:border-ember-600/50 hover:bg-ember-600/5"
+              }`}
+            >
+              <span className="block truncate text-[13px] font-semibold capitalize leading-tight">
+                {weekdayLabel(day.dateKey)}
+              </span>
+              <span
+                className={`mt-0.5 block truncate text-[11px] leading-tight ${
+                  active ? "text-cream-100/80" : "text-ink/50"
+                }`}
+              >
+                {dateLabel(day.dateKey)}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {reassignedNotice && (
@@ -124,32 +173,58 @@ export default function DeliverySlotPicker({
       )}
 
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {slots.map((slot) => {
-          const active = value?.date === selectedDate && value.start === slot.start;
-          const full = slot.status === "full";
-          return (
-            <button
-              key={slot.start}
-              type="button"
-              disabled={full}
-              onClick={() => onChange({ date: selectedDate, start: slot.start, end: slot.end })}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
-                full
-                  ? "cursor-not-allowed border-charcoal-600/10 bg-charcoal-600/5 text-ink/30 line-through"
-                  : active
-                    ? "border-ember-600 bg-ember-600 text-cream-50"
-                    : "border-charcoal-600/15 bg-cream-50 text-ink/80 hover:border-ember-600/40"
-              }`}
-            >
-              {slot.start}–{slot.end}
-              {full && <span className="mt-0.5 block text-[11px] normal-case">{t("slotFullLabel")}</span>}
-            </button>
-          );
-        })}
-        {slots.length === 0 && (
-          <p className="col-span-full text-sm text-ink/50">{t("slotNoneToday")}</p>
-        )}
+        {loading && slots.length === 0
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                className="min-h-[3.25rem] animate-pulse rounded-xl bg-charcoal-600/5"
+                aria-hidden="true"
+              />
+            ))
+          : slots.map((slot) => {
+              const active = value?.date === selectedDate && value.start === slot.start;
+              const full = slot.status === "full";
+              return (
+                <button
+                  key={slot.start}
+                  type="button"
+                  disabled={full}
+                  aria-pressed={active}
+                  onClick={() =>
+                    onChange({ date: selectedDate, start: slot.start, end: slot.end })
+                  }
+                  className={`flex min-h-[3.25rem] flex-col items-center justify-center rounded-xl border px-2 text-sm font-medium transition-colors ${
+                    full
+                      ? "cursor-not-allowed border-charcoal-600/10 bg-charcoal-600/5 text-ink/35"
+                      : active
+                        ? "border-ember-600 bg-ember-600 text-cream-50 shadow-sm"
+                        : "border-charcoal-600/15 bg-cream-50 text-ink/80 hover:border-ember-600/50 hover:bg-ember-600/5"
+                  }`}
+                >
+                  <span className="tabular-nums">
+                    {slot.start}–{slot.end}
+                  </span>
+                  {full && (
+                    <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide">
+                      {t("slotFullLabel")}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
       </div>
+
+      {showEmpty && (
+        <p className="mt-3 rounded-xl border border-charcoal-600/10 bg-cream-50 px-4 py-3 text-sm text-ink/55">
+          {t("slotNoneToday")}
+        </p>
+      )}
+
+      {selectedSlot && (
+        <p className="mt-3 text-sm text-ink/60">
+          {t("slotChosen", { start: selectedSlot.start, end: selectedSlot.end })}
+        </p>
+      )}
 
       <input type="hidden" name="deliveryDate" value={value?.date ?? ""} />
       <input type="hidden" name="deliverySlotStart" value={value?.start ?? ""} />
