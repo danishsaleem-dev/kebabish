@@ -130,10 +130,9 @@ export async function sendNewOrderEmail(order: OrderSummary): Promise<void> {
   }
 
   try {
-    const domain = new URL(siteConfig.website).hostname.replace(/^www\./, "");
     const resend = new Resend(apiKey);
     const { error } = await resend.emails.send({
-      from: `Kebabish <orders@${domain}>`,
+      from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
       to,
       subject: `New order ${order.reference} — ${money(order.totalCents)}`,
       html: newOrderEmailHtml(order),
