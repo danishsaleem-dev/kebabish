@@ -179,6 +179,7 @@
     "molluscs": "Weekdieren"
   },
   "item": {
+    "aboutTitle": "Over dit gerecht",
     "allergens": "Allergenen",
     "allergensContains": "Dit gerecht bevat:",
     "videoLabel": "Video van {item}",

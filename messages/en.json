@@ -179,6 +179,7 @@
     "molluscs": "Molluscs"
   },
   "item": {
+    "aboutTitle": "About this dish",
     "allergens": "Allergens",
     "allergensContains": "This dish contains:",
     "videoLabel": "Video of {item}",

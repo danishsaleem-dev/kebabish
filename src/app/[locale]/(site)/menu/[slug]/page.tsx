@@ -129,25 +129,50 @@ export default async function ItemPage({
             )}
           </div>
 
-          {item.videoUrl && (
-            // preload="metadata" + #t=0.001 shows the first frame without
-            // pulling the whole file, and nothing plays until the customer
-            // asks — this page is an SEO/PageSpeed landing page first.
-            <video
-              src={`${item.videoUrl}#t=0.001`}
-              controls
-              playsInline
-              preload="metadata"
-              aria-label={t("item.videoLabel", { item: item.name })}
-              className="mt-6 aspect-video w-full rounded-3xl bg-charcoal-900 object-cover"
-            />
-          )}
         </div>
 
         <ItemHeading {...headingProps} />
 
         <ItemOrderPanel item={item} isOpen={isOpen} whatsappHref={whatsappHref} />
       </div>
+
+      {/* Everything above is what someone needs to actually order. The
+          video and the write-up are a separate section underneath, so they
+          can't push the price and the order panel down the page. */}
+      {(item.videoUrl || item.description) && (
+        <section className="mt-14 border-t border-charcoal-600/10 pt-10 sm:mt-16 sm:pt-12">
+          <h2 className="font-display text-2xl font-semibold text-charcoal-600">
+            {t("item.aboutTitle")}
+          </h2>
+
+          <div
+            className={`mt-6 grid gap-8 ${
+              item.videoUrl && item.description ? "lg:grid-cols-2 lg:gap-12" : ""
+            }`}
+          >
+            {item.videoUrl && (
+              // preload="metadata" + #t=0.001 shows the first frame without
+              // pulling the whole file, and nothing plays until the customer
+              // asks — this page is an SEO/PageSpeed landing page first.
+              <video
+                src={`${item.videoUrl}#t=0.001`}
+                controls
+                playsInline
+                preload="metadata"
+                aria-label={t("item.videoLabel", { item: item.name })}
+                className="aspect-video w-full rounded-3xl bg-charcoal-900 object-cover"
+              />
+            )}
+
+            {item.description && (
+              // whitespace-pre-line keeps the line breaks typed in the admin.
+              <p className="max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink/75">
+                {item.description}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
@@ -207,13 +232,6 @@ function ItemHeading({
         )}
         {item.soldOut && <Tag muted>{soldOutLabel}</Tag>}
       </div>
-
-      {item.description && (
-        // whitespace-pre-line keeps the line breaks typed in the admin.
-        <p className="mt-5 whitespace-pre-line text-base leading-relaxed text-ink/75">
-          {item.description}
-        </p>
-      )}
 
       {allergens.length > 0 && (
         <section className="mt-5" aria-label={allergensTitle}>
