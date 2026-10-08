@@ -3,12 +3,23 @@
 // StructuredData.tsx's FoodEstablishment.image) use. Rendered once here
 // rather than at request time so it never depends on font availability on
 // the build machine — what's committed is exactly what ships.
+//
+// The mark is composited from the real logo file. It used to be *drawn*
+// in SVG — a rounded rect with a "K" set in Georgia and a hand-written
+// flame path — which came out as an inverted, off-brand imitation of the
+// actual mark (dark tile, cream letter; the real one is the reverse). Per
+// CLAUDE.md the supplied logo image is always the brand mark, never
+// something re-typeset. kebabish-dark.png is the variant drawn for dark
+// backgrounds, which is what this gradient is, and it's a stacked lockup
+// that already includes the wordmark — so there's no separate "Kebabish"
+// line underneath it.
 import sharp from "sharp";
 
 const WIDTH = 1200;
 const HEIGHT = 630;
+const LOGO_WIDTH = 400;
 
-const svg = `
+const background = `
 <svg width="${WIDTH}" height="${HEIGHT}" viewBox="0 0 ${WIDTH} ${HEIGHT}" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -25,23 +36,31 @@ const svg = `
   <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#bg)" />
   <rect width="${WIDTH}" height="${HEIGHT}" fill="url(#glow)" />
 
-  <!-- logo mark -->
-  <g transform="translate(${WIDTH / 2 - 90}, 96)">
-    <rect width="180" height="180" rx="34" fill="#3d3831" />
-    <text x="90" y="132" font-family="Georgia, 'Times New Roman', serif" font-size="118" font-weight="700" fill="#f4efe0" text-anchor="middle">K</text>
-    <path d="M90 96 C82 108 76 118 76 128 C76 140 82 148 90 148 C98 148 104 140 104 128 C104 118 98 108 90 96 Z" fill="#a95026" />
-  </g>
+  <text x="${WIDTH / 2}" y="445" font-family="Georgia, 'Times New Roman', serif" font-size="34" font-style="italic" fill="#f4efe0" fill-opacity="0.92" text-anchor="middle">De Smaak van Thuis</text>
 
-  <text x="${WIDTH / 2}" y="345" font-family="Georgia, 'Times New Roman', serif" font-size="72" font-weight="700" fill="#f4efe0" text-anchor="middle">Kebabish</text>
-  <text x="${WIDTH / 2}" y="400" font-family="Georgia, 'Times New Roman', serif" font-size="30" font-style="italic" fill="#f4efe0" fill-opacity="0.9" text-anchor="middle">De Smaak van Thuis</text>
+  <text x="${WIDTH / 2}" y="505" font-family="Arial, Helvetica, sans-serif" font-size="26" letter-spacing="1" fill="#f4efe0" fill-opacity="0.85" text-anchor="middle">Authentic Pakistani food, delivered in Hoogkarspel</text>
 
-  <text x="${WIDTH / 2}" y="470" font-family="Arial, Helvetica, sans-serif" font-size="26" letter-spacing="1" fill="#f4efe0" fill-opacity="0.85" text-anchor="middle">Authentic Pakistani food, delivered in Hoogkarspel</text>
-
-  <g transform="translate(${WIDTH / 2 - 190}, 505)" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#f4efe0" fill-opacity="0.75">
-    <text x="0" y="0">Fresh, homemade &#8226; Delivery only &#8226; 10 km radius</text>
-  </g>
+  <text x="${WIDTH / 2}" y="556" font-family="Arial, Helvetica, sans-serif" font-size="20" fill="#f4efe0" fill-opacity="0.7" text-anchor="middle">Fresh, homemade &#8226; Delivery only &#8226; 10 km radius</text>
 </svg>
 `;
 
-await sharp(Buffer.from(svg)).jpeg({ quality: 90 }).toFile("public/og-image.jpg");
+const base = await sharp(Buffer.from(background)).png().toBuffer();
+
+const logo = await sharp("public/logo/kebabish-dark.png")
+  .resize({ width: LOGO_WIDTH })
+  .toBuffer();
+const { height: logoHeight } = await sharp(logo).metadata();
+
+await sharp(base)
+  .composite([
+    {
+      input: logo,
+      left: Math.round((WIDTH - LOGO_WIDTH) / 2),
+      // Sits above the tagline at y=445, with breathing room either side.
+      top: Math.round((440 - (logoHeight ?? 0)) / 2),
+    },
+  ])
+  .jpeg({ quality: 90 })
+  .toFile("public/og-image.jpg");
+
 console.log("wrote public/og-image.jpg");
