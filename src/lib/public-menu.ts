@@ -35,6 +35,12 @@ export interface PublicMenuItem {
   spicy: boolean;
   soldOut: boolean;
   image?: string;
+  /** Plain text; line breaks are meaningful. Empty when none was written. */
+  description: string;
+  /** Uploaded video URL, or "" for none. */
+  videoUrl: string;
+  /** Everything this dish contains — manual flags plus its recipe's. */
+  allergens: { id: string; label: string }[];
   optionGroups: PublicOptionGroup[];
 }
 
@@ -54,11 +60,41 @@ async function read(): Promise<StoreShape> {
   }
 }
 
+/**
+ * Allergens a dish contains: the ones flagged by hand on the dish, unioned
+ * with whatever its recipe's ingredients carry. Both on purpose — a manual
+ * flag covers a dish with no recipe yet, the recipe covers an ingredient
+ * someone forgot to flag, and for allergen information under-reporting is
+ * the dangerous direction. Optional recipe lines count too: they may be in
+ * the dish. Ordered the way the admin's allergen list is (statutory first).
+ */
+function allergensFor(
+  item: StoreShape["items"][number],
+  data: StoreShape
+): { id: string; label: string }[] {
+  const ids = new Set(item.allergenIds ?? []);
+
+  const recipe = (data.recipes ?? []).find((r) => r.menuItemSlug === item.slug);
+  if (recipe) {
+    const byId = new Map((data.ingredients ?? []).map((i) => [i.id, i]));
+    for (const line of recipe.lines) {
+      for (const allergen of byId.get(line.ingredientId)?.allergens ?? []) {
+        ids.add(allergen);
+      }
+    }
+  }
+
+  return (data.allergens ?? [])
+    .filter((a) => ids.has(a.id))
+    .map((a) => ({ id: a.id, label: a.label }));
+}
+
 function toPublicItem(
   item: StoreShape["items"][number],
   groups: StoredOptionGroup[],
-  media: StoreShape["media"]
+  data: StoreShape
 ): PublicMenuItem {
+  const media = data.media ?? [];
   // An uploaded photo wins; otherwise the stock placeholder keyed by slug.
   const uploaded = item.imageIds?.length
     ? media.find((m) => m.id === item.imageIds[0])?.url
@@ -73,6 +109,9 @@ function toPublicItem(
     spicy: item.spicy,
     soldOut: item.soldOut,
     image: uploaded ?? dishImage(item.slug),
+    description: item.description ?? "",
+    videoUrl: item.videoUrl ?? "",
+    allergens: allergensFor(item, data),
     optionGroups: (item.optionGroupIds ?? [])
       .map((id) => groups.find((g) => g.id === id))
       .filter((g): g is StoredOptionGroup => Boolean(g))
@@ -102,7 +141,7 @@ export async function getPublicMenu(): Promise<PublicMenuCategory[]> {
       description: category.description,
       items: data.items
         .filter((i) => i.categoryId === category.id && i.visible)
-        .map((i) => toPublicItem(i, data.optionGroups ?? [], data.media ?? [])),
+        .map((i) => toPublicItem(i, data.optionGroups ?? [], data)),
     }))
     .filter((c) => c.items.length > 0);
 }
@@ -119,7 +158,7 @@ export async function getPublicItem(slug: string): Promise<{
   if (!category?.visible) return null;
 
   return {
-    item: toPublicItem(item, data.optionGroups ?? [], data.media ?? []),
+    item: toPublicItem(item, data.optionGroups ?? [], data),
     category: { id: category.id, label: category.label },
   };
 }

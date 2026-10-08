@@ -36,6 +36,7 @@ export default function MenuStructuredData({
       hasMenuItem: category.items.map((item) => ({
         "@type": "MenuItem",
         name: item.name,
+        ...(item.description ? { description: item.description } : {}),
         url: `${menuUrl}/${item.slug}`,
         ...(item.image ? { image: item.image } : {}),
         suitableForDiet: item.vegetarian

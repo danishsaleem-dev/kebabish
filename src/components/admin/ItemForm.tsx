@@ -10,10 +10,12 @@ import {
   Input,
   Select,
   SubmitButton,
+  Textarea,
 } from "@/components/admin/ui/Form";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 import GalleryField from "@/components/admin/media/GalleryField";
+import VideoField from "@/components/admin/media/VideoField";
 import RecipeForm from "@/components/admin/RecipeForm";
 import type {
   StoredAllergen,
@@ -112,9 +114,41 @@ export default function ItemForm({
           </Card>
 
           <Card>
+            <CardHeader
+              title="Description"
+              subtitle="Shown on the dish's page and in Google's search result. A sentence or two is plenty."
+            />
+            <div className="mt-4">
+              <Field label="Description" error={e.description}>
+                <Textarea
+                  name="description"
+                  rows={4}
+                  maxLength={1500}
+                  defaultValue={item?.description ?? ""}
+                  placeholder="Slow-cooked chicken in a rich, spiced tomato and cream sauce, served with…"
+                  invalid={Boolean(e.description)}
+                />
+              </Field>
+            </div>
+          </Card>
+
+          <Card>
             <CardHeader title="Gallery" />
             <div className="mt-4">
               <GalleryField library={library} initialIds={item?.imageIds ?? []} />
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader
+              title="Video"
+              subtitle="Optional. Shown under the photo on the dish's page."
+            />
+            <div className="mt-4">
+              <VideoField initialUrl={item?.videoUrl ?? ""} />
+              {e.videoUrl && (
+                <p className="mt-2 text-xs font-medium text-danger">{e.videoUrl}</p>
+              )}
             </div>
           </Card>
 

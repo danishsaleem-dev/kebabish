@@ -50,6 +50,19 @@ export interface StoredItem {
    * that doesn't appear yet, e.g. while you're still setting it up.
    */
   visible: boolean;
+  /**
+   * Plain-text description for the dish's page (and its search snippet).
+   * Single language — whatever Danish types — like category labels; line
+   * breaks are kept. Empty string means none.
+   */
+  description: string;
+  /**
+   * Public URL of an uploaded video in the `videos` storage bucket, or ""
+   * for none. Kept off the image media library on purpose: that bucket is
+   * images-only and 6 MB-capped, and videos upload browser -> Supabase
+   * directly (Vercel caps request bodies at ~4.5 MB).
+   */
+  videoUrl: string;
   /** Media ids, in display order. The first is the featured image. */
   imageIds: string[];
   /** Extras offered with this dish, by option-group id. */

@@ -50,6 +50,8 @@ function normalise(data: StoreShape): StoreShape {
     item.tags ??= [];
     item.allergenIds ??= [];
     item.visible ??= true;
+    item.description ??= "";
+    item.videoUrl ??= "";
   }
   return data;
 }

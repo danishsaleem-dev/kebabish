@@ -29,9 +29,16 @@ export async function generateMetadata({
   if (!found) return {};
 
   const { item } = found;
+  // A real description beats the generic fallback as the search snippet;
+  // collapse line breaks and stay inside what Google displays (~160).
+  const written = item.description.replace(/\s+/g, " ").trim();
   return {
     title: item.name,
-    description: `${item.name} — ${siteConfig.brandName}, ${siteConfig.address.city}.`,
+    description: written
+      ? written.length > 158
+        ? `${written.slice(0, 157).trimEnd()}…`
+        : written
+      : `${item.name} — ${siteConfig.brandName}, ${siteConfig.address.city}.`,
     openGraph: item.image ? { images: [item.image] } : undefined,
     alternates: localeAlternates(locale, `/menu/${slug}`),
   };
@@ -57,6 +64,24 @@ export default async function ItemPage({
       : t("whatsapp.orderItem", { item: item.name })
   );
 
+  // The 14 statutory allergens have translated names; one Danish added
+  // himself has only the label he typed, so that's what it falls back to.
+  const allergenLabels = item.allergens.map((a) =>
+    t.has(`allergenNames.${a.id}`) ? t(`allergenNames.${a.id}`) : a.label
+  );
+
+  const headingProps = {
+    item,
+    category: category.label,
+    vegetarianLabel: t("menu.vegetarian"),
+    spicyLabel: t("menu.spicy"),
+    priceOnRequestLabel: t("menu.priceOnRequest"),
+    soldOutLabel: t("menu.soldOut"),
+    allergens: allergenLabels,
+    allergensTitle: t("item.allergens"),
+    allergensContains: t("item.allergensContains"),
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 sm:py-14">
       <BreadcrumbSchema
@@ -74,8 +99,13 @@ export default async function ItemPage({
         {t("item.backToMenu")}
       </Link>
 
-      <div className="mt-8 grid gap-10 lg:grid-cols-2 lg:gap-14">
-        <div>
+      {/* The heading used to be rendered twice — once per breakpoint — which
+          put two <h1>s (and would now put two <h2>s) in the DOM on a page
+          where SEO is the priority. Grid placement gets the same layout from
+          one copy: the media column spans both rows on desktop, so the
+          heading and order panel auto-place beside it. */}
+      <div className="mt-8 grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
+        <div className="lg:row-span-2">
           <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-cream-300">
             {item.image ? (
               <Image
@@ -99,38 +129,24 @@ export default async function ItemPage({
             )}
           </div>
 
-          <div className="mt-6 lg:hidden">
-            <ItemHeading
-              item={item}
-              category={category.label}
-              vegetarianLabel={t("menu.vegetarian")}
-              spicyLabel={t("menu.spicy")}
-              priceOnRequestLabel={t("menu.priceOnRequest")}
-              soldOutLabel={t("menu.soldOut")}
+          {item.videoUrl && (
+            // preload="metadata" + #t=0.001 shows the first frame without
+            // pulling the whole file, and nothing plays until the customer
+            // asks — this page is an SEO/PageSpeed landing page first.
+            <video
+              src={`${item.videoUrl}#t=0.001`}
+              controls
+              playsInline
+              preload="metadata"
+              aria-label={t("item.videoLabel", { item: item.name })}
+              className="mt-6 aspect-video w-full rounded-3xl bg-charcoal-900 object-cover"
             />
-          </div>
+          )}
         </div>
 
-        <div>
-          <div className="hidden lg:block">
-            <ItemHeading
-              item={item}
-              category={category.label}
-              vegetarianLabel={t("menu.vegetarian")}
-              spicyLabel={t("menu.spicy")}
-              priceOnRequestLabel={t("menu.priceOnRequest")}
-              soldOutLabel={t("menu.soldOut")}
-            />
-          </div>
+        <ItemHeading {...headingProps} />
 
-          <div className="mt-8">
-            <ItemOrderPanel
-              item={item}
-              isOpen={isOpen}
-              whatsappHref={whatsappHref}
-            />
-          </div>
-        </div>
+        <ItemOrderPanel item={item} isOpen={isOpen} whatsappHref={whatsappHref} />
       </div>
     </div>
   );
@@ -143,6 +159,9 @@ function ItemHeading({
   spicyLabel,
   priceOnRequestLabel,
   soldOutLabel,
+  allergens,
+  allergensTitle,
+  allergensContains,
 }: {
   item: Awaited<ReturnType<typeof getPublicItem>> extends null
     ? never
@@ -152,6 +171,9 @@ function ItemHeading({
   spicyLabel: string;
   priceOnRequestLabel: string;
   soldOutLabel: string;
+  allergens: string[];
+  allergensTitle: string;
+  allergensContains: string;
 }) {
   return (
     <div>
@@ -185,6 +207,32 @@ function ItemHeading({
         )}
         {item.soldOut && <Tag muted>{soldOutLabel}</Tag>}
       </div>
+
+      {item.description && (
+        // whitespace-pre-line keeps the line breaks typed in the admin.
+        <p className="mt-5 whitespace-pre-line text-base leading-relaxed text-ink/75">
+          {item.description}
+        </p>
+      )}
+
+      {allergens.length > 0 && (
+        <section className="mt-5" aria-label={allergensTitle}>
+          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-charcoal-600/70">
+            {allergensTitle}
+          </h2>
+          <p className="mt-1 text-sm text-ink/60">{allergensContains}</p>
+          <ul className="mt-2.5 flex flex-wrap gap-2">
+            {allergens.map((label) => (
+              <li
+                key={label}
+                className="rounded-full border border-ember-600/25 bg-ember-600/8 px-3 py-1 text-xs font-semibold text-ember-700"
+              >
+                {label}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

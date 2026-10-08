@@ -482,6 +482,44 @@ JPEG rather than generated at request time, specifically so it never
 depends on font availability on whatever machine ends up building the
 site.
 
+### Dish description, video and allergens on the public item page
+
+`/menu/[slug]` used to show only a photo, name, price and the order panel.
+It now also shows `StoredItem.description` (plain text, line breaks kept
+via `whitespace-pre-line`), an optional video, and the dish's allergens.
+Both new fields are edited in the dish editor — Description sits above
+Gallery, Video below it.
+
+**Allergens shown publicly are the union of two sources** —
+`allergensFor()` in `public-menu.ts` merges the dish's manually flagged
+`allergenIds` with everything its recipe's ingredients carry. Both,
+because a manual flag covers a dish whose recipe doesn't exist yet and
+the recipe covers an ingredient nobody remembered to flag; for allergen
+information, under-reporting is the dangerous direction. Optional recipe
+lines count too. The 14 statutory ones get translated names from the
+`allergenNames` namespace; a custom allergen Danish adds himself has only
+the label he typed, so the page falls back to that.
+
+**Video uploads bypass the server entirely.** Images go through a server
+action (`uploadMediaAction` → sharp), but a dish video can't: Vercel caps
+a function's request body at ~4.5 MB. `createVideoUploadAction` only
+*mints a signed upload URL*, and the browser PUTs the file straight to
+Supabase Storage. It lives in its own public `videos` bucket (mp4/webm,
+30 MB cap, enforced by the bucket as well as the action), kept separate
+from `media` so that bucket stays images-only and 6 MB-capped. Since the
+action hands out upload capability it checks the session itself rather
+than relying on the page guard — server actions are callable directly.
+Only URLs under our own bucket prefix are accepted when the dish saves
+(`isOwnVideoUrl`), and replacing or deleting a dish removes the old
+object (`deleteVideoByUrl`, best-effort — an orphaned file is never worth
+failing a save over).
+
+The item page renders the heading **once**, placed by grid rather than
+duplicated per breakpoint. It used to be rendered twice (`lg:hidden` plus
+`hidden lg:block`), which put two `<h1>`s in the DOM — bad on the page
+type that matters most for SEO, and it would have become two `<h2>`s once
+the allergens block landed.
+
 ### Extras (option groups)
 
 Reusable groups of add-ons — sauces, drinks, toppings — managed at

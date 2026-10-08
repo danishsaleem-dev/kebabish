@@ -56,6 +56,8 @@ export function buildSeed(): StoreShape {
         tags: [],
         allergenIds: [],
         visible: true,
+        description: "",
+        videoUrl: "",
       }))
     ),
 

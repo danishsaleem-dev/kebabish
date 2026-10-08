@@ -15,6 +15,7 @@ import {
   deleteItem,
   deleteOptionGroup,
   deleteRecipe,
+  getItem,
   moveCategory,
   saveRecipe,
   slugify,
@@ -27,6 +28,7 @@ import {
 import type { IngredientGroup } from "@/lib/admin/ingredients";
 import type { Unit } from "@/lib/admin/units";
 import { flashRedirect } from "@/lib/admin/flash";
+import { deleteVideoByUrl, isOwnVideoUrl } from "@/lib/admin/videos";
 
 /**
  * Server actions for everything under /admin/menu.
@@ -167,6 +169,18 @@ const itemSchema = z.object({
     .transform((v) =>
       v.split(",").map((s) => s.trim()).filter(Boolean)
     ),
+  description: z
+    .string()
+    .default("")
+    .transform((v) => v.trim())
+    .pipe(z.string().max(1500, "Keep the description under 1500 characters.")),
+  videoUrl: z
+    .string()
+    .default("")
+    .refine(
+      (v) => v === "" || isOwnVideoUrl(v),
+      "That video isn't valid — upload it again."
+    ),
   vegetarian: z.boolean(),
   spicy: z.boolean(),
   soldOut: z.boolean(),
@@ -186,6 +200,8 @@ function readItemForm(formData: FormData) {
     categoryId: formData.get("categoryId"),
     price: formData.get("price") ?? "",
     variants: formData.get("variants") ?? "",
+    description: formData.get("description") ?? "",
+    videoUrl: formData.get("videoUrl") ?? "",
     vegetarian: formData.get("vegetarian") === "on",
     spicy: formData.get("spicy") === "on",
     soldOut: formData.get("soldOut") === "on",
@@ -222,7 +238,12 @@ export async function updateItemAction(
   const parsed = readItemForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
+  const previous = await getItem(slug);
   const item = await updateItem(slug, parsed.data);
+  // The video was replaced or removed — drop the file it was using.
+  if (previous?.videoUrl && previous.videoUrl !== parsed.data.videoUrl) {
+    await deleteVideoByUrl(previous.videoUrl);
+  }
   refreshMenu();
   revalidatePath(`/admin/menu/recipes/${slug}`);
   redirect(
@@ -234,7 +255,10 @@ export async function deleteItemAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
-  await deleteItem(String(formData.get("slug") ?? ""));
+  const slug = String(formData.get("slug") ?? "");
+  const previous = await getItem(slug);
+  await deleteItem(slug);
+  await deleteVideoByUrl(previous?.videoUrl);
   refreshMenu();
   redirect(flashRedirect("/admin/menu", "Dish deleted."));
 }
