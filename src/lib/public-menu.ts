@@ -1,4 +1,5 @@
 import { readStore } from "@/lib/admin/store";
+import { isSellablePrice } from "@/lib/money";
 import { buildSeed } from "@/lib/admin/store/seed";
 import { dishImage } from "@/lib/dish-images";
 import type { StoreShape, StoredOptionGroup } from "@/lib/admin/store/types";
@@ -103,7 +104,8 @@ function toPublicItem(
   return {
     slug: item.slug,
     name: item.name,
-    price: item.price,
+    // A placeholder price must never look (or be) purchasable.
+    price: isSellablePrice(item.price) ? item.price : null,
     variants: item.variants ?? [],
     vegetarian: item.vegetarian,
     spicy: item.spicy,

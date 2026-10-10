@@ -340,6 +340,7 @@ export default function CheckoutForm({
           <span>{tCart("total")}</span>
           <span className="tabular-nums">{formatEuro(total)}</span>
         </div>
+        <p className="mt-1 text-right text-xs text-ink/55">{t("vatIncluded")}</p>
 
         {state.error && (
           <p
@@ -349,6 +350,33 @@ export default function CheckoutForm({
             {t(state.error, { amount: formatEuro(minimumOrder) })}
           </p>
         )}
+
+        <div className="mt-5 space-y-3 text-xs leading-relaxed text-ink/60">
+          <p>{t("allergenNote")}</p>
+          <p>{t("noCoolingOff")}</p>
+          <p>
+            {t.rich("legalAgree", {
+              terms: (chunks) => (
+                <Link
+                  href="/terms"
+                  target="_blank"
+                  className="font-semibold text-charcoal-600 underline underline-offset-2 hover:text-ember-600"
+                >
+                  {chunks}
+                </Link>
+              ),
+              privacy: (chunks) => (
+                <Link
+                  href="/privacy"
+                  target="_blank"
+                  className="font-semibold text-charcoal-600 underline underline-offset-2 hover:text-ember-600"
+                >
+                  {chunks}
+                </Link>
+              ),
+            })}
+          </p>
+        </div>
 
         {belowMinimum ? (
           <p className="mt-5 rounded-2xl bg-ember-600/10 px-4 py-3 text-sm text-ember-700">

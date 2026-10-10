@@ -41,6 +41,7 @@ export default async function ContactPage({
   const tStatus = await getTranslations({ locale, namespace: "status" });
   const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
   const settings = await getPublicSettings();
+  const tFooter = await getTranslations({ locale, namespace: "footer" });
   const status = getStoreStatus(settings);
   const weekdays = tStatus.raw("weekdays") as string[];
   const sortedHours = [...settings.hours].sort((a, b) => a.day - b.day);
@@ -155,6 +156,12 @@ export default async function ContactPage({
                 >
                   <Mail size={15} /> {siteConfig.contact.email}
                 </a>
+                <p className="mt-4 text-xs text-ink/50">
+                  {tFooter("kvk")} {siteConfig.kvkNumber}
+                  {settings.vatNumber
+                    ? ` · ${tFooter("vatId")} ${settings.vatNumber}`
+                    : ""}
+                </p>
               </div>
 
               <div className="rounded-3xl border border-charcoal-600/10 bg-cream-50 p-6 sm:p-8">
@@ -200,11 +207,6 @@ export default async function ContactPage({
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-cream-200/70">
                 {t("deliveryCheckText")}
-              </p>
-              <p className="mt-4 text-xs italic text-cream-200/45">
-                {locale === "nl"
-                  ? "Postcode-check komt hier zodra de Google Maps koppeling live is."
-                  : "A live postcode check is coming here soon."}
               </p>
             </div>
           </div>

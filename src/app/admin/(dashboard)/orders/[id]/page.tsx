@@ -20,6 +20,8 @@ import AssignRiderControl from "@/components/admin/AssignRiderControl";
 import OrderInvoiceHeader from "@/components/admin/OrderInvoiceHeader";
 import PrintButton from "@/components/admin/ui/PrintButton";
 import { formatMoney } from "@/lib/admin/units";
+import { getSettings } from "@/lib/admin/store";
+import { vatIncludedCents, fromCents, toCents } from "@/lib/money";
 import { getOrder, getCustomer, listOrders } from "@/lib/admin/orders-data";
 import { listRiders } from "@/lib/admin/auth-users";
 import { ORDER_STATUS_LABELS } from "@/lib/admin/order-types";
@@ -47,6 +49,8 @@ export default async function OrderDetailPage({
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
+  const settings = await getSettings();
+  const vatRate = settings.vatRatePercent ?? null;
 
   const [customer, allOrders, riders] = await Promise.all([
     order.customerId ? getCustomer(order.customerId) : Promise.resolve(null),
@@ -75,7 +79,11 @@ export default async function OrderDetailPage({
           <PrintButton label="Print invoice" />
         </div>
 
-        <OrderInvoiceHeader reference={order.reference} placedAt={order.placedAt} />
+        <OrderInvoiceHeader
+          reference={order.reference}
+          placedAt={order.placedAt}
+          vatNumber={settings.vatNumber || undefined}
+        />
 
         {/* header */}
         <Card>
@@ -200,6 +208,16 @@ export default async function OrderDetailPage({
                     {formatMoney(order.total)}
                   </dd>
                 </div>
+                {vatRate != null && (
+                  <div className="flex justify-between text-xs">
+                    <dt className="text-muted">
+                      Of which VAT ({vatRate}%, included in prices)
+                    </dt>
+                    <dd className="text-muted">
+                      {formatMoney(fromCents(vatIncludedCents(toCents(order.total), vatRate)))}
+                    </dd>
+                  </div>
+                )}
               </dl>
             </Card>
 

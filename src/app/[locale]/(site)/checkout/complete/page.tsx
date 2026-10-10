@@ -6,7 +6,9 @@ import { CheckCircle2, Clock, MapPin, UserPlus, LogIn, XCircle } from "lucide-re
 import { Link } from "@/i18n/navigation";
 import { getOrderByReference, syncPaymentStatus } from "@/lib/orders";
 import { getPayment } from "@/lib/mollie";
-import { formatEuro, fromCents } from "@/lib/money";
+import { isValidOrderToken } from "@/lib/order-token";
+import { formatEuro, fromCents, vatIncludedCents } from "@/lib/money";
+import { getPublicSettings } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
 import { auth } from "@/lib/auth";
 import ClearCartOnPaid from "@/components/cart/ClearCartOnPaid";
@@ -29,16 +31,21 @@ export default async function CheckoutCompletePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; t?: string }>;
 }) {
   const { locale } = await params;
-  const { ref } = await searchParams;
-  if (!ref) notFound();
+  const { ref, t: token } = await searchParams;
+  // The reference alone is guessable; the page shows personal details, so
+  // it also needs the token that only the checkout redirect carries.
+  if (!ref || !isValidOrderToken(ref, token)) notFound();
 
   const t = await getTranslations({ locale, namespace: "checkout" });
   const tCart = await getTranslations({ locale, namespace: "cart" });
   const order = await getOrderByReference(ref);
   if (!order) notFound();
+  const settings = await getPublicSettings();
+  const vatRate = settings.vatRatePercent ?? null;
+  const tFooter = await getTranslations({ locale, namespace: "footer" });
 
   // Reconcile here as well as in the webhook: the customer often lands back
   // before Mollie has called us, and locally there's no webhook at all.
@@ -207,6 +214,14 @@ export default async function CheckoutCompletePage({
           <span>{tCart("total")}</span>
           <span className="tabular-nums">{formatEuro(fromCents(order.totalCents))}</span>
         </div>
+        {vatRate != null && (
+          <p className="mt-1 flex justify-between text-xs text-ink/55">
+            <span>{t("receiptVat", { rate: vatRate })}</span>
+            <span className="tabular-nums">
+              {formatEuro(fromCents(vatIncludedCents(order.totalCents, vatRate)))}
+            </span>
+          </p>
+        )}
 
         {deliveryDateLabel && order.deliverySlotStart && (
           <div className="mt-6 flex items-start gap-2 border-t border-charcoal-600/10 pt-4 text-sm text-ink/70">
@@ -233,6 +248,12 @@ export default async function CheckoutCompletePage({
             </p>
           </div>
         </div>
+
+        <p className="mt-6 border-t border-charcoal-600/10 pt-4 text-xs text-ink/50">
+          {siteConfig.brandName} · {siteConfig.address.street}, {siteConfig.address.postalCode}{" "}
+          {siteConfig.address.city} · {tFooter("kvk")} {siteConfig.kvkNumber}
+          {settings.vatNumber ? ` · ${tFooter("vatId")} ${settings.vatNumber}` : ""}
+        </p>
 
         {order.notes && (
           <div className="mt-4 text-sm text-ink/70">

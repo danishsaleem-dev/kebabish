@@ -3,7 +3,7 @@ import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
-import { toCents } from "@/lib/money";
+import { isSellablePrice, toCents } from "@/lib/money";
 import type { MolliePaymentStatus } from "@/lib/mollie";
 import { toPaymentStatus } from "@/lib/mollie";
 import type { StoredPromoCode } from "@/lib/admin/store/types";
@@ -66,10 +66,16 @@ export async function priceCart(
   for (const line of submitted) {
     const item = store.items.find((i) => i.slug === line.slug);
     if (!item) throw new CartPricingError("missing");
+    // A draft or hidden dish, or one in a hidden category, isn't on the menu
+    // — a cart that still holds one is stale (or hand-edited).
+    if (!item.visible) throw new CartPricingError("missing");
+    const category = store.categories.find((c) => c.id === item.categoryId);
+    if (!category?.visible) throw new CartPricingError("missing");
     if (item.soldOut) throw new CartPricingError("soldOut");
     // A dish with no price can't be checked out — the UI never offers it,
     // so reaching here means the cart is stale or hand-edited.
-    if (item.price == null) throw new CartPricingError("unpriced");
+    // The floor also keeps a €0.01 placeholder from being bought.
+    if (!isSellablePrice(item.price)) throw new CartPricingError("unpriced");
 
     const quantity = Math.min(Math.max(Math.trunc(line.quantity), 1), 50);
     const options: PricedOption[] = [];

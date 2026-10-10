@@ -7,6 +7,7 @@ import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { siteConfig } from "@/lib/site-config";
 import { createPayment } from "@/lib/mollie";
+import { orderAccessToken } from "@/lib/order-token";
 import {
   CartPricingError,
   attachPayment,
@@ -130,6 +131,15 @@ export async function checkoutAction(
   // underneath it) gets caught here, not assumed valid because the form
   // said so.
   const store = await readStore();
+
+  // The owner's "Taking orders" switch has to hold on the server too, not
+  // just hide the Add buttons — a cart that was filled earlier, or a direct
+  // POST, would otherwise sail straight through. Opening hours are
+  // deliberately *not* checked: booking a later slot while closed is allowed.
+  if (!store.settings.acceptingOrders) {
+    return { ok: false, error: "notAccepting" };
+  }
+
   const now = amsterdamNow();
   const weekday = weekdayForDateKey(details.deliveryDate);
 
@@ -248,7 +258,7 @@ export async function checkoutAction(
     const payment = await createPayment({
       amountCents: order.totalCents,
       description: `${siteConfig.brandName} ${order.reference}`,
-      redirectUrl: `${base}${prefix}/checkout/complete?ref=${reference}`,
+      redirectUrl: `${base}${prefix}/checkout/complete?ref=${reference}&t=${orderAccessToken(order.reference)}`,
       // Mollie rejects non-public webhook URLs, so local dev omits it and
       // relies on the return page polling instead.
       webhookUrl: isPublic ? `${base}/api/mollie/webhook` : undefined,

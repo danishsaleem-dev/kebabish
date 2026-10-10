@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
 import { updateSettings } from "@/lib/admin/store";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 
@@ -17,12 +18,23 @@ const settingsSchema = z.object({
   averagePrepMinutes: z.coerce.number().int().min(5).max(180),
   acceptingOrders: z.boolean(),
   orderNotice: z.string().trim().max(200, "Keep the notice under 200 characters."),
+  vatRatePercent: z
+    .union([
+      z.literal(""),
+      z.coerce.number().min(0, "VAT can't be negative.").max(25, "That looks too high for a VAT rate."),
+    ])
+    .transform((v) => (v === "" ? null : Number(v))),
+  vatNumber: z
+    .string()
+    .transform((v) => v.replace(/[\s.]/g, "").toUpperCase())
+    .refine((v) => v === "" || /^NL\d{9}B\d{2}$/.test(v), "Use the Dutch format, e.g. NL123456789B01."),
 });
 
 export async function updateSettingsAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = settingsSchema.safeParse({
     deliveryRadiusKm: formData.get("deliveryRadiusKm"),
     deliveryFee: formData.get("deliveryFee"),
@@ -31,6 +43,8 @@ export async function updateSettingsAction(
     averagePrepMinutes: formData.get("averagePrepMinutes"),
     acceptingOrders: formData.get("acceptingOrders") === "on",
     orderNotice: formData.get("orderNotice") ?? "",
+    vatRatePercent: formData.get("vatRatePercent") ?? "",
+    vatNumber: formData.get("vatNumber") ?? "",
   });
 
   if (!parsed.success) {

@@ -7,6 +7,7 @@ import CartProvider from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
+import { reviews } from "@/lib/reviews-data";
 
 // Revalidate at most every minute — status can flip on its own (opening
 // hours boundary) without anyone touching /admin/settings. A save there
@@ -39,7 +40,10 @@ export default async function SiteLayout({
         banner={<StoreStatusBanner status={status} locale={locale} />}
       />
       <main className="flex-1">{children}</main>
-      <Footer />
+      <Footer
+        vatNumber={settings.vatNumber || undefined}
+        showReviews={reviews.length > 0}
+      />
       <WhatsAppButton isOpen={status.isOpen} />
       <CartDrawer />
     </CartProvider>

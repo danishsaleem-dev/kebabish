@@ -100,12 +100,27 @@ function percentDelta(total: number, prevTotal: number): number {
   return Math.round(((total - prevTotal) / prevTotal) * 100);
 }
 
+/**
+ * What the dashboard and reports count as an order.
+ *
+ * `orders` also holds checkouts that were started and never paid (the
+ * customer closed the tab on Mollie, the payment failed or expired).
+ * Those are still worth seeing in the Orders list, but they aren't sales —
+ * counting them inflated revenue and order totals. Only a paid order is
+ * real; a paid one that was later cancelled stays in, so the cancellation
+ * rate still means something.
+ */
+export function realOrders(orders: AdminOrder[]): AdminOrder[] {
+  return orders.filter((o) => o.paymentStatus === "paid");
+}
+
 /** Chart series keyed by the two dashboard dropdowns. */
 export function getOrderAnalytics(
-  orders: AdminOrder[],
+  allOrders: AdminOrder[],
   status: StatusFilter,
   period: Period
 ) {
+  const orders = realOrders(allOrders);
   const predicate = status === "all" ? undefined : (o: AdminOrder) => o.status === status;
 
   const buckets = bucketsEnding(period, new Date());
@@ -129,7 +144,8 @@ export function getOrderAnalytics(
   };
 }
 
-export function getRevenueProfile(orders: AdminOrder[], period: Period) {
+export function getRevenueProfile(allOrders: AdminOrder[], period: Period) {
+  const orders = realOrders(allOrders);
   const revenue = (o: AdminOrder) => (o.status === "cancelled" ? 0 : o.total);
 
   const buckets = bucketsEnding(period, new Date());
@@ -148,10 +164,11 @@ export function getRevenueProfile(orders: AdminOrder[], period: Period) {
 }
 
 export function getSummaryStats(
-  orders: AdminOrder[],
+  allOrders: AdminOrder[],
   joinDates: string[],
   period: Period
 ) {
+  const orders = realOrders(allOrders);
   const analytics = getOrderAnalytics(orders, "all", period);
   const revenue = getRevenueProfile(orders, period);
 
@@ -188,7 +205,8 @@ export function getSummaryStats(
   ];
 }
 
-export function getOrderPerformance(orders: AdminOrder[]) {
+export function getOrderPerformance(allOrders: AdminOrder[]) {
+  const orders = realOrders(allOrders);
   const total = orders.length;
   const pct = (statuses: AdminOrder["status"][]) =>
     total === 0
@@ -210,7 +228,8 @@ export function getOrderPerformance(orders: AdminOrder[]) {
 
 /* ----------------------------------------------------------------- reports */
 
-export function getRevenueByMonth(orders: AdminOrder[]) {
+export function getRevenueByMonth(allOrders: AdminOrder[]) {
+  const orders = realOrders(allOrders);
   const buckets = bucketsEnding("monthly", new Date());
   const revenue = sumInBuckets(orders, buckets, (o) =>
     o.status === "cancelled" ? 0 : o.total
@@ -232,9 +251,10 @@ export function getRevenueByMonth(orders: AdminOrder[]) {
  * longer exists. Documented trade-off, not a bug.
  */
 export function getSalesByCategory(
-  orders: AdminOrder[],
+  allOrders: AdminOrder[],
   categoryByDish: Map<string, string>
 ) {
+  const orders = realOrders(allOrders);
   const revenueByLabel = new Map<string, number>();
 
   for (const order of orders) {
@@ -257,7 +277,8 @@ export function getSalesByCategory(
     .sort((a, b) => b.revenue - a.revenue);
 }
 
-export function getTopDishes(orders: AdminOrder[]) {
+export function getTopDishes(allOrders: AdminOrder[]) {
+  const orders = realOrders(allOrders);
   const byDish = new Map<string, { orders: number; revenue: number }>();
 
   for (const order of orders) {
@@ -281,7 +302,8 @@ export function getTopDishes(orders: AdminOrder[]) {
 }
 
 /** Delivery orders only — a pickup order didn't go anywhere. */
-export function getOrdersByTown(orders: AdminOrder[]) {
+export function getOrdersByTown(allOrders: AdminOrder[]) {
+  const orders = realOrders(allOrders);
   const counts = new Map<string, number>();
   for (const order of orders) {
     if (order.fulfilment !== "delivery" || order.status === "cancelled") continue;
@@ -294,7 +316,8 @@ export function getOrdersByTown(orders: AdminOrder[]) {
 
 /** Fixed 11:00-22:00 axis — the kitchen's plausible service window, shown
  *  even for hours with zero orders so the chart's shape stays legible. */
-export function getOrdersByHour(orders: AdminOrder[]) {
+export function getOrdersByHour(allOrders: AdminOrder[]) {
+  const orders = realOrders(allOrders);
   const counts = new Map<number, number>();
   for (const order of orders) {
     if (order.status === "cancelled") continue;
@@ -314,7 +337,8 @@ export function getOrdersByHour(orders: AdminOrder[]) {
  * only ever report what's actually tracked. It'll read 100% Website until
  * WhatsApp orders get a logging path of their own.
  */
-export function getChannelSplit(orders: AdminOrder[]) {
+export function getChannelSplit(allOrders: AdminOrder[]) {
+  const orders = realOrders(allOrders);
   const real = orders.filter((o) => o.status !== "cancelled");
   const wa = real.filter((o) => o.channel === "whatsapp").length;
   const total = real.length;

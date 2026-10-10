@@ -24,6 +24,38 @@ export default async function SettingsPage() {
     { label: "Website", value: siteConfig.website },
   ];
 
+  // Read from the environment so this can't go stale the way a hard-coded
+  // "Not built" label did.
+  const mollieLive = (process.env.MOLLIE_API_KEY ?? "").startsWith("live_");
+  const integrations = [
+    {
+      name: "Supabase",
+      detail:
+        "Database for menu, settings, orders and customers, plus image and video storage, and staff/customer login.",
+      status: "Live",
+    },
+    {
+      name: "Mollie",
+      detail: mollieLive
+        ? "Live payments are on."
+        : "Checkout and payments work, but on the TEST key — no real money moves. Swap MOLLIE_API_KEY for the live_ key to go live.",
+      status: mollieLive ? "Live" : "Test mode",
+    },
+    {
+      name: "Resend",
+      detail: process.env.RESEND_API_KEY
+        ? "Sends the new-order alert email to the kitchen."
+        : "No API key set — new-order emails are not being sent.",
+      status: process.env.RESEND_API_KEY ? "Live" : "Not configured",
+    },
+    {
+      name: "Google Maps",
+      detail:
+        "Draws the delivery-area map (Static Maps). Address lookup uses the free Dutch PDOK service instead, and the delivery check is by town name.",
+      status: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ? "Map only" : "No key",
+    },
+  ];
+
   return (
     <AdminShell title="Settings">
       <div className="mx-auto max-w-4xl space-y-4 sm:space-y-6">
@@ -70,26 +102,7 @@ export default async function SettingsPage() {
             subtitle="Where each one actually stands — a key being on file isn't the same as the feature being built."
           />
           <ul className="mt-4 divide-y divide-hairline text-sm">
-            {[
-              {
-                name: "Supabase",
-                detail:
-                  "Staff and customer login run on it now. Menu data and image storage are still on the local store.",
-                status: "Auth only",
-              },
-              {
-                name: "Mollie",
-                detail:
-                  "Test API key is on file. The on-site checkout flow itself isn't built yet — WhatsApp ordering still works.",
-                status: "Not built",
-              },
-              {
-                name: "Google Maps",
-                detail:
-                  "API key is on file. The delivery-radius check and live map aren't wired into the site yet.",
-                status: "Not built",
-              },
-            ].map((service) => (
+            {integrations.map((service) => (
               <li
                 key={service.name}
                 className="flex flex-wrap items-center justify-between gap-2 py-3"

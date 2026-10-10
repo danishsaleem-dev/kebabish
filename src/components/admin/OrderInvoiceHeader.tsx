@@ -12,9 +12,12 @@ import { siteConfig } from "@/lib/site-config";
 export default function OrderInvoiceHeader({
   reference,
   placedAt,
+  vatNumber,
 }: {
   reference: string;
   placedAt: string;
+  /** BTW-id from /admin/settings — omitted from the print until set. */
+  vatNumber?: string;
 }) {
   return (
     <div className="mb-6 hidden items-start justify-between gap-6 border-b-2 border-heading pb-4 print:flex">
@@ -36,6 +39,10 @@ export default function OrderInvoiceHeader({
           </p>
           <p className="text-xs text-body-text">
             {siteConfig.contact.phone} · {siteConfig.contact.email}
+          </p>
+          <p className="text-xs text-body-text">
+            KVK {siteConfig.kvkNumber}
+            {vatNumber ? ` · BTW-id ${vatNumber}` : ""}
           </p>
         </div>
       </div>

@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 import sharp from "sharp";
 import { revalidatePath } from "next/cache";
+import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
 import {
   addMedia,
   deleteMedia,
@@ -101,6 +102,7 @@ export async function uploadMediaAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF_MANAGER);
   const files = formData.getAll("files").filter((f): f is File => f instanceof File);
   if (files.length === 0) return { ok: false, message: "Choose at least one image." };
 
@@ -164,6 +166,7 @@ export async function updateMediaAltAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   const alt = String(formData.get("alt") ?? "").trim();
 
@@ -180,6 +183,7 @@ export async function deleteMediaAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   const record = await getMedia(id);
   if (!record) return { ok: false, message: "Image not found." };

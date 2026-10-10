@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
 import {
   createAllergen,
   createCategory,
@@ -27,6 +28,7 @@ import {
 } from "@/lib/admin/store";
 import type { IngredientGroup } from "@/lib/admin/ingredients";
 import type { Unit } from "@/lib/admin/units";
+import { MIN_DISH_PRICE } from "@/lib/money";
 import { flashRedirect } from "@/lib/admin/flash";
 import { deleteVideoByUrl, isOwnVideoUrl } from "@/lib/admin/videos";
 
@@ -90,6 +92,7 @@ export async function createCategoryAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = categorySchema.safeParse({
     label: formData.get("label"),
     description: formData.get("description") ?? "",
@@ -110,6 +113,7 @@ export async function updateCategoryAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   const parsed = categorySchema.safeParse({
     label: formData.get("label"),
@@ -135,6 +139,7 @@ export async function deleteCategoryAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   try {
     await deleteCategory(String(formData.get("id") ?? ""));
   } catch (error) {
@@ -149,6 +154,7 @@ export async function deleteCategoryAction(
 }
 
 export async function moveCategoryAction(formData: FormData): Promise<void> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   const direction = formData.get("direction") === "up" ? "up" : "down";
   await moveCategory(id, direction);
@@ -161,7 +167,16 @@ const itemSchema = z.object({
   name: z.string().trim().min(2, "Give the dish a name."),
   categoryId: z.string().trim().min(1, "Pick a category."),
   price: z
-    .union([z.literal(""), z.coerce.number().min(0, "Price can't be negative.")])
+    .union([
+      z.literal(""),
+      z.coerce
+        .number()
+        .min(0, "Price can't be negative.")
+        .refine(
+          (v) => v === 0 || v >= MIN_DISH_PRICE,
+          `Prices under €${MIN_DISH_PRICE.toFixed(2)} aren't sold — leave it empty until you have the real price.`
+        ),
+    ])
     .transform((v) => (v === "" ? null : Number(v))),
   variants: z
     .string()
@@ -220,6 +235,7 @@ export async function createItemAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF_MANAGER);
   const parsed = readItemForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
@@ -234,6 +250,7 @@ export async function updateItemAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF_MANAGER);
   const slug = String(formData.get("slug") ?? "");
   const parsed = readItemForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
@@ -255,6 +272,7 @@ export async function deleteItemAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF_MANAGER);
   const slug = String(formData.get("slug") ?? "");
   const previous = await getItem(slug);
   await deleteItem(slug);
@@ -267,6 +285,7 @@ export async function deleteItemAction(
 export async function toggleItemVisibilityAction(
   formData: FormData
 ): Promise<void> {
+  await requireRole(OWNER_STAFF_MANAGER);
   const slug = String(formData.get("slug") ?? "");
   const visible = formData.get("visible") === "true";
   await updateItem(slug, { visible: !visible });
@@ -302,6 +321,7 @@ export async function createIngredientAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = readIngredientForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
@@ -320,6 +340,7 @@ export async function updateIngredientAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   const parsed = readIngredientForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
@@ -339,6 +360,7 @@ export async function deleteIngredientAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   try {
     await deleteIngredient(String(formData.get("id") ?? ""));
   } catch (error) {
@@ -362,6 +384,7 @@ export async function createAllergenAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = allergenSchema.safeParse({ label: formData.get("label") });
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
@@ -375,6 +398,7 @@ export async function updateAllergenAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = allergenSchema.safeParse({ label: formData.get("label") });
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
@@ -388,6 +412,7 @@ export async function deleteAllergenAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   try {
     await deleteAllergen(String(formData.get("id") ?? ""));
   } catch (error) {
@@ -420,6 +445,7 @@ export async function saveRecipeAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = recipeSchema.safeParse({
     menuItemSlug: formData.get("menuItemSlug"),
     portionWeightG: formData.get("portionWeightG"),
@@ -478,6 +504,7 @@ export async function deleteRecipeAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const slug = String(formData.get("menuItemSlug") ?? "");
   await deleteRecipe(slug);
   refreshMenu();
@@ -551,6 +578,7 @@ export async function createOptionGroupAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = readOptionGroupForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
@@ -566,6 +594,7 @@ export async function updateOptionGroupAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   const parsed = readOptionGroupForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
@@ -582,6 +611,7 @@ export async function deleteOptionGroupAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   await deleteOptionGroup(id);
   refreshMenu();

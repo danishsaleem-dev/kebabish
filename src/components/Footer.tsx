@@ -12,7 +12,15 @@ const SOCIALS = [
   { href: siteConfig.socials.tiktok, label: "TikTok", Icon: Music2 },
 ];
 
-export default function Footer() {
+export default function Footer({
+  vatNumber,
+  showReviews,
+}: {
+  /** BTW-id from /admin/settings; the line is simply omitted until it is set. */
+  vatNumber?: string;
+  /** False until real reviews exist — no link to an empty page. */
+  showReviews: boolean;
+}) {
   const t = useTranslations("footer");
   const tNav = useTranslations("nav");
   const year = new Date().getFullYear();
@@ -114,13 +122,21 @@ export default function Footer() {
       </div>
 
       <div className="relative z-10 flex flex-col items-center justify-between gap-3 border-t border-cream-200/10 px-5 py-6 text-center text-xs leading-relaxed text-cream-200/50 sm:flex-row sm:px-6 sm:text-left">
-        <p>
-          © {year} {siteConfig.brandName}. {t("rights")}
-        </p>
+        <div className="space-y-1">
+          <p>
+            © {year} {siteConfig.brandName}. {t("rights")}
+          </p>
+          <p>
+            {t("kvk")} {siteConfig.kvkNumber}
+            {vatNumber ? ` · ${t("vatId")} ${vatNumber}` : ""}
+          </p>
+        </div>
         <div className="flex items-center gap-5">
-          <Link href="/reviews" className="link-underline">
-            {t("reviews")}
-          </Link>
+          {showReviews && (
+            <Link href="/reviews" className="link-underline">
+              {t("reviews")}
+            </Link>
+          )}
           <Link href="/privacy" className="link-underline">
             {t("privacy")}
           </Link>

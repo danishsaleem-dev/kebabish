@@ -71,7 +71,7 @@ export default function SettingsForm({
         <div className="p-5 sm:p-6">
           <CardHeader
             title="Opening hours"
-            subtitle="Delivery and takeaway only — there is no dine-in."
+            subtitle="Delivery only — there is no dine-in and no pickup."
           />
         </div>
 
@@ -220,6 +220,43 @@ export default function SettingsForm({
               max="180"
               defaultValue={settings.averagePrepMinutes}
               invalid={Boolean(e.averagePrepMinutes)}
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Tax & invoices"
+          subtitle="Used on the customer receipt, the printed invoice and the site footer. Ask your accountant for the right values — nothing is shown until you fill them in."
+        />
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Field
+            label="VAT rate included in prices (%)"
+            hint="Menu prices already include VAT. Leave empty to show no VAT amount."
+            error={e.vatRatePercent}
+          >
+            <Input
+              name="vatRatePercent"
+              type="number"
+              min="0"
+              max="25"
+              step="0.5"
+              defaultValue={settings.vatRatePercent ?? ""}
+              invalid={Boolean(e.vatRatePercent)}
+            />
+          </Field>
+          <Field
+            label="BTW-id"
+            hint="Format NL123456789B01. Not the same as the KVK number."
+            error={e.vatNumber}
+          >
+            <Input
+              name="vatNumber"
+              type="text"
+              defaultValue={settings.vatNumber ?? ""}
+              placeholder="NL123456789B01"
+              invalid={Boolean(e.vatNumber)}
             />
           </Field>
         </div>

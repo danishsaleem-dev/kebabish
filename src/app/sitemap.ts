@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { reviews } from "@/lib/reviews-data";
 import { routing } from "@/i18n/routing";
 import { siteConfig } from "@/lib/site-config";
 import { isComingSoonEnabled } from "@/lib/site-gate";
@@ -55,7 +56,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  const staticEntries = localizedEntries(STATIC_PAGES, {
+  // /reviews is an empty "coming soon" page until real reviews exist —
+  // not worth asking Google to index.
+  const pages = reviews.length > 0 ? STATIC_PAGES : STATIC_PAGES.filter((p) => p !== "/reviews");
+  const staticEntries = localizedEntries(pages, {
     priority: (path) => {
       if (path === "") return 1;
       if (path === "/menu") return 0.9;

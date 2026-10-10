@@ -225,10 +225,16 @@
     "slotNoneToday": "No delivery times left for this day.",
     "slotUnavailable": "That delivery time isn't valid anymore — please choose another.",
     "slotFull": "That delivery time just filled up — please choose another.",
+    "notAccepting": "We aren’t taking orders right now. Please try again later.",
     "notes": "Notes for your order",
     "notesPlaceholder": "Door code, allergies, anything else we should know",
     "summary": "Order summary",
-    "payNow": "Pay {amount}",
+    "payNow": "Order & pay · {amount}",
+    "receiptVat": "Of which VAT ({rate}%)",
+    "vatIncluded": "All prices include VAT.",
+    "legalAgree": "By placing your order you agree to our <terms>terms and conditions</terms> and <privacy>privacy policy</privacy>.",
+    "noCoolingOff": "The statutory 14-day cooling-off period does not apply to freshly prepared and perishable food. If you want to cancel a placed order, contact Kebabish by WhatsApp or phone as soon as possible.",
+    "allergenNote": "Allergens are listed on each dish. If you have an allergy or are unsure, please contact us before you order.",
     "paying": "Taking you to payment…",
     "outsideArea": "We don't deliver to that town yet — message us instead.",
     "belowMinimum": "Minimum order for delivery is {amount}.",
@@ -276,6 +282,8 @@
     "followUs": "Follow us",
     "deliveryOnly": "Delivery only",
     "rights": "All rights reserved.",
+    "kvk": "KVK",
+    "vatId": "VAT ID",
     "reviews": "Reviews",
     "privacy": "Privacy Policy",
     "terms": "Terms & Conditions"
@@ -379,14 +387,16 @@
         ],
         "list": [
           "Mollie, to securely process online payments — we never store payment details such as card numbers ourselves",
-          "Google Maps, to place your address within our delivery area",
+          "PDOK (the Dutch government's geodata platform), to look up your address from your postcode",
+          "Google Maps, to show the map of our delivery area",
+          "Resend, to send order-related emails",
           "Our hosting and database providers (Vercel and Supabase), who act solely as processors on our behalf"
         ]
       },
       {
         "heading": "Retention period",
         "body": [
-          "We do not keep your data longer than necessary for the purpose it was collected for. Order data is kept for as long as the law requires of us as a business (including our tax record-keeping obligations)."
+          "We do not keep your data longer than necessary for the purpose it was collected for. Order data and invoices we need for our tax records are kept for 7 years, as Dutch tax rules require of us as a business. Other personal data is not kept longer than its purpose requires."
         ]
       },
       {
@@ -402,7 +412,9 @@
           "Access the data we hold about you",
           "Have inaccurate data corrected",
           "Have your data deleted, where legally possible",
-          "Object to certain processing",
+          "Have the processing of your data restricted, and object to certain processing",
+          "Receive your data in a commonly used format (data portability), where applicable",
+          "Withdraw any consent you have given, at any time",
           "Lodge a complaint with the Dutch Data Protection Authority (Autoriteit Persoonsgegevens)"
         ],
         "footer": "To exercise any of these rights, contact us at info@kebabish.nl."

@@ -116,6 +116,15 @@ export interface StoredSettings {
   averagePrepMinutes: number;
   acceptingOrders: boolean;
   orderNotice: string;
+  /**
+   * VAT included in every consumer price, as a percentage (e.g. 9). Null
+   * until the accountant has confirmed it — nothing on invoices or the
+   * receipt shows a VAT amount until it is set, rather than guessing.
+   * Optional because settings saved before this existed don't carry it.
+   */
+  vatRatePercent?: number | null;
+  /** Dutch BTW-id of the business, e.g. NL123456789B01. Shown on invoices and in the footer once set. */
+  vatNumber?: string;
 }
 
 export interface StoredIngredient {

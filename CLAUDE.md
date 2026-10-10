@@ -757,6 +757,44 @@ and accounts deleted afterward — confirmed via the database that a real
 customer who'd already signed up independently (unrelated to this
 testing) was left untouched throughout.
 
+### Hardening and legal copy (spec review, Oct 2026)
+
+Danish supplied a long implementation spec; it was audited against the code
+and only part of it adopted (see the git log for what). Decisions that came
+out of it and aren't obvious from the code:
+
+- **Every mutating admin server action checks the role itself**
+  (`requireRole()` in `src/lib/admin/guard.ts`). The layout guards only
+  protect the *page*; a server action is a public POST endpoint. Menu
+  actions other than dish actions are owner/staff; dish actions also admit
+  managers. New admin actions must call `requireRole` first.
+- **Price floor** — `MIN_DISH_PRICE` (€0.50, `money.ts`). A dish below it
+  reads as "price on request" publicly, `priceCart` refuses it, and the
+  admin form refuses to save it, so a €0.01 placeholder can never be bought.
+  `priceCart` also rejects hidden dishes / hidden categories.
+- **Checkout honours "Accepting orders"** server-side (`notAccepting`).
+  Opening hours are deliberately *not* checked there — booking a later slot
+  while closed is allowed.
+- **Dashboard and reports count paid orders only** (`realOrders()` in
+  `order-analytics.ts`); unpaid checkouts still show in the Orders list.
+- **The confirmation page needs a token** (`order-token.ts`, an HMAC of the
+  reference with `ADMIN_SESSION_SECRET`, carried as `&t=`), because the
+  6-digit reference alone is guessable and the page shows name/address.
+- **VAT rate and BTW-id are admin settings** (`/admin/settings` → Tax &
+  invoices), not code. Prices already include VAT, so the receipt and the
+  printed invoice *extract* it (`vatIncludedCents`). Nothing VAT-related is
+  shown until they're filled in — we don't guess a rate. KVK is shown on the
+  footer/contact/receipt/invoice; the BTW-id joins it once set. "Marfah
+  Enterprise" still only appears on Privacy and Terms.
+- Reviews link/sitemap entry only appear once `reviews-data.ts` has entries.
+- The slot rule stays 30 min live + 15 min buffer — the spec's "closes 15
+  minutes before start" was deliberately *not* adopted.
+
+Not done yet from the spec (needs a migration or a decision): unpaid-order
+expiry + slot release sweep (needs a cron), retry-same-order, sequential
+invoice numbers, customer confirmation/status emails, Mollie refunds,
+`accepted_at`/kitchen escalation, `is_test` order flag.
+
 ### Allergens are user-extendable
 
 `Allergen` is a plain string, not a union. The 14 EU-mandated ones seed the

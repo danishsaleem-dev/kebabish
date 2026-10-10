@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
 import {
   createPromoCode,
   deletePromoCode,
@@ -71,6 +72,7 @@ export async function createPromoCodeAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const parsed = readPromoForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
@@ -91,6 +93,7 @@ export async function updatePromoCodeAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   const parsed = readPromoForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
@@ -112,6 +115,7 @@ export async function deletePromoCodeAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  await requireRole(OWNER_STAFF);
   const id = String(formData.get("id") ?? "");
   await deletePromoCode(id);
   refreshPromotions();

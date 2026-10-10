@@ -225,10 +225,16 @@
     "slotNoneToday": "Geen bezorgtijden meer beschikbaar op deze dag.",
     "slotUnavailable": "Deze bezorgtijd is niet meer geldig — kies een andere.",
     "slotFull": "Deze bezorgtijd is zojuist volgeboekt — kies een andere.",
+    "notAccepting": "We nemen op dit moment geen bestellingen aan. Probeer het later opnieuw.",
     "notes": "Opmerkingen bij je bestelling",
     "notesPlaceholder": "Deurcode, allergieën, of iets anders dat we moeten weten",
     "summary": "Overzicht",
-    "payNow": "Betaal {amount}",
+    "payNow": "Bestellen & betalen · {amount}",
+    "receiptVat": "Waarvan btw ({rate}%)",
+    "vatIncluded": "Alle prijzen zijn inclusief btw.",
+    "legalAgree": "Door te bestellen ga je akkoord met onze <terms>algemene voorwaarden</terms> en ons <privacy>privacybeleid</privacy>.",
+    "noCoolingOff": "Voor vers bereide en snel bederfelijke levensmiddelen geldt geen wettelijke bedenktijd van 14 dagen. Wil je een geplaatste bestelling annuleren? Neem dan zo snel mogelijk contact op met Kebabish via WhatsApp of telefoon.",
+    "allergenNote": "Allergenen staan bij elk gerecht vermeld. Twijfel je of heb je een allergie? Neem contact met ons op voordat je bestelt.",
     "paying": "Je wordt doorgestuurd naar de betaling…",
     "outsideArea": "We bezorgen daar helaas nog niet — stuur ons een appje.",
     "belowMinimum": "Minimale bestelling voor bezorging is {amount}.",
@@ -276,6 +282,8 @@
     "followUs": "Volg ons",
     "deliveryOnly": "Alleen bezorgen",
     "rights": "Alle rechten voorbehouden.",
+    "kvk": "KVK",
+    "vatId": "BTW-id",
     "reviews": "Reviews",
     "privacy": "Privacybeleid",
     "terms": "Algemene voorwaarden"
@@ -379,14 +387,16 @@
         ],
         "list": [
           "Mollie, voor het veilig verwerken van online betalingen — wij slaan zelf geen betaalgegevens (zoals kaartnummers) op",
-          "Google Maps, om je adres binnen ons bezorggebied te kunnen plaatsen",
+          "PDOK (het geodataplatform van de Nederlandse overheid), om je adres op basis van je postcode op te zoeken",
+          "Google Maps, om de kaart van ons bezorggebied te tonen",
+          "Resend, om e-mails over bestellingen te versturen",
           "Onze hosting- en databaseleveranciers (Vercel en Supabase), die uitsluitend als verwerker voor ons optreden"
         ]
       },
       {
         "heading": "Bewaartermijn",
         "body": [
-          "Wij bewaren jouw gegevens niet langer dan noodzakelijk voor het doel waarvoor ze zijn verzameld. Bestelgegevens bewaren wij zo lang als de wet dat van ons als ondernemer vereist (onder andere voor onze fiscale administratie)."
+          "Wij bewaren jouw gegevens niet langer dan noodzakelijk voor het doel waarvoor ze zijn verzameld. Bestelgegevens en facturen die we nodig hebben voor onze fiscale administratie bewaren wij 7 jaar, zoals de Nederlandse belastingregels dat van ons als ondernemer vereisen. Overige persoonsgegevens bewaren wij niet langer dan voor hun doel nodig is."
         ]
       },
       {
@@ -402,7 +412,9 @@
           "Inzage te krijgen in de gegevens die wij van je verwerken",
           "Onjuiste gegevens te laten corrigeren",
           "Je gegevens te laten verwijderen, voor zover wettelijk mogelijk",
-          "Bezwaar te maken tegen bepaalde verwerkingen",
+          "De verwerking van je gegevens te laten beperken en bezwaar te maken tegen bepaalde verwerkingen",
+          "Je gegevens in een gangbaar formaat te ontvangen (dataportabiliteit), waar dit van toepassing is",
+          "Eerder gegeven toestemming op elk moment weer in te trekken",
           "Een klacht in te dienen bij de Autoriteit Persoonsgegevens"
         ],
         "footer": "Neem voor het uitoefenen van deze rechten contact met ons op via info@kebabish.nl."
