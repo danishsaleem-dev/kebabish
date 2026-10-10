@@ -164,6 +164,7 @@ export default async function CustomerDetailPage({
                       <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
                         <CalendarDays size={12} />
                         {new Date(order.placedAt).toLocaleString("en-GB", {
+timeZone: "Europe/Amsterdam",
                           day: "numeric",
                           month: "short",
                           hour: "2-digit",

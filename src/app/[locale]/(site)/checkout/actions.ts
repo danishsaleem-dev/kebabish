@@ -1,17 +1,23 @@
 "use server";
 
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { siteConfig } from "@/lib/site-config";
 import { createPayment } from "@/lib/mollie";
-import { orderAccessToken } from "@/lib/order-token";
+import { isValidOrderToken, orderAccessToken } from "@/lib/order-token";
 import {
   CartPricingError,
   attachPayment,
+  claimOrderForRetry,
   createOrder,
+  expireStaleOrders,
+  getOrderForRetry,
+  markOrderPaymentFailed,
+  restoreOrderPaymentStatus,
   deliveryFeeCents,
   isDeliverableTown,
   priceCart,
@@ -92,6 +98,9 @@ export async function checkoutAction(
   _prev: CheckoutState,
   formData: FormData
 ): Promise<CheckoutState> {
+  // Free up seats held by abandoned checkouts before looking for one.
+  after(() => expireStaleOrders());
+
   const parsed = checkoutSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -262,7 +271,7 @@ export async function checkoutAction(
       // Mollie rejects non-public webhook URLs, so local dev omits it and
       // relies on the return page polling instead.
       webhookUrl: isPublic ? `${base}/api/mollie/webhook` : undefined,
-      metadata: { orderReference: order.reference },
+      metadata: { orderReference: order.reference, locale: locale || routing.defaultLocale },
     });
 
     await attachPayment(order.id, payment.id);
@@ -270,15 +279,101 @@ export async function checkoutAction(
   } catch (error) {
     console.error("[checkout] Mollie payment failed:", error);
     await releaseSlot();
+    await markOrderPaymentFailed(order.id);
     return { ok: false, error: "failed" };
   }
 
   if (!checkoutUrl) {
     await releaseSlot();
+    await markOrderPaymentFailed(order.id);
     return { ok: false, error: "failed" };
   }
 
   // redirect() throws, so it must sit outside the try above or it would be
   // caught and reported as a payment failure.
+  redirect(checkoutUrl);
+}
+
+/**
+ * "Pay again" on the failed-payment page.
+ *
+ * Reuses the *same* order — same reference, same lines, same prices — and
+ * only starts a fresh Mollie payment for it, instead of making the customer
+ * rebuild the cart and creating a second order row for the same meal. The
+ * slot was handed back when the first attempt failed, so it has to be
+ * re-checked and re-reserved here exactly as at checkout: it may have
+ * passed its cutoff or been booked by someone else in the meantime.
+ */
+export async function retryPaymentAction(formData: FormData): Promise<void> {
+  after(() => expireStaleOrders());
+
+  const reference = String(formData.get("ref") ?? "");
+  const token = String(formData.get("t") ?? "");
+  const locale = String(formData.get("locale") ?? "");
+  const prefix = locale && locale !== routing.defaultLocale ? `/${locale}` : "";
+  const back = (error?: string) =>
+    redirect(
+      `${prefix}/checkout/complete?ref=${encodeURIComponent(reference)}&t=${encodeURIComponent(token)}${
+        error ? `&retry=${error}` : ""
+      }`
+    );
+
+  // Same proof-of-possession as viewing the page.
+  if (!isValidOrderToken(reference, token)) redirect(`${prefix}/menu`);
+
+  const order = await getOrderForRetry(reference);
+  const retryable = ["failed", "expired", "canceled"];
+  if (!order || !retryable.includes(order.paymentStatus)) return back();
+  if (!order.deliveryDate || !order.deliverySlotStart || !order.deliverySlotEnd) {
+    return back("slotUnavailable");
+  }
+
+  const store = await readStore();
+  if (!store.settings.acceptingOrders) return back("notAccepting");
+
+  // Only one request gets to restart this order (see claimOrderForRetry).
+  if (!(await claimOrderForRetry(order.id, order.paymentStatus))) return back();
+  const giveUp = (error: string) =>
+    restoreOrderPaymentStatus(order.id, order.paymentStatus).then(() => back(error));
+
+  const now = amsterdamNow();
+  const weekday = weekdayForDateKey(order.deliveryDate);
+  const day = store.settings.hours.find((h) => h.day === weekday);
+  const stillValid =
+    order.deliveryDate >= now.dateKey &&
+    !!day &&
+    generateDaySlots(day).some(
+      (s) => s.start === order.deliverySlotStart && s.end === order.deliverySlotEnd
+    ) &&
+    !isPastCutoff(order.deliveryDate, order.deliverySlotStart, now);
+  if (!stillValid) return giveUp("slotUnavailable");
+
+  if (!(await reserveDeliverySlot(order.deliveryDate, weekday, order.deliverySlotStart))) {
+    return giveUp("slotFull");
+  }
+  const releaseSlot = () =>
+    releaseDeliverySlot(order.deliveryDate!, order.deliverySlotStart!);
+
+  const base = await requestOrigin();
+  const isPublic = base.startsWith("https://");
+  let checkoutUrl: string | null = null;
+  try {
+    const payment = await createPayment({
+      amountCents: order.totalCents,
+      description: `${siteConfig.brandName} ${order.reference}`,
+      redirectUrl: `${base}${prefix}/checkout/complete?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}`,
+      webhookUrl: isPublic ? `${base}/api/mollie/webhook` : undefined,
+      metadata: { orderReference: order.reference, locale: locale || routing.defaultLocale },
+    });
+    await attachPayment(order.id, payment.id);
+    checkoutUrl = payment.checkoutUrl;
+  } catch (error) {
+    console.error("[checkout] retry payment failed:", error);
+  }
+
+  if (!checkoutUrl) {
+    await releaseSlot();
+    return giveUp("failed");
+  }
   redirect(checkoutUrl);
 }

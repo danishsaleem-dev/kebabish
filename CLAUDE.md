@@ -790,9 +790,39 @@ out of it and aren't obvious from the code:
 - The slot rule stays 30 min live + 15 min buffer — the spec's "closes 15
   minutes before start" was deliberately *not* adopted.
 
-Not done yet from the spec (needs a migration or a decision): unpaid-order
-expiry + slot release sweep (needs a cron), retry-same-order, sequential
-invoice numbers, customer confirmation/status emails, Mollie refunds,
+**Priority 1 (payment lifecycle, invoice numbers, customer email):**
+
+- **Abandoned checkouts release their slot** — `expireStaleOrders()` in
+  `orders.ts`. There's no cron on this project, so it runs lazily (and at
+  most once a minute per instance) from `/api/delivery-slots`,
+  `checkoutAction`, `retryPaymentAction` and the admin order poll. It looks
+  at orders still `open` more than `PAYMENT_HOLD_MINUTES` (15) after their
+  last payment attempt (`updated_at`, not `created_at` — a retry restarts the
+  clock) and asks Mollie what happened before acting. **iDEAL is not
+  cancellable** (`isCancelable: false`); Mollie expires it itself 15 min
+  after creation, so the hold ends when Mollie says so and the sweep notices.
+  A cancellable open payment is cancelled first so it can't be paid after its
+  seat is resold. Verified against the real Mollie test API.
+- **"Pay again"** on the failed/expired page (`retryPaymentAction`) reuses the
+  *same order* — same reference and lines — and only starts a new payment.
+  It re-checks acceptingOrders and the slot (cutoff, capacity) and re-reserves
+  it, because the first failure released it. `claimOrderForRetry` is the lock:
+  only one request can restart an order, so a double click can't reserve two
+  seats. Mollie returns an iDEAL *"failed"* to its own method picker rather
+  than to us, so the retry button shows after cancel/expiry, not after that.
+- **Invoice numbers** (`INV-2026-000001`, migration `0009_invoice_numbers.sql`)
+  — a locked per-year counter, so there are no gaps. Assigned when an order
+  is paid; the order reference (#KB-…) stays the customer-facing number.
+  `getInvoiceNumber()` returns null if the migration hasn't been run, so
+  nothing breaks before it is.
+- **Customer confirmation email** (`email/order-confirmation.ts`), sent from
+  the same first-paid transition as the kitchen alert, in the customer's
+  language (carried through Mollie's payment metadata).
+- Customer-facing and printed times are formatted in `Europe/Amsterdam` — a
+  server in UTC (Vercel) otherwise prints them two hours off.
+
+Not done yet from the spec (needs a migration or a decision): status emails
+(preparing/out for delivery/delivered), Mollie refunds,
 `accepted_at`/kitchen escalation, `is_test` order flag.
 
 ### Allergens are user-extendable

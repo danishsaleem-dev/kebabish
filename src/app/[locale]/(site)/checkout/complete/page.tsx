@@ -4,17 +4,21 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { CheckCircle2, Clock, MapPin, UserPlus, LogIn, XCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { getOrderByReference, syncPaymentStatus } from "@/lib/orders";
+import { getInvoiceNumber, getOrderByReference, syncPaymentStatus } from "@/lib/orders";
 import { getPayment } from "@/lib/mollie";
 import { isValidOrderToken } from "@/lib/order-token";
 import { formatEuro, fromCents, vatIncludedCents } from "@/lib/money";
 import { getPublicSettings } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
 import { auth } from "@/lib/auth";
+import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
 import ClearCartOnPaid from "@/components/cart/ClearCartOnPaid";
 import ReceiptPrintButton from "@/components/cart/ReceiptPrintButton";
 
 export const dynamic = "force-dynamic";
+
+/** `?retry=` values the retry action can send back, each a `checkout.*` message. */
+const RETRY_ERRORS = ["slotUnavailable", "slotFull", "notAccepting", "failed"];
 
 export async function generateMetadata({
   params,
@@ -31,10 +35,10 @@ export default async function CheckoutCompletePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ ref?: string; t?: string }>;
+  searchParams: Promise<{ ref?: string; t?: string; retry?: string }>;
 }) {
   const { locale } = await params;
-  const { ref, t: token } = await searchParams;
+  const { ref, t: token, retry } = await searchParams;
   // The reference alone is guessable; the page shows personal details, so
   // it also needs the token that only the checkout redirect carries.
   if (!ref || !isValidOrderToken(ref, token)) notFound();
@@ -53,13 +57,14 @@ export default async function CheckoutCompletePage({
   if (order.molliePaymentId && paymentStatus === "open") {
     try {
       const payment = await getPayment(order.molliePaymentId);
-      paymentStatus = await syncPaymentStatus(payment.id, payment.status);
+      paymentStatus = await syncPaymentStatus(payment.id, payment.status, locale);
     } catch (error) {
       console.error("[checkout] could not reconcile payment:", error);
     }
   }
 
   const paid = paymentStatus === "paid";
+  const invoiceNumber = paid ? await getInvoiceNumber(order.reference) : null;
   const failed = ["failed", "expired", "canceled"].includes(paymentStatus);
 
   // A guest order (no customerId) placed while signed out is the one case
@@ -75,7 +80,7 @@ export default async function CheckoutCompletePage({
 
   const placedAt = new Date(order.placedAt).toLocaleString(
     locale === "nl" ? "nl-NL" : "en-GB",
-    { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
+    { timeZone: "Europe/Amsterdam", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
   );
 
   // "YYYY-MM-DD" formatted via local Y/M/D parts, not a UTC parse — a
@@ -134,6 +139,25 @@ export default async function CheckoutCompletePage({
         </div>
       )}
 
+      {failed && (
+        <form action={retryPaymentAction} className="print:hidden mt-6 flex flex-col items-center gap-3">
+          <input type="hidden" name="ref" value={ref} />
+          <input type="hidden" name="t" value={token ?? ""} />
+          <input type="hidden" name="locale" value={locale} />
+          {retry && RETRY_ERRORS.includes(retry) && (
+            <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800">
+              {t(retry)}
+            </p>
+          )}
+          <button
+            type="submit"
+            className="rounded-full bg-ember-600 px-7 py-3 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-700"
+          >
+            {t("retryPay")}
+          </button>
+        </form>
+      )}
+
       {/* ---- receipt ------------------------------------------------------ */}
       <div className="mt-10 w-full rounded-3xl border border-charcoal-600/12 bg-cream-50 p-6 text-left sm:p-8 print:rounded-none print:border-0 print:bg-white print:p-0">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-charcoal-600/10 pb-6">
@@ -148,6 +172,11 @@ export default async function CheckoutCompletePage({
             <p className="font-display text-lg font-semibold text-charcoal-600">
               {t("completeReference", { reference: order.reference })}
             </p>
+            {invoiceNumber && (
+              <p className="mt-0.5 text-xs font-medium text-ink/65">
+                {t("receiptInvoiceNumber")} {invoiceNumber}
+              </p>
+            )}
             <p className="mt-0.5 text-xs text-ink/55">
               {t("receiptDate")} {placedAt}
             </p>

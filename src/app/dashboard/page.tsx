@@ -105,6 +105,7 @@ export default async function DashboardPage() {
                       </p>
                       <p className="mt-0.5 text-xs text-muted">
                         {new Date(order.placedAt).toLocaleDateString("en-GB", {
+timeZone: "Europe/Amsterdam",
                           day: "numeric",
                           month: "long",
                           year: "numeric",

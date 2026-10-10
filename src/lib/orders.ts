@@ -5,9 +5,10 @@ import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
 import { isSellablePrice, toCents } from "@/lib/money";
 import type { MolliePaymentStatus } from "@/lib/mollie";
-import { toPaymentStatus } from "@/lib/mollie";
+import { cancelPayment, getPayment, toPaymentStatus } from "@/lib/mollie";
 import type { StoredPromoCode } from "@/lib/admin/store/types";
 import { sendNewOrderEmail } from "@/lib/email/new-order";
+import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 
 /**
@@ -328,7 +329,9 @@ export async function attachPayment(orderId: string, molliePaymentId: string) {
  */
 export async function syncPaymentStatus(
   molliePaymentId: string,
-  status: MolliePaymentStatus
+  status: MolliePaymentStatus,
+  /** The customer's site language, for the confirmation email. */
+  locale?: string
 ) {
   const mapped = toPaymentStatus(status);
   const TERMINAL_FAILURE = new Set(["failed", "expired", "canceled"]);
@@ -341,6 +344,11 @@ export async function syncPaymentStatus(
   if (fetchError) throw new Error(fetchError.message);
   const wasAlreadyPaid = before?.payment_status === "paid";
   const wasAlreadyTerminal = TERMINAL_FAILURE.has(before?.payment_status ?? "");
+
+  // Nothing changed — the return page polls this every few seconds, and a
+  // write here would keep refreshing `updated_at`, which the stale-order
+  // sweep reads as "a payment attempt just happened" and never expires.
+  if (before && before.payment_status === mapped) return mapped;
 
   const { error } = await supabaseAdmin()
     .from("orders")
@@ -361,7 +369,10 @@ export async function syncPaymentStatus(
     // frozen the instant the response goes out, silently dropping an
     // email that's still mid-flight. after() keeps it alive to completion
     // without holding up the response.
-    if (order) after(() => sendNewOrderEmail(order));
+    if (order) {
+      after(() => sendNewOrderEmail(order));
+      after(() => sendOrderConfirmationEmail(order, locale));
+    }
   }
 
   // A payment that's never going to complete shouldn't go on holding a
@@ -373,6 +384,185 @@ export async function syncPaymentStatus(
   }
 
   return mapped;
+}
+
+/* --------------------------------------------------- stale unpaid checkouts */
+
+/**
+ * How long a checkout may sit unpaid before its delivery slot goes back in
+ * the pool. Measured from the last payment attempt (`updated_at`, which a
+ * retry refreshes), not from when the order row was first written.
+ */
+export const PAYMENT_HOLD_MINUTES = 15;
+
+let lastSweepAt = 0;
+
+/**
+ * Give back the slots held by checkouts that were started and abandoned.
+ *
+ * Nothing used to expire them: a slot was released only if Mollie later
+ * said failed/expired/canceled, so a customer who simply closed the tab
+ * could hold a seat for as long as Mollie took to notice. There is no
+ * scheduled job on this project, so this runs lazily — from the routes
+ * that are hit exactly when it matters (slot lookups, checkout, the admin
+ * order poll) — and at most once a minute per server instance.
+ *
+ * A payment is only ever given up on after Mollie has been asked what it
+ * is doing now: it might be paid with the webhook still on its way. One
+ * that is still open is *cancelled at Mollie* before its slot is released,
+ * so the customer can't pay for a seat we've already resold. A payment
+ * that can't be cancelled is left alone until Mollie expires it itself —
+ * which is the normal case: iDEAL, the main method, is not cancellable but
+ * Mollie expires it 15 minutes after creation, so in practice the hold ends
+ * when Mollie says so and this sweep just notices (checked against the real
+ * API: `isCancelable: false`, `expiresAt` = created + 15 min).
+ */
+export async function expireStaleOrders(): Promise<void> {
+  if (Date.now() - lastSweepAt < 60_000) return;
+  lastSweepAt = Date.now();
+
+  try {
+    const cutoff = new Date(Date.now() - PAYMENT_HOLD_MINUTES * 60_000).toISOString();
+    const { data, error } = await supabaseAdmin()
+      .from("orders")
+      .select("id, mollie_payment_id")
+      .eq("payment_status", "open")
+      .lt("updated_at", cutoff)
+      .order("updated_at", { ascending: true })
+      .limit(20);
+    if (error) throw new Error(error.message);
+
+    for (const row of data ?? []) {
+      try {
+        if (!row.mollie_payment_id) {
+          // The payment was never created; checkoutAction already handed the
+          // slot back when that failed, so only close the row — releasing
+          // here too would give the seat back twice.
+          await supabaseAdmin()
+            .from("orders")
+            .update({ payment_status: "failed", updated_at: new Date().toISOString() })
+            .eq("id", row.id)
+            .eq("payment_status", "open");
+          continue;
+        }
+
+        const payment = await getPayment(row.mollie_payment_id);
+        if (payment.status === "open") {
+          if (!payment.isCancelable) continue;
+          if (!(await cancelPayment(payment.id))) continue;
+          await syncPaymentStatus(payment.id, "canceled");
+        } else {
+          // paid / failed / expired / canceled — record what really happened.
+          await syncPaymentStatus(payment.id, payment.status);
+        }
+      } catch (error) {
+        console.error("[orders] could not expire order", row.id, error);
+      }
+    }
+  } catch (error) {
+    console.error("[orders] stale-order sweep failed:", error);
+  }
+}
+
+/* ------------------------------------------------------- invoice numbers */
+
+/**
+ * The invoice number of a paid order (INV-2026-000123), assigning it if the
+ * order doesn't have one yet. Returns null for an unpaid order — an unpaid
+ * checkout never gets a number — and also if migration 0009 hasn't been run
+ * yet, so the receipt, email and invoice simply omit the line rather than
+ * failing while the database catches up.
+ */
+export async function getInvoiceNumber(reference: string): Promise<string | null> {
+  try {
+    const { data, error } = await supabaseAdmin()
+      .from("orders")
+      .select("id, payment_status, invoice_number")
+      .eq("reference", reference)
+      .maybeSingle();
+    if (error || !data) return null;
+    if (data.invoice_number) return data.invoice_number as string;
+    if (data.payment_status !== "paid") return null;
+
+    const { data: assigned, error: rpcError } = await supabaseAdmin().rpc(
+      "assign_invoice_number",
+      { p_order: data.id }
+    );
+    if (rpcError) return null;
+    return (assigned as string | null) ?? null;
+  } catch (error) {
+    console.error("[orders] could not read invoice number:", error);
+    return null;
+  }
+}
+
+/* -------------------------------------------------------- paying again */
+
+export interface RetryableOrder {
+  id: string;
+  paymentStatus: string;
+  totalCents: number;
+  reference: string;
+  deliveryDate: string | null;
+  deliverySlotStart: string | null;
+  deliverySlotEnd: string | null;
+}
+
+export async function getOrderForRetry(reference: string): Promise<RetryableOrder | null> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select("id, reference, payment_status, total_cents, delivery_date, delivery_slot_start, delivery_slot_end")
+    .eq("reference", reference)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    id: data.id,
+    reference: data.reference,
+    paymentStatus: data.payment_status,
+    totalCents: data.total_cents,
+    deliveryDate: data.delivery_date,
+    deliverySlotStart: data.delivery_slot_start,
+    deliverySlotEnd: data.delivery_slot_end,
+  };
+}
+
+/**
+ * Atomically move a failed/expired/cancelled order back to "open" so that
+ * exactly one request gets to start the new payment — a double-click would
+ * otherwise reserve two seats and create two payments. The conditional
+ * update is the lock. Also refreshes `updated_at`, which restarts the hold
+ * clock the stale-order sweep above measures.
+ */
+export async function claimOrderForRetry(
+  id: string,
+  previousStatus: string
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .update({ payment_status: "open", paid_at: null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("payment_status", previousStatus)
+    .select("id");
+  if (error) throw new Error(error.message);
+  return (data?.length ?? 0) > 0;
+}
+
+/** Undo `claimOrderForRetry` when the retry couldn't actually start. */
+export async function restoreOrderPaymentStatus(id: string, status: string) {
+  await supabaseAdmin()
+    .from("orders")
+    .update({ payment_status: status, updated_at: new Date().toISOString() })
+    .eq("id", id);
+}
+
+/** Close an order whose payment could not even be started. */
+export async function markOrderPaymentFailed(id: string) {
+  await supabaseAdmin()
+    .from("orders")
+    .update({ payment_status: "failed", updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("payment_status", "open");
 }
 
 export interface ReceiptLine {

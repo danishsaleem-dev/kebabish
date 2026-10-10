@@ -231,6 +231,8 @@
     "summary": "Overzicht",
     "payNow": "Bestellen & betalen · {amount}",
     "receiptVat": "Waarvan btw ({rate}%)",
+    "retryPay": "Opnieuw betalen",
+    "receiptInvoiceNumber": "Factuurnummer",
     "vatIncluded": "Alle prijzen zijn inclusief btw.",
     "legalAgree": "Door te bestellen ga je akkoord met onze <terms>algemene voorwaarden</terms> en ons <privacy>privacybeleid</privacy>.",
     "noCoolingOff": "Voor vers bereide en snel bederfelijke levensmiddelen geldt geen wettelijke bedenktijd van 14 dagen. Wil je een geplaatste bestelling annuleren? Neem dan zo snel mogelijk contact op met Kebabish via WhatsApp of telefoon.",

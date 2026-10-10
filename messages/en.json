@@ -231,6 +231,8 @@
     "summary": "Order summary",
     "payNow": "Order & pay · {amount}",
     "receiptVat": "Of which VAT ({rate}%)",
+    "retryPay": "Try payment again",
+    "receiptInvoiceNumber": "Invoice number",
     "vatIncluded": "All prices include VAT.",
     "legalAgree": "By placing your order you agree to our <terms>terms and conditions</terms> and <privacy>privacy policy</privacy>.",
     "noCoolingOff": "The statutory 14-day cooling-off period does not apply to freshly prepared and perishable food. If you want to cancel a placed order, contact Kebabish by WhatsApp or phone as soon as possible.",

@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { expireStaleOrders } from "@/lib/orders";
 import { auth } from "@/lib/auth";
 import { listPendingOrders } from "@/lib/admin/orders-data";
 import { formatMoney } from "@/lib/admin/units";
@@ -17,6 +18,10 @@ export async function GET() {
   if (role !== "owner" && role !== "staff" && role !== "manager") {
     return NextResponse.json({ orders: [] }, { status: 401 });
   }
+
+  // The kitchen screen polls this all evening — a convenient heartbeat for
+  // releasing abandoned checkouts (there is no scheduled job).
+  after(() => expireStaleOrders());
 
   const pending = await listPendingOrders();
 

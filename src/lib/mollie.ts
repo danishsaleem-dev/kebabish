@@ -24,6 +24,8 @@ export interface MolliePayment {
   status: MolliePaymentStatus;
   checkoutUrl: string | null;
   metadata: Record<string, string> | null;
+  /** Mollie omits this once a payment is final; only some methods can be cancelled. */
+  isCancelable: boolean;
 }
 
 function apiKey(): string {
@@ -86,6 +88,7 @@ export async function createPayment(input: {
     status: body.status,
     checkoutUrl: body._links?.checkout?.href ?? null,
     metadata: body.metadata ?? null,
+    isCancelable: body.isCancelable === true,
   };
 }
 
@@ -96,7 +99,24 @@ export async function getPayment(id: string): Promise<MolliePayment> {
     status: body.status,
     checkoutUrl: body._links?.checkout?.href ?? null,
     metadata: body.metadata ?? null,
+    isCancelable: body.isCancelable === true,
   };
+}
+
+/**
+ * Cancel a payment that hasn't been completed, so a customer can't pay it
+ * after we've given its delivery slot away. Returns false (rather than
+ * throwing) when Mollie says it can no longer be cancelled — that's an
+ * expected outcome for some methods, not an error.
+ */
+export async function cancelPayment(id: string): Promise<boolean> {
+  try {
+    await request(`/payments/${encodeURIComponent(id)}`, { method: "DELETE" });
+    return true;
+  } catch (error) {
+    if (error instanceof Error && /Mollie (422|404)/.test(error.message)) return false;
+    throw error;
+  }
 }
 
 /** Mollie's statuses -> the ones stored on an order. */

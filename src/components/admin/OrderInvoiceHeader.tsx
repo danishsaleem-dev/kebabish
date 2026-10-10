@@ -13,11 +13,14 @@ export default function OrderInvoiceHeader({
   reference,
   placedAt,
   vatNumber,
+  invoiceNumber,
 }: {
   reference: string;
   placedAt: string;
   /** BTW-id from /admin/settings — omitted from the print until set. */
   vatNumber?: string;
+  /** INV-yyyy-nnnnnn; present once the order is paid. */
+  invoiceNumber?: string | null;
 }) {
   return (
     <div className="mb-6 hidden items-start justify-between gap-6 border-b-2 border-heading pb-4 print:flex">
@@ -52,8 +55,12 @@ export default function OrderInvoiceHeader({
           Order invoice
         </p>
         <p className="text-sm font-medium text-body-text">{reference}</p>
+        {invoiceNumber && (
+          <p className="text-xs font-medium text-body-text">Invoice {invoiceNumber}</p>
+        )}
         <p className="text-xs text-muted">
           {new Date(placedAt).toLocaleString("en-GB", {
+timeZone: "Europe/Amsterdam",
             weekday: "short",
             day: "numeric",
             month: "long",

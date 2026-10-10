@@ -59,7 +59,7 @@ function newOrderEmailHtml(order: OrderSummary): string {
                 </p>
                 <h1 style="margin:6px 0 0;font-size:22px;color:#1a1713;">${order.reference}</h1>
                 <p style="margin:4px 0 0;font-size:13px;color:#6b6459;">
-                  ${new Date(order.placedAt).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
+                  ${new Date(order.placedAt).toLocaleString("en-GB", { timeZone: "Europe/Amsterdam", weekday: "short", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" })}
                 </p>
               </td>
             </tr>

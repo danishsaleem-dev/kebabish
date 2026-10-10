@@ -22,6 +22,7 @@ const PAYMENT_TONE: Record<PaymentStatus, string> = {
 
 const dateTime = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", {
+timeZone: "Europe/Amsterdam",
     weekday: "short",
     day: "numeric",
     month: "short",

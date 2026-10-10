@@ -19,7 +19,7 @@ export async function POST(request: Request) {
     }
 
     const payment = await getPayment(id);
-    await syncPaymentStatus(payment.id, payment.status);
+    await syncPaymentStatus(payment.id, payment.status, payment.metadata?.locale);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

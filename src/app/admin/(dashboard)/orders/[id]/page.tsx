@@ -21,6 +21,7 @@ import OrderInvoiceHeader from "@/components/admin/OrderInvoiceHeader";
 import PrintButton from "@/components/admin/ui/PrintButton";
 import { formatMoney } from "@/lib/admin/units";
 import { getSettings } from "@/lib/admin/store";
+import { getInvoiceNumber } from "@/lib/orders";
 import { vatIncludedCents, fromCents, toCents } from "@/lib/money";
 import { getOrder, getCustomer, listOrders } from "@/lib/admin/orders-data";
 import { listRiders } from "@/lib/admin/auth-users";
@@ -51,6 +52,7 @@ export default async function OrderDetailPage({
   if (!order) notFound();
   const settings = await getSettings();
   const vatRate = settings.vatRatePercent ?? null;
+  const invoiceNumber = await getInvoiceNumber(order.reference);
 
   const [customer, allOrders, riders] = await Promise.all([
     order.customerId ? getCustomer(order.customerId) : Promise.resolve(null),
@@ -83,6 +85,7 @@ export default async function OrderDetailPage({
           reference={order.reference}
           placedAt={order.placedAt}
           vatNumber={settings.vatNumber || undefined}
+          invoiceNumber={invoiceNumber}
         />
 
         {/* header */}
@@ -98,6 +101,7 @@ export default async function OrderDetailPage({
               <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted">
                 <Clock size={14} />
                 {placed.toLocaleString("en-GB", {
+timeZone: "Europe/Amsterdam",
                   weekday: "short",
                   day: "numeric",
                   month: "long",

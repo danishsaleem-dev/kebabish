@@ -1,4 +1,5 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
+import { expireStaleOrders } from "@/lib/orders";
 import { getSlotAvailability } from "@/lib/delivery-slots-data";
 import { weekdayForDateKey } from "@/lib/delivery-slots";
 
@@ -17,6 +18,9 @@ export async function GET(request: Request) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: "Invalid date" }, { status: 400 });
   }
+
+  // Seats held by abandoned checkouts go back first, so this answer is true.
+  after(() => expireStaleOrders());
 
   const slots = await getSlotAvailability(date, weekdayForDateKey(date));
   return NextResponse.json({
