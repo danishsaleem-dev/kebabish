@@ -11,7 +11,8 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
+import PageSchema from "@/components/schema/PageSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
@@ -23,12 +24,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "contact" });
-  return {
-    title: t("title"),
-    description: t("intro"),
-    alternates: localeAlternates(locale, "/contact"),
-  };
+  const t = await getTranslations({ locale, namespace: "seo" });
+  return pageMetadata({
+    locale,
+    path: "/contact",
+    title: t("contactTitle"),
+    description: t("contactDescription"),
+  });
 }
 
 export default async function ContactPage({
@@ -39,6 +41,7 @@ export default async function ContactPage({
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "contact" });
   const tStatus = await getTranslations({ locale, namespace: "status" });
+  const tSeo = await getTranslations({ locale, namespace: "seo" });
   const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
   const settings = await getPublicSettings();
   const tFooter = await getTranslations({ locale, namespace: "footer" });
@@ -50,6 +53,13 @@ export default async function ContactPage({
 
   return (
     <div className="bg-cream-200">
+      <PageSchema
+        locale={locale}
+        path="/contact"
+        type="ContactPage"
+        name={tSeo("contactTitle")}
+        description={tSeo("contactDescription")}
+      />
       <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/contact" }]} />
       <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
         <div className="text-center">

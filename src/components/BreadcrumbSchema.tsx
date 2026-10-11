@@ -1,5 +1,6 @@
 import { siteConfig } from "@/lib/site-config";
 import { routing } from "@/i18n/routing";
+import JsonLd from "@/components/JsonLd";
 
 /**
  * schema.org BreadcrumbList — lets Google show the page's place in the
@@ -30,11 +31,5 @@ export default function BreadcrumbSchema({
     })),
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
+  return <JsonLd data={data} />;
 }

@@ -48,6 +48,12 @@ export interface PublicMenuItem {
   images: string[];
   /** Plain text; line breaks are meaningful. Empty when none was written. */
   description: string;
+  /**
+   * False on /en when the description shown is the Dutch fallback (no English
+   * one was written). Search snippets use this: an English page whose snippet
+   * is Dutch reads as a mismatch to both the crawler and the searcher.
+   */
+  descriptionTranslated: boolean;
   /** Uploaded video URL, or "" for none. */
   videoUrl: string;
   /** Everything this dish contains — manual flags plus its recipe's. */
@@ -149,6 +155,7 @@ function toPublicItem(
     image: uploaded[0] ?? fallback,
     images: uploaded.length > 0 ? uploaded : fallback ? [fallback] : [],
     description: pick(locale, item.description ?? "", item.descriptionEn),
+    descriptionTranslated: locale !== "en" || Boolean(item.descriptionEn?.trim()),
     videoUrl: item.videoUrl ?? "",
     allergens: allergensFor(item, data),
     optionGroups: (item.optionGroupIds ?? [])
@@ -188,7 +195,8 @@ export async function getPublicMenu(locale = "nl"): Promise<PublicMenuCategory[]
 
 export async function getPublicItem(slug: string, locale = "nl"): Promise<{
   item: PublicMenuItem;
-  category: { id: string; label: string };
+  /** `translated` is false on /en when only the Dutch name exists. */
+  category: { id: string; label: string; translated: boolean };
 } | null> {
   const data = await read();
   const item = data.items.find((i) => i.slug === slug);
@@ -199,7 +207,11 @@ export async function getPublicItem(slug: string, locale = "nl"): Promise<{
 
   return {
     item: toPublicItem(item, data.optionGroups ?? [], data, locale),
-    category: { id: category.id, label: pick(locale, category.label, category.labelEn) },
+    category: {
+      id: category.id,
+      label: pick(locale, category.label, category.labelEn),
+      translated: locale !== "en" || Boolean(category.labelEn?.trim()),
+    },
   };
 }
 

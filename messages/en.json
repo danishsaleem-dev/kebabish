@@ -69,11 +69,11 @@
     "reviewsVia": "via {source}",
     "faqEyebrow": "Frequently asked questions",
     "faqTitle": "Everything you want to know",
-    "faqText": "Question not answered here? Send us a WhatsApp message or call us \u2014 we usually reply within a few minutes.",
+    "faqText": "Question not answered here? Send us a WhatsApp message or call us — we usually reply within a few minutes.",
     "faq": [
       {
         "q": "Can I collect my order myself?",
-        "a": "No, Kebabish delivers only. There is no restaurant to eat in and no pickup option \u2014 we bring everything to your door."
+        "a": "No, Kebabish delivers only. There is no restaurant to eat in and no pickup option — we bring everything to your door."
       },
       {
         "q": "Which towns do you deliver to?",
@@ -85,7 +85,7 @@
       },
       {
         "q": "How can I pay?",
-        "a": "You pay online through our payment partner Mollie, using iDEAL, credit card, Apple Pay, Google Pay or Klarna. Prefer to order over WhatsApp? That works too \u2014 we then arrange payment between us."
+        "a": "You pay online through our payment partner Mollie, using iDEAL, credit card, Apple Pay, Google Pay or Klarna. Prefer to order over WhatsApp? That works too — we then arrange payment between us."
       },
       {
         "q": "Is there a delivery fee or a minimum order?",
@@ -97,7 +97,7 @@
       },
       {
         "q": "Can I still cancel or change my order?",
-        "a": "Contact us as soon as possible over WhatsApp or by phone. Once we have started cooking we can no longer cancel an order \u2014 it is freshly prepared food."
+        "a": "Contact us as soon as possible over WhatsApp or by phone. Once we have started cooking we can no longer cancel an order — it is freshly prepared food."
       },
       {
         "q": "Do I need an account to order?",
@@ -112,7 +112,7 @@
   "about": {
     "title": "About Kebabish",
     "intro": "Pakistani flavours, made with love in Hoogkarspel",
-    "bannerText": "A Pakistani kitchen in Hoogkarspel \u2014 everything freshly made, and delivery only.",
+    "bannerText": "A Pakistani kitchen in Hoogkarspel — everything freshly made, and delivery only.",
     "bannerVideoLabel": "Footage from the Kebabish kitchen",
     "storyEyebrow": "Our story",
     "storyTitle": "From the family table to your front door",
@@ -473,7 +473,9 @@
       },
       {
         "heading": "What data we collect",
-        "body": ["Depending on how you use our services, we process the following data:"],
+        "body": [
+          "Depending on how you use our services, we process the following data:"
+        ],
         "list": [
           "Name, email address, phone number, delivery address and chosen delivery time when placing an order",
           "Order history and the contents of your order",
@@ -486,7 +488,9 @@
       },
       {
         "heading": "Why we use this data",
-        "body": ["We use your data only to:"],
+        "body": [
+          "We use your data only to:"
+        ],
         "list": [
           "Process, deliver and handle your order",
           "Contact you about your order",
@@ -542,7 +546,9 @@
       },
       {
         "heading": "Your rights",
-        "body": ["You have the right to:"],
+        "body": [
+          "You have the right to:"
+        ],
         "list": [
           "Access the data we hold about you",
           "Have inaccurate data corrected",
@@ -675,5 +681,31 @@
       "Friday",
       "Saturday"
     ]
+  },
+  "seo": {
+    "homeTitle": "Pakistani food delivery in Hoogkarspel",
+    "homeDescription": "Order authentic Pakistani food online from Kebabish: fresh biryani, kebabs and naan, freshly made and delivered to your door in Hoogkarspel and surroundings.",
+    "menuTitle": "Menu — Pakistani food delivery",
+    "menuDescription": "Browse the full Kebabish menu: Pakistani biryani, kebabs, naan and more. Everything is freshly made and delivered in Hoogkarspel and surroundings.",
+    "aboutTitle": "About us — a Pakistani kitchen in Hoogkarspel",
+    "aboutDescription": "Meet Kebabish, a Pakistani kitchen in Hoogkarspel where every dish is freshly made with love. Delivery only, within 10 km.",
+    "contactTitle": "Contact & delivery area",
+    "contactDescription": "Get in touch with Kebabish in Hoogkarspel by phone, WhatsApp or email. See our opening hours and the area where we deliver Pakistani food.",
+    "cateringTitle": "Pakistani catering for parties & events",
+    "cateringDescription": "Pakistani catering from Kebabish for birthdays, company events and family gatherings in Hoogkarspel and surroundings. Ask about the options over WhatsApp.",
+    "deliveryTitle": "Delivery area — Hoogkarspel and surroundings",
+    "deliveryDescription": "Kebabish delivers Pakistani food within {radius} km of Hoogkarspel, including {towns}. Check whether we deliver near you.",
+    "reviewsTitle": "Reviews",
+    "reviewsDescription": "What customers say about Kebabish, the Pakistani kitchen in Hoogkarspel. Read about their experience with our freshly made dishes.",
+    "privacyDescription": "Read how Kebabish handles your personal data: what we process, why, how long we keep it and which rights you have.",
+    "termsDescription": "Kebabish's terms and conditions for orders placed through the website and WhatsApp: prices, payment, delivery, cancellations and complaints.",
+    "dishTitle": "{name} — {category}",
+    "dishFallback": "{name} from Kebabish: authentic Pakistani food, freshly made and delivered in Hoogkarspel and surroundings. Order online.",
+    "dishTail": "Freshly made and delivered in Hoogkarspel and surroundings.",
+    "menuName": "Kebabish menu",
+    "deliveryServiceName": "Food delivery",
+    "deliveryServiceType": "Pakistani food delivery",
+    "cateringServiceName": "Catering",
+    "cateringServiceType": "Pakistani catering"
   }
 }

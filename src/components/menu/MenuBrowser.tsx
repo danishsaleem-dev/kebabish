@@ -141,9 +141,9 @@ export default function MenuBrowser({
           {searchField}
 
           <nav className="mt-6" aria-label={t("categoryLabel")}>
-            <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
               {t("categoryLabel")}
-            </h2>
+            </p>
             <ul role="radiogroup" aria-label={t("categoryLabel")} className="mt-3 space-y-0.5">
               <li>
                 <CategoryRow
@@ -167,9 +167,9 @@ export default function MenuBrowser({
           </nav>
 
           <div className="mt-6 border-t border-charcoal-600/10 pt-5">
-            <h2 className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
+            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
               {t("filtersLabel")}
-            </h2>
+            </p>
             <div role="group" aria-label={t("filtersLabel")} className="mt-3 space-y-0.5">
               {toggleOptions.map(({ key, label, icon: Icon }) => (
                 <FilterRow

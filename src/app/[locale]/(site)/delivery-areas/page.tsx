@@ -3,7 +3,8 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { MapPin, MessageCircle, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
+import ServiceSchema from "@/components/schema/ServiceSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { getPublicSettings } from "@/lib/admin/store";
 import { formatEuro } from "@/lib/money";
@@ -18,12 +19,21 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "deliveryAreas" });
-  return {
-    title: t("title"),
-    description: t("intro"),
-    alternates: localeAlternates(locale, "/delivery-areas"),
-  };
+  const t = await getTranslations({ locale, namespace: "seo" });
+  // The first few towns by distance (the kitchen's own town excluded), spoken
+  // as a list in the page's language — a searcher for a town finds its name.
+  const towns = new Intl.ListFormat(locale, { style: "long", type: "conjunction" }).format(
+    siteConfig.deliveryAreaTowns
+      .filter((town) => town.name !== siteConfig.address.city)
+      .slice(0, 3)
+      .map((town) => town.name)
+  );
+  return pageMetadata({
+    locale,
+    path: "/delivery-areas",
+    title: t("deliveryTitle"),
+    description: t("deliveryDescription", { radius: siteConfig.deliveryRadiusKm, towns }),
+  });
 }
 
 export default async function DeliveryAreasPage({
@@ -35,6 +45,7 @@ export default async function DeliveryAreasPage({
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "deliveryAreas" });
   const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
+  const tSeo = await getTranslations({ locale, namespace: "seo" });
   const settings = await getPublicSettings();
 
   const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
@@ -55,6 +66,13 @@ export default async function DeliveryAreasPage({
   return (
     <div className="bg-cream-200">
       <Motion />
+      <ServiceSchema
+        locale={locale}
+        path="/delivery-areas"
+        name={tSeo("deliveryServiceName")}
+        serviceType={tSeo("deliveryServiceType")}
+        description={tSeo("deliveryTitle")}
+      />
       <BreadcrumbSchema
         locale={locale}
         items={[{ name: t("title"), path: "/delivery-areas" }]}

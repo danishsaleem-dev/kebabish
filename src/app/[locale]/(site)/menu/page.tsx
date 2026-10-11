@@ -3,7 +3,8 @@ import { getTranslations } from "next-intl/server";
 import MenuBrowser from "@/components/menu/MenuBrowser";
 import MenuStructuredData from "@/components/MenuStructuredData";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
+import PageSchema from "@/components/schema/PageSchema";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { getPublicMenu } from "@/lib/public-menu";
@@ -15,12 +16,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "menu" });
-  return {
-    title: t("title"),
-    description: t("intro"),
-    alternates: localeAlternates(locale, "/menu"),
-  };
+  const t = await getTranslations({ locale, namespace: "seo" });
+  return pageMetadata({
+    locale,
+    path: "/menu",
+    title: t("menuTitle"),
+    description: t("menuDescription"),
+  });
 }
 
 export default async function MenuPage({
@@ -30,6 +32,7 @@ export default async function MenuPage({
 }) {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "menu" });
+  const tSeo = await getTranslations({ locale, namespace: "seo" });
   const [settings, menu] = await Promise.all([
     getPublicSettings(),
     getPublicMenu(locale),
@@ -46,6 +49,13 @@ export default async function MenuPage({
   return (
     <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
       <MenuStructuredData categories={categories} locale={locale} />
+      <PageSchema
+        locale={locale}
+        path="/menu"
+        type="CollectionPage"
+        name={tSeo("menuTitle")}
+        description={tSeo("menuDescription")}
+      />
       <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/menu" }]} />
 
       <div className="text-center">

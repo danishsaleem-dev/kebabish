@@ -69,11 +69,11 @@
     "reviewsVia": "via {source}",
     "faqEyebrow": "Veelgestelde vragen",
     "faqTitle": "Alles wat je wilt weten",
-    "faqText": "Staat je vraag er niet bij? Stuur ons een appje of bel ons \u2014 we antwoorden meestal binnen een paar minuten.",
+    "faqText": "Staat je vraag er niet bij? Stuur ons een appje of bel ons — we antwoorden meestal binnen een paar minuten.",
     "faq": [
       {
         "q": "Kan ik mijn bestelling ook zelf ophalen?",
-        "a": "Nee, Kebabish bezorgt alleen. We hebben geen restaurant waar je kunt eten en je kunt je bestelling ook niet ophalen \u2014 we brengen alles bij je thuis."
+        "a": "Nee, Kebabish bezorgt alleen. We hebben geen restaurant waar je kunt eten en je kunt je bestelling ook niet ophalen — we brengen alles bij je thuis."
       },
       {
         "q": "In welke plaatsen bezorgen jullie?",
@@ -81,11 +81,11 @@
       },
       {
         "q": "Hoe werkt het kiezen van een bezorgtijd?",
-        "a": "Bij het afrekenen kies je zelf een bezorgmoment. Elk moment heeft een beperkt aantal plekken, zodat de keuken niet overbelast raakt en je bestelling echt binnen dat tijdvak aankomt. Je kunt ook een paar dagen vooruit bestellen \u2014 handig als je iets plant."
+        "a": "Bij het afrekenen kies je zelf een bezorgmoment. Elk moment heeft een beperkt aantal plekken, zodat de keuken niet overbelast raakt en je bestelling echt binnen dat tijdvak aankomt. Je kunt ook een paar dagen vooruit bestellen — handig als je iets plant."
       },
       {
         "q": "Hoe kan ik betalen?",
-        "a": "Je betaalt online via onze betaalpartner Mollie, met iDEAL, creditcard, Apple Pay, Google Pay of Klarna. Liever via WhatsApp bestellen? Dat kan ook \u2014 dan stemmen we de betaling onderling af."
+        "a": "Je betaalt online via onze betaalpartner Mollie, met iDEAL, creditcard, Apple Pay, Google Pay of Klarna. Liever via WhatsApp bestellen? Dat kan ook — dan stemmen we de betaling onderling af."
       },
       {
         "q": "Zijn er bezorgkosten of een minimale bestelwaarde?",
@@ -93,11 +93,11 @@
       },
       {
         "q": "Ik heb een allergie. Waar kan ik dat zien?",
-        "a": "Bij elk gerecht staat welke van de 14 wettelijk verplichte allergenen erin kunnen voorkomen. Twijfel je, of heb je een ernstige allergie? Neem dan contact met ons op v\u00f3\u00f3r je bestelt, dan kijken we er samen naar."
+        "a": "Bij elk gerecht staat welke van de 14 wettelijk verplichte allergenen erin kunnen voorkomen. Twijfel je, of heb je een ernstige allergie? Neem dan contact met ons op vóór je bestelt, dan kijken we er samen naar."
       },
       {
         "q": "Kan ik mijn bestelling nog annuleren of wijzigen?",
-        "a": "Neem dan zo snel mogelijk contact met ons op via WhatsApp of telefoon. Zodra we met de bereiding zijn begonnen, kunnen we een bestelling helaas niet meer annuleren \u2014 het gaat om vers bereid eten."
+        "a": "Neem dan zo snel mogelijk contact met ons op via WhatsApp of telefoon. Zodra we met de bereiding zijn begonnen, kunnen we een bestelling helaas niet meer annuleren — het gaat om vers bereid eten."
       },
       {
         "q": "Moet ik een account aanmaken om te bestellen?",
@@ -112,7 +112,7 @@
   "about": {
     "title": "Over Kebabish",
     "intro": "Pakistaanse smaken, met liefde bereid in Hoogkarspel",
-    "bannerText": "Een Pakistaanse keuken in Hoogkarspel \u2014 alles vers bereid, en alleen bezorgd.",
+    "bannerText": "Een Pakistaanse keuken in Hoogkarspel — alles vers bereid, en alleen bezorgd.",
     "bannerVideoLabel": "Beelden uit de keuken van Kebabish",
     "storyEyebrow": "Ons verhaal",
     "storyTitle": "Van familietafel naar jouw voordeur",
@@ -473,7 +473,9 @@
       },
       {
         "heading": "Welke gegevens wij verwerken",
-        "body": ["Afhankelijk van hoe je van onze diensten gebruikmaakt, verwerken wij de volgende gegevens:"],
+        "body": [
+          "Afhankelijk van hoe je van onze diensten gebruikmaakt, verwerken wij de volgende gegevens:"
+        ],
         "list": [
           "Naam, e-mailadres, telefoonnummer, bezorgadres en gekozen bezorgmoment bij het plaatsen van een bestelling",
           "Bestelgeschiedenis en de inhoud van je bestelling",
@@ -486,7 +488,9 @@
       },
       {
         "heading": "Waarvoor wij deze gegevens gebruiken",
-        "body": ["Wij gebruiken jouw gegevens uitsluitend om:"],
+        "body": [
+          "Wij gebruiken jouw gegevens uitsluitend om:"
+        ],
         "list": [
           "Je bestelling te verwerken, te bezorgen en af te handelen",
           "Contact met je op te nemen over je bestelling",
@@ -542,7 +546,9 @@
       },
       {
         "heading": "Jouw rechten",
-        "body": ["Je hebt het recht om:"],
+        "body": [
+          "Je hebt het recht om:"
+        ],
         "list": [
           "Inzage te krijgen in de gegevens die wij van je verwerken",
           "Onjuiste gegevens te laten corrigeren",
@@ -675,5 +681,31 @@
       "Vrijdag",
       "Zaterdag"
     ]
+  },
+  "seo": {
+    "homeTitle": "Pakistaans eten bezorgen in Hoogkarspel",
+    "homeDescription": "Bestel authentiek Pakistaans eten online bij Kebabish: verse biryani, kebabs en naan, vers bereid en thuisbezorgd in Hoogkarspel en omgeving.",
+    "menuTitle": "Menu — Pakistaans eten bezorgen",
+    "menuDescription": "Bekijk het hele menu van Kebabish: Pakistaanse biryani, kebabs, naan en meer. Alles wordt vers bereid en thuisbezorgd in Hoogkarspel en omgeving.",
+    "aboutTitle": "Over ons — Pakistaanse keuken in Hoogkarspel",
+    "aboutDescription": "Maak kennis met Kebabish, een Pakistaanse keuken in Hoogkarspel waar elk gerecht vers en met liefde wordt bereid. Alleen bezorging, binnen 10 km.",
+    "contactTitle": "Contact & bezorggebied",
+    "contactDescription": "Neem contact op met Kebabish in Hoogkarspel via telefoon, WhatsApp of e-mail. Bekijk onze openingstijden en het gebied waar we Pakistaans eten bezorgen.",
+    "cateringTitle": "Pakistaanse catering voor feesten & evenementen",
+    "cateringDescription": "Pakistaanse catering van Kebabish voor verjaardagen, bedrijfsevenementen en familiebijeenkomsten in Hoogkarspel en omgeving. Vraag naar de opties via WhatsApp.",
+    "deliveryTitle": "Bezorggebied — Hoogkarspel en omgeving",
+    "deliveryDescription": "Kebabish bezorgt Pakistaans eten binnen {radius} km van Hoogkarspel, onder andere in {towns}. Bekijk of we ook bij jou bezorgen.",
+    "reviewsTitle": "Reviews",
+    "reviewsDescription": "Wat klanten zeggen over Kebabish, de Pakistaanse keuken in Hoogkarspel. Lees hun ervaringen met onze vers bereide gerechten.",
+    "privacyDescription": "Lees hoe Kebabish omgaat met jouw persoonsgegevens: welke gegevens we verwerken, waarom, hoe lang we ze bewaren en welke rechten je hebt.",
+    "termsDescription": "De algemene voorwaarden van Kebabish voor bestellingen via de website en WhatsApp: prijzen, betaling, bezorging, annuleren en klachten.",
+    "dishTitle": "{name} — {category}",
+    "dishFallback": "{name} van Kebabish: authentiek Pakistaans eten, vers bereid en thuisbezorgd in Hoogkarspel en omgeving. Bestel online.",
+    "dishTail": "Vers bereid en thuisbezorgd in Hoogkarspel en omgeving.",
+    "menuName": "Kebabish menu",
+    "deliveryServiceName": "Maaltijdbezorging",
+    "deliveryServiceType": "Bezorging van Pakistaans eten",
+    "cateringServiceName": "Catering",
+    "cateringServiceType": "Pakistaanse catering"
   }
 }

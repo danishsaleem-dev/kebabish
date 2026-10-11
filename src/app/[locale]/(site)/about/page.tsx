@@ -4,7 +4,8 @@ import { Flame, Leaf, Clock, Smartphone, MessageCircle, UtensilsCrossed } from "
 import { Link } from "@/i18n/navigation";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import { menu } from "@/lib/menu-data";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
+import PageSchema from "@/components/schema/PageSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import StoryFrame from "@/components/shared/StoryFrame";
 import VideoBanner from "@/components/shared/VideoBanner";
@@ -20,12 +21,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "about" });
-  return {
-    title: t("title"),
-    description: t("intro"),
-    alternates: localeAlternates(locale, "/about"),
-  };
+  const t = await getTranslations({ locale, namespace: "seo" });
+  return pageMetadata({
+    locale,
+    path: "/about",
+    title: t("aboutTitle"),
+    description: t("aboutDescription"),
+  });
 }
 
 export default async function AboutPage({
@@ -38,6 +40,7 @@ export default async function AboutPage({
   const t = await getTranslations({ locale, namespace: "about" });
   const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
   const tHome = await getTranslations({ locale, namespace: "home" });
+  const tSeo = await getTranslations({ locale, namespace: "seo" });
 
   const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
 
@@ -77,6 +80,13 @@ export default async function AboutPage({
   return (
     <div className="bg-cream-200">
       <Motion />
+      <PageSchema
+        locale={locale}
+        path="/about"
+        type="AboutPage"
+        name={tSeo("aboutTitle")}
+        description={tSeo("aboutDescription")}
+      />
       <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/about" }]} />
 
       {/* ---- banner ---------------------------------------------------- */}

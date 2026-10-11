@@ -74,7 +74,7 @@ export default function ItemGallery({
           <Image
             key={src}
             src={src}
-            alt={i === 0 ? alt : ""}
+            alt={i === 0 ? alt : `${alt} — ${photoLabels[i]}`}
             fill
             // Only the one on screen is urgent; the rest still load, just
             // without competing with it for the largest-paint slot.

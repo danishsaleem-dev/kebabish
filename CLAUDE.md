@@ -44,12 +44,12 @@ dashboard, below).
 
 1. **SEO is the top priority.** This is a local business trying to rank
    for searches like "Pakistaans eten bezorgen Hoogkarspel". Every new page
-   needs proper `generateMetadata`, including its own `alternates`
-   (`src/lib/seo.ts`'s `localeAlternates(locale, path)` — see "SEO &
-   structured data" below for why every page needs this, not just the
-   root layout). Structured data
-   (`src/components/StructuredData.tsx`, `MenuStructuredData.tsx`,
-   `BreadcrumbSchema.tsx`) should stay accurate as the site grows.
+   needs proper `generateMetadata`, built with `pageMetadata()` from
+   `src/lib/seo.ts` (it sets title, description, canonical/hreflang **and**
+   Open Graph/Twitter — see "SEO audit and structured data" below for why
+   a page must not hand-roll these). Structured data lives in
+   `src/components/StructuredData.tsx` and `src/components/schema/`, and
+   should stay accurate as the site grows.
 2. **Mobile-first.** Most customers will be on their phones. Every UI
    decision — tap target size, sticky header, WhatsApp button placement,
    checkout flow — should be designed for mobile first, desktop second.
@@ -438,9 +438,9 @@ there's no single canonical URL to claim, and it's `noindex` anyway.
 
 Structured data is split by concern rather than one giant block:
 - `StructuredData.tsx` — the site-wide `FoodEstablishment` (name,
-  address, hours, delivery radius, **`hasDeliveryMethod:
-  OnlineDelivery`**, real `paymentAccepted` from Mollie's methods,
-  `logo`/`image`). Rendered once in `[locale]/layout.tsx`, so it's on
+  address, hours, delivery radius, an `OrderAction`, real `paymentAccepted`
+  from Mollie's methods, `logo`/`image` — see "SEO audit" below for why
+  `hasDeliveryMethod` is gone). Rendered once in `[locale]/layout.tsx`, so it's on
   every page — that's expected, same as a footer address. Also carries
   `aggregateRating`/`review` for the whole business, but **only when
   `src/lib/reviews-data.ts` actually has entries** — a rating with
@@ -481,6 +481,77 @@ tagline/copy) — also a one-off, rendered once and committed as a static
 JPEG rather than generated at request time, specifically so it never
 depends on font availability on whatever machine ends up building the
 site.
+
+### SEO audit and structured data (Oct 2026)
+
+A full audit found real bugs, not polish. It was done by crawling the built site, and is now
+guarded by **`node scripts/seo-validate.mjs`** (run it against a running
+`npm run build && npm run start -- -p 3100`; it crawls every URL in the sitemap and checks the
+points below mechanically — **re-run it after any change to a page, a schema or the sitemap**).
+
+- **Open Graph was wrong on every inner page.** Next merges metadata one *top-level key* at a
+  time: a page that sets any `openGraph` field replaces the layout's whole object, and a page
+  that sets none inherits the layout's verbatim. So `/menu` and `/about` told Facebook, WhatsApp
+  and LinkedIn that their title was "Kebabish Hoogkarspel" and their URL was the homepage — a
+  link to the menu previewed as the homepage. (The same trap once made every canonical URL the
+  homepage.) **Every page now builds its metadata with `pageMetadata({ locale, path, title,
+  description, image?, noindex? })`** in `seo.ts`, which sets title, description, alternates,
+  `openGraph` (incl. `og:url`, locale + alternate locale, image) and `twitter` together, so a
+  page cannot forget one. The root layout's metadata is now only the fallback for the 404 and
+  coming-soon pages.
+- **`x-default` hreflang** was missing everywhere (and from the sitemap); it points at the
+  Dutch URL.
+- **Titles and descriptions are real copy, in `messages/*.json` under `seo.*`**, 110–160 chars
+  with the local terms a search is matched on ("Pakistaans eten bezorgen Hoogkarspel"). They
+  were 23–81 chars, several inherited from the layout, and the homepage title said "Kebabish"
+  twice. The delivery-area description names the first three towns by distance
+  (`Intl.ListFormat`, so "en"/"and" follows the language).
+- **Dish pages:** title is `{name} — {category}` (category dropped on `/en` when it has no
+  English name — an English title ending in a Dutch word reads as a mistake). The description
+  is Danish's own text **only in the page's own language**: on `/en` a Dutch description is the
+  fallback when no English one exists, so there it uses a generic English line instead
+  (`PublicMenuItem.descriptionTranslated`). A short written description is topped up with the
+  "delivered in Hoogkarspel" tail; the `Product` schema gets the full text, not the snippet.
+- **`JsonLd` component:** every schema renders through it. Plain `JSON.stringify` inside a
+  `<script>` breaks on a `</script>` in any string, and dish names/descriptions are typed by
+  hand in /admin. It escapes `<` and U+2028/2029 (the separators are built with
+  `new RegExp("\\u2028")`, not regex literals — a literal separator character in source is a
+  syntax error).
+- **Schemas, and what each is for:** `FoodEstablishment` (every page, via the layout: name,
+  description, slogan, address, geo, hours, `areaServed` = the radius **plus each town by name**,
+  KVK `identifier`, `vatID` once set in Settings, `potentialAction: OrderAction` with own-fleet
+  delivery); `WebSite` and `FAQPage` (homepage); `Menu` + `CollectionPage` + `BreadcrumbList`
+  (`/menu`); **`Product` + `Offer` on every dish page** (all photos, price, availability, and a
+  `MerchantReturnPolicy` of "not permitted" — true per the Terms, no withdrawal right on fresh
+  food); `AboutPage`; `ContactPage`; `Service` for delivery and catering, with the towns.
+- **The business schema never names "Marfah Enterprise"** (the public-site rule); the validator
+  fails if it does.
+- **`hasDeliveryMethod` was removed** from the business block. It is not a property of a
+  business (it belongs to `DeliveryEvent`/`ParcelDelivery`), so validators flagged it and Google
+  ignored it. "Delivery only" is now expressed by the `OrderAction`'s `deliveryMethod` and by
+  `Service`.
+- **No dangling `@id` references.** Google reads each page's JSON-LD on its own, so `isPartOf`
+  embeds a small `WebSite` node (`websiteNode()`) instead of a bare `{"@id"}` that only resolves
+  on the homepage. The business node is on every page, so `{"@id": BUSINESS_ID}` is safe
+  everywhere. The validator checks this.
+- **Rules that keep schema honest:** a dish with no sellable price ships *without* `offers`
+  (never a placeholder price); sold-out is `OutOfStock`; `aggregateRating`/`review` appear only
+  once real reviews exist (Google ignores self-serving reviews on a LocalBusiness for rich
+  results regardless; they are there for completeness). No `SearchAction` on `WebSite` because
+  there is no search endpoint to point it at.
+- **Sitemap:** lists every language version of each URL (`alternates.languages`, with
+  `x-default`) and has **no `lastModified`**. It used to say `new Date()` — "every page changed
+  just now", on every request — which Google learns to distrust and then ignores for the whole
+  site. We have no real per-page date, so we report none.
+- **robots.txt** also disallows `/kitchen`, `/forgot-password`, `/reset-password`.
+- Smaller: the menu sidebar's "Categorie"/"Filters" labels were `<h2>`s sitting above the real
+  content headings and are now `<p>`; extra dish-gallery photos get a real `alt`.
+
+**Content, not code, limits English SEO:** the live categories and most dishes have no English
+name or description filled in (`/admin` → category/dish → the English fields), so `/en` pages
+fall back to Dutch text for those. Two pairs of dishes (`shami-kabab` / `shami-kebab-x-1`,
+`chapli-kabab` / `chapli-kebab-x-4`) share an identical description — one dish with variants,
+or distinct text, is better for search than two near-duplicate pages.
 
 ### Dish description, video and allergens on the public item page
 
@@ -1084,6 +1155,10 @@ The command is in that file's comment; re-run it whenever the footage changes, s
 regenerates these automatically. The hero's base layer is a `<picture>` with a `media`
 source, not `next/image` — art direction needs two different files, and `hidden` on a second
 `<Image>` would still download it. `HeroVideo` picks its own `poster` per variant.
+
+**The story clip is `about-video.mp4`** (`src/lib/story-media.ts`, poster `about-poster.jpg`) — its
+own file, not a reuse of the hero's mobile clip, so the two change independently. The `/about`
+banner still uses the widescreen hero clip (a portrait clip would not fit it).
 
 **Both story sections share one component.** `src/components/shared/StoryFrame.tsx` is the
 portrait video frame used by the homepage *and* `/about` — it was duplicated markup, which is

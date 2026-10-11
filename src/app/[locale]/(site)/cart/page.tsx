@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 import CartView from "@/components/cart/CartView";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
 import { getPublicSettings } from "@/lib/admin/store";
 
 export async function generateMetadata({
@@ -11,11 +11,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "cart" });
-  return {
-    title: t("title"),
-    robots: { index: false, follow: false },
-    alternates: localeAlternates(locale, "/cart"),
-  };
+  return pageMetadata({ locale, path: "/cart", title: t("title"), noindex: true });
 }
 
 export default async function CartPage({

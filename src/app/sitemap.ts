@@ -15,14 +15,27 @@ function localizedEntries(
   }
 ): MetadataRoute.Sitemap {
   const entries: MetadataRoute.Sitemap = [];
+  const urlFor = (locale: string, path: string) =>
+    `${siteConfig.website}${locale === routing.defaultLocale ? "" : `/${locale}`}${path}`;
+
   for (const path of paths) {
+    // Every entry lists all its language versions (and x-default), the same
+    // set the page's own <link rel="alternate"> tags declare — Google reads
+    // either, and having both agree is what makes the pairing trusted.
+    const languages = {
+      ...Object.fromEntries(routing.locales.map((l) => [l, urlFor(l, path)])),
+      "x-default": urlFor(routing.defaultLocale, path),
+    };
     for (const locale of routing.locales) {
-      const prefix = locale === routing.defaultLocale ? "" : `/${locale}`;
       entries.push({
-        url: `${siteConfig.website}${prefix}${path}`,
-        lastModified: new Date(),
+        url: urlFor(locale, path),
+        // No `lastModified` on purpose. It used to be `new Date()`, i.e. "every
+        // page changed just now" on every request — a claim Google learns to
+        // distrust and then ignores for the whole site. We have no real
+        // per-page modification time to report, so we report none.
         changeFrequency: opts.changeFrequency(path),
         priority: opts.priority(path),
+        alternates: { languages },
       });
     }
   }

@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star, MessageSquareHeart, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { reviews } from "@/lib/reviews-data";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 
 export async function generateMetadata({
@@ -12,15 +12,16 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "reviews" });
-  return {
-    title: t("title"),
-    description: t("intro"),
-    alternates: localeAlternates(locale, "/reviews"),
+  const t = await getTranslations({ locale, namespace: "seo" });
+  return pageMetadata({
+    locale,
+    path: "/reviews",
+    title: t("reviewsTitle"),
+    description: t("reviewsDescription"),
     // Until real reviews exist this is a "coming soon" page — keep it out of
     // search results (it's already out of the sitemap and the footer).
-    ...(reviews.length === 0 ? { robots: { index: false, follow: true } } : {}),
-  };
+    noindex: reviews.length === 0,
+  });
 }
 
 export default async function ReviewsPage({

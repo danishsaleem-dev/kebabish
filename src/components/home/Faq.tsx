@@ -2,8 +2,10 @@ import { getTranslations } from "next-intl/server";
 import { Plus } from "lucide-react";
 import { MessageCircle } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { languageTag, websiteNode } from "@/lib/seo";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
+import JsonLd from "@/components/JsonLd";
 
 export interface FaqEntry {
   q: string;
@@ -35,6 +37,8 @@ export default async function Faq({ locale }: { locale: string }) {
   const schema = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
+    inLanguage: languageTag(locale),
+    isPartOf: websiteNode(locale),
     mainEntity: entries.map((entry) => ({
       "@type": "Question",
       name: entry.q,
@@ -44,11 +48,7 @@ export default async function Faq({ locale }: { locale: string }) {
 
   return (
     <section className="grain bg-cream-100 py-20 sm:py-28 lg:py-32">
-      <script
-        type="application/ld+json"
-        // Static, built from our own translation files — no user input.
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
+      <JsonLd data={schema} />
 
       <div className="relative z-10 mx-auto max-w-6xl px-5 sm:px-6">
         <div className="grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16">

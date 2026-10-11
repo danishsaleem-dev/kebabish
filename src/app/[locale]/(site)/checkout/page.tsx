@@ -7,7 +7,7 @@ import { getTranslations } from "next-intl/server";
 import CheckoutForm from "@/components/cart/CheckoutForm";
 import { getPublicSettings } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +18,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "checkout" });
-  return {
-    title: t("title"),
-    robots: { index: false, follow: false },
-    alternates: localeAlternates(locale, "/checkout"),
-  };
+  return pageMetadata({ locale, path: "/checkout", title: t("title"), noindex: true });
 }
 
 export default async function CheckoutPage({

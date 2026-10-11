@@ -1,5 +1,7 @@
 import { siteConfig } from "@/lib/site-config";
 import type { PublicMenuCategory } from "@/lib/public-menu";
+import { BUSINESS_ID } from "@/lib/seo";
+import JsonLd from "@/components/JsonLd";
 
 /**
  * schema.org Menu/MenuSection/MenuItem for the /menu page — separate from
@@ -26,9 +28,13 @@ export default function MenuStructuredData({
   const data = {
     "@context": "https://schema.org",
     "@type": "Menu",
+    "@id": `${menuUrl}#menu`,
     name: `${siteConfig.brandName} menu`,
     url: menuUrl,
     inLanguage: locale,
+    // Ties the menu to the business it belongs to; the business block points
+    // back at this page through `hasMenu`.
+    provider: { "@id": BUSINESS_ID },
     hasMenuSection: categories.map((category) => ({
       "@type": "MenuSection",
       name: category.label,
@@ -38,6 +44,7 @@ export default function MenuStructuredData({
         name: item.name,
         ...(item.description ? { description: item.description } : {}),
         url: `${menuUrl}/${item.slug}`,
+        "@id": `${menuUrl}/${item.slug}#menuitem`,
         ...(item.image ? { image: item.image } : {}),
         suitableForDiet: item.vegetarian
           ? "https://schema.org/VegetarianDiet"
@@ -58,11 +65,5 @@ export default function MenuStructuredData({
     })),
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
-    />
-  );
+  return <JsonLd data={data} />;
 }

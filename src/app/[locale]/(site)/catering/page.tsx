@@ -11,7 +11,8 @@ import {
   Sparkles,
 } from "lucide-react";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
-import { localeAlternates } from "@/lib/seo";
+import { pageMetadata } from "@/lib/seo";
+import ServiceSchema from "@/components/schema/ServiceSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
@@ -23,12 +24,13 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const t = await getTranslations({ locale, namespace: "catering" });
-  return {
-    title: t("title"),
-    description: t("intro"),
-    alternates: localeAlternates(locale, "/catering"),
-  };
+  const t = await getTranslations({ locale, namespace: "seo" });
+  return pageMetadata({
+    locale,
+    path: "/catering",
+    title: t("cateringTitle"),
+    description: t("cateringDescription"),
+  });
 }
 
 export default async function CateringPage({
@@ -40,6 +42,7 @@ export default async function CateringPage({
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "catering" });
   const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
+  const tSeo = await getTranslations({ locale, namespace: "seo" });
 
   const whatsappHref = whatsappOrderLink(tWhatsapp("cateringInquiry"));
 
@@ -59,6 +62,13 @@ export default async function CateringPage({
   return (
     <div className="bg-cream-200">
       <Motion />
+      <ServiceSchema
+        locale={locale}
+        path="/catering"
+        name={tSeo("cateringServiceName")}
+        serviceType={tSeo("cateringServiceType")}
+        description={tSeo("cateringDescription")}
+      />
       <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/catering" }]} />
 
       {/* ---- intro ---------------------------------------------------- */}

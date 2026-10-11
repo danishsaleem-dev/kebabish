@@ -7,8 +7,9 @@ import { Link } from "@/i18n/navigation";
 import { getPublicItem, getPublicItemSlugs, getRelatedItems } from "@/lib/public-menu";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
-import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
-import { localeAlternates } from "@/lib/seo";
+import { whatsappOrderLink } from "@/lib/site-config";
+import { pageMetadata, snippet } from "@/lib/seo";
+import ProductSchema from "@/components/schema/ProductSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { formatEuro } from "@/lib/money";
 import ItemOrderPanel from "@/components/menu/ItemOrderPanel";
@@ -29,20 +30,42 @@ export async function generateMetadata({
   const found = await getPublicItem(slug, locale);
   if (!found) return {};
 
-  const { item } = found;
-  // A real description beats the generic fallback as the search snippet;
-  // collapse line breaks and stay inside what Google displays (~160).
-  const written = item.description.replace(/\s+/g, " ").trim();
-  return {
-    title: item.name,
-    description: written
-      ? written.length > 158
-        ? `${written.slice(0, 157).trimEnd()}…`
-        : written
-      : `${item.name} — ${siteConfig.brandName}, ${siteConfig.address.city}.`,
-    openGraph: item.image ? { images: [item.image] } : undefined,
-    alternates: localeAlternates(locale, `/menu/${slug}`),
-  };
+  const { item, category } = found;
+  const t = await getTranslations({ locale, namespace: "seo" });
+  return pageMetadata({
+    locale,
+    path: `/menu/${slug}`,
+    // Name the category only when it exists in this language — an English
+    // title that ends in a Dutch word reads as a mistake.
+    title: category.translated
+      ? t("dishTitle", { name: item.name, category: category.label })
+      : item.name,
+    description: dishDescription(item, t),
+    image: item.image ? { url: item.image, alt: item.name } : undefined,
+  });
+}
+
+/**
+ * The search snippet for a dish. Prefer what Danish wrote — a real
+ * description beats any template — but only in the page's own language: on
+ * /en a Dutch snippet (the fallback when no English one exists) reads as a
+ * mismatch, so there it falls back to a generic English line. A short written
+ * description is topped up with where the dish is delivered, so even a
+ * one-liner has the local terms a search is matched on.
+ */
+function dishDescription(
+  item: NonNullable<Awaited<ReturnType<typeof getPublicItem>>>["item"],
+  t: Awaited<ReturnType<typeof getTranslations>>,
+  { forSnippet = true }: { forSnippet?: boolean } = {}
+): string {
+  const written = item.descriptionTranslated
+    ? item.description.replace(/\s+/g, " ").trim()
+    : "";
+  if (!written) return t("dishFallback", { name: item.name });
+  const full = written.length < 90 ? `${written} ${t("dishTail")}` : written;
+  // Only the meta description has a display limit; the structured data does not,
+  // and a Product description cut off mid-sentence with "…" reads as a mistake.
+  return forSnippet ? snippet(full) : full;
 }
 
 export default async function ItemPage({
@@ -74,6 +97,9 @@ export default async function ItemPage({
     t.has(`allergenNames.${a.id}`) ? t(`allergenNames.${a.id}`) : a.label
   );
 
+  const tSeo = await getTranslations({ locale, namespace: "seo" });
+  const schemaDescription = dishDescription(item, tSeo, { forSnippet: false });
+
   const headingProps = {
     item,
     category: category.label,
@@ -88,6 +114,12 @@ export default async function ItemPage({
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 sm:py-14">
+      <ProductSchema
+        locale={locale}
+        item={item}
+        category={category.label}
+        description={schemaDescription}
+      />
       <BreadcrumbSchema
         locale={locale}
         items={[
