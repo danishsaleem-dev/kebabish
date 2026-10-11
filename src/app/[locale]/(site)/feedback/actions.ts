@@ -3,7 +3,6 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { z } from "zod";
-import { auth } from "@/lib/auth";
 import { getOrderByReference } from "@/lib/orders";
 import { isValidOrderToken } from "@/lib/order-token";
 import { readStore } from "@/lib/admin/store";
@@ -101,11 +100,10 @@ export async function submitFeedbackAction(raw: FeedbackPayload): Promise<Submit
     }
   }
 
-  // The signed-in customer, even without an order link (e.g. from the footer).
-  if (!customerId) {
-    const session = await auth();
-    if (session?.user?.role === "customer") customerId = session.user.id ?? null;
-  }
+  // Deliberately NO "attach the signed-in customer" fallback. Feedback is tied to a
+  // person only through an order link (which the customer chose to open), exactly as
+  // the privacy policy says; feedback given from the footer or a QR code is anonymous
+  // even if the visitor happens to be logged in.
 
   if (!orderedBefore) {
     orderedBefore = (ORDERED_BEFORE_OPTIONS as readonly string[]).includes(input.orderedBefore ?? "")

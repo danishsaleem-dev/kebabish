@@ -509,7 +509,10 @@ table for exactly this reason; only `insertFeedback` reports it.
   HMAC as the order page's, so it needs no login; the dishes come from the order. *General*
   (footer, contact page, a QR on the bag): dishes are picked from the live menu. A reference with
   a bad token silently becomes general feedback — the page never confirms whether a reference
-  exists. **One feedback per order** (unique index on `order_id`; a repeat gets "we already have
+  exists. **General feedback is anonymous even if the visitor is logged in:** a person is tied to
+  feedback *only* through an order link they chose to open (that is exactly what the privacy
+  policy says). An earlier version attached the signed-in customer to footer feedback; testing
+  caught it and it was removed. **One feedback per order** (unique index on `order_id`; a repeat gets "we already have
   it"). `?src=` is whitelisted (`email`, `dashboard`, `confirmation`, `footer`, `contact`,
   `packaging`, `direct`) — use `kebabish.nl/feedback?src=packaging` for a sticker/QR to count
   packaging responses separately.
@@ -543,6 +546,13 @@ table for exactly this reason; only `insertFeedback` reports it.
   `[locale]`, so `labels.ts` reads the English messages server-side and hands the client
   component just the feedback slice (importing the whole file client-side would ship every page's
   copy). Statistics are pure functions in `stats.ts`.
+- **Verified end to end (Oct 2026)** against real data: order-linked submit via the confirmation
+  page and via the dashboard banner; duplicate blocked and the prompt disappears; bad token
+  leaks nothing; honeypot silently drops; throttle trips after 6; consent respected (no
+  name/email stored unless ticked); unhappy score emails staff; happy score shows the review
+  button only when the link is set; admin stats, follow-up filter and Mark handled persist; manager,
+  kitchen and logged-out sessions are turned away from `/admin/feedback`. The delivered email's
+  feedback button was sent but its rendering in an inbox was not checked — look at the next real one.
 - **Not built:** showing a response on the order's own admin page, and promoting a quote to the
   testimonials section automatically (that list is still hand-edited in `reviews-data.ts`).
 
