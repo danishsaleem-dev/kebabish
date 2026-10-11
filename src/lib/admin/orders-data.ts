@@ -137,8 +137,11 @@ function mapOrder(row: OrderRow): AdminOrder {
   };
 }
 
+// The embed names its foreign key: `orders` has two links to `admin_users` (the
+// assigned rider, and `created_by` for manual orders), and PostgREST refuses to
+// guess which one a bare `admin_users(...)` means — every order query would fail.
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, channel_note, payment_method, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, channel_note, payment_method, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users!orders_assigned_rider_id_fkey(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
