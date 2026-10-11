@@ -51,7 +51,7 @@ export const siteConfig = {
   socials: {
     instagram: "https://instagram.com/kebabishnl",
     facebook: "https://facebook.com/kebabishnl",
-    tiktok: "https://tiktok.com/@kebabishnl",
+    tiktok: "https://tiktok.com/@kebabish.nl",
     threads: "https://threads.net/@kebabishnl",
     handle: "@kebabishnl",
   },
