@@ -148,7 +148,7 @@ export default async function CheckoutCompletePage({
         <OrderProgress status={order.status} refunded={refunded} t={t} />
       )}
 
-      {paid && (
+      {paid && order.status !== "cancelled" && (
         <div className="mt-6">
           <ReceiptPrintButton label={t("receiptDownload")} />
         </div>
