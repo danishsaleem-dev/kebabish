@@ -1,12 +1,13 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Clock, FileText, LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-react";
+import { Clock, FileText, LogOut, Mail, MapPin, MessageSquareHeart, Phone, ShoppingBag, Star, User } from "lucide-react";
 import { orderAccessToken } from "@/lib/order-token";
 import { listCreditNotesForCustomer } from "@/lib/refunds";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
 import { listCustomerOrders } from "@/lib/orders";
+import { orderIdsWithFeedback } from "@/lib/feedback/data";
 import { getCustomerProfile } from "@/lib/customers/accounts";
 import AccountPreferences from "@/components/shared/AccountPreferences";
 import { formatEuro, fromCents } from "@/lib/money";
@@ -15,6 +16,11 @@ import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import type { OrderStatus } from "@/lib/admin/order-types";
 
 export const dynamic = "force-dynamic";
+
+/** Within a fortnight — after that it is too long ago to ask how an order was. */
+function placedRecently(placedAt: string): boolean {
+  return Date.now() - Date.parse(placedAt) < 14 * 24 * 60 * 60 * 1000;
+}
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -30,6 +36,14 @@ export default async function DashboardPage() {
     (o) => !["failed", "expired", "canceled"].includes(o.paymentStatus)
   );
   const profile = await getCustomerProfile(user.id);
+
+  // Feedback: which delivered orders have been rated, and the most recent one
+  // that hasn't (within a fortnight — after that it's too long ago to ask).
+  const delivered = orders.filter((o) => o.status === "delivered");
+  const rated = await orderIdsWithFeedback(delivered.map((o) => o.id));
+  const feedbackHref = (o: (typeof orders)[number]) =>
+    `${o.locale === "en" ? "/en" : ""}/feedback?order=${encodeURIComponent(o.reference)}&t=${orderAccessToken(o.reference)}&src=dashboard`;
+  const toRate = delivered.find((o) => !rated.has(o.id) && placedRecently(o.placedAt));
   const creditNotesByRef = new Map(
     await Promise.all(
       orders
@@ -71,6 +85,33 @@ export default async function DashboardPage() {
             Your Kebabish account.
           </p>
         </div>
+
+        {toRate && (
+          <Card className="border-ember-600/30 bg-ember-600/5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
+                  <MessageSquareHeart size={20} />
+                </span>
+                <div>
+                  <h2 className="font-display text-base font-semibold text-heading">
+                    How was your order {toRate.reference}?
+                  </h2>
+                  <p className="mt-0.5 text-sm text-muted">
+                    Two minutes, and it tells us what to keep doing and what to fix.
+                  </p>
+                </div>
+              </div>
+              <a
+                href={feedbackHref(toRate)}
+                className="inline-flex items-center gap-2 rounded-lg bg-ember-600 px-4 py-2.5 text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+              >
+                <Star size={15} />
+                Give feedback
+              </a>
+            </div>
+          </Card>
+        )}
 
         <Card>
           <div className="flex items-center gap-2">
@@ -156,6 +197,20 @@ timeZone: "Europe/Amsterdam",
                           Invoice (PDF)
                         </a>
                       )}
+                      {order.status === "delivered" &&
+                        (rated.has(order.id) ? (
+                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success">
+                            Feedback sent
+                          </span>
+                        ) : (
+                          <a
+                            href={feedbackHref(order)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-ember-600/40 px-2.5 py-1.5 text-xs font-semibold text-ember-700 transition-colors hover:bg-ember-600/10"
+                          >
+                            <Star size={13} />
+                            Give feedback
+                          </a>
+                        ))}
                       <OrderStatusPill status={order.status as OrderStatus} />
                       <p className="font-display text-sm font-semibold text-heading">
                         {formatEuro(fromCents(order.totalCents))}

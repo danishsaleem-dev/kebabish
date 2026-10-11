@@ -16,6 +16,7 @@ import PageSchema from "@/components/schema/PageSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
+import { Link } from "@/i18n/navigation";
 import DeliveryMap from "@/components/home/DeliveryMap";
 
 export async function generateMetadata({
@@ -42,6 +43,7 @@ export default async function ContactPage({
   const t = await getTranslations({ locale, namespace: "contact" });
   const tStatus = await getTranslations({ locale, namespace: "status" });
   const tSeo = await getTranslations({ locale, namespace: "seo" });
+  const tFeedback = await getTranslations({ locale, namespace: "feedback" });
   const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
   const settings = await getPublicSettings();
   const tFooter = await getTranslations({ locale, namespace: "footer" });
@@ -218,6 +220,21 @@ export default async function ContactPage({
               <p className="mt-2 text-sm leading-relaxed text-cream-200/70">
                 {t("deliveryCheckText")}
               </p>
+            </div>
+
+            <div className="rounded-3xl border border-charcoal-600/10 bg-cream-50 p-6 sm:p-8">
+              <h2 className="font-display text-base font-semibold text-charcoal-600">
+                {tFeedback("contactCta.title")}
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-ink/65">
+                {tFeedback("contactCta.text")}
+              </p>
+              <Link
+                href="/feedback?src=contact"
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-charcoal-600 px-5 py-2.5 font-display text-sm font-semibold text-cream-100 transition-colors hover:bg-ember-600"
+              >
+                {tFeedback("contactCta.cta")}
+              </Link>
             </div>
           </div>
         </div>

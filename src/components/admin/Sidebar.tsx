@@ -15,6 +15,7 @@ import {
   MessageCircle,
   ReceiptText,
   Settings,
+  Star,
   UserCog,
   UtensilsCrossed,
   Users,
@@ -59,6 +60,7 @@ const MAIN: NavItem[] = [
   },
   { label: "Media", href: "/admin/media", icon: Images },
   { label: "Customers", href: "/admin/customers", icon: Users },
+  { label: "Feedback", href: "/admin/feedback", icon: Star },
   { label: "Reports", href: "/admin/reports", icon: ChartColumnIncreasing },
   { label: "Messages", href: "/admin/messages", icon: MessageCircle },
 ];

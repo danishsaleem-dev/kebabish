@@ -35,6 +35,7 @@ export default function Footer({
   const moreLinks = [
     { href: "/catering", label: t("catering") },
     { href: "/delivery-areas", label: t("deliveryAreas") },
+    { href: "/feedback?src=footer", label: t("feedback") },
   ];
 
   return (

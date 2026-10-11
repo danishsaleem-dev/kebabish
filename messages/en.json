@@ -392,7 +392,8 @@
     "vatId": "VAT ID",
     "reviews": "Reviews",
     "privacy": "Privacy Policy",
-    "terms": "Terms & Conditions"
+    "terms": "Terms & Conditions",
+    "feedback": "Feedback"
   },
   "errorPage": {
     "title": "Something went wrong",
@@ -461,7 +462,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "updated": "Last updated: 11 October 2026",
+    "updated": "Last updated: 12 October 2026",
     "intro": "Kebabish takes protecting your personal data seriously. This privacy policy explains what data we collect, why, and what rights you have.",
     "sections": [
       {
@@ -483,7 +484,8 @@
           "Your delivery address, only if you choose to save it for next time — you can remove it from your account page",
           "Your consent to receive news and offers by email, with the date and where you gave it — it is off by default and you can withdraw it at any time",
           "Communication via WhatsApp, phone or email when you contact us",
-          "Technical data such as IP address and browser type, for website security and functionality"
+          "Technical data such as IP address and browser type, for website security and functionality",
+          "Your feedback (your answers and any comment), linked to your order if you open the form from the link in your email, your account or your order page. We only keep your name and email address with it if you tell us we may contact you"
         ]
       },
       {
@@ -496,7 +498,8 @@
           "Contact you about your order",
           "Offer a customer account and order history, if you choose to create one",
           "Meet legal obligations, such as our tax record-keeping",
-          "Keep our website secure and technically sound"
+          "Keep our website secure and technically sound",
+          "Read and use feedback to improve our food, delivery and website and — only if you have allowed it — to contact you or show your comment (first name only) on our website"
         ]
       },
       {
@@ -535,7 +538,8 @@
       {
         "heading": "Retention period",
         "body": [
-          "We do not keep your data longer than necessary for the purpose it was collected for. Order data and invoices we need for our tax records are kept for 7 years, as Dutch tax rules require of us as a business. Other personal data is not kept longer than its purpose requires."
+          "We do not keep your data longer than necessary for the purpose it was collected for. Order data and invoices we need for our tax records are kept for 7 years, as Dutch tax rules require of us as a business. Other personal data is not kept longer than its purpose requires.",
+          "We keep feedback for as long as it helps us improve Kebabish; we delete yours sooner if you ask us to."
         ]
       },
       {
@@ -707,5 +711,112 @@
     "deliveryServiceType": "Pakistani food delivery",
     "cateringServiceName": "Catering",
     "cateringServiceType": "Pakistani catering"
+  },
+  "feedback": {
+    "metaTitle": "Give your feedback",
+    "metaDescription": "Tell Kebabish how your order was: the food, the delivery and the website. It takes about two minutes and helps us get better.",
+    "eyebrow": "Feedback",
+    "title": "How was it?",
+    "intro": "Your opinion helps us get better. It takes about two minutes and every question is optional, except the last one.",
+    "forOrder": "About your order {reference}",
+    "stepOf": "Step {current} of {total}",
+    "optional": "Optional",
+    "required": "Required",
+    "next": "Next",
+    "back": "Back",
+    "submit": "Send feedback",
+    "sending": "Sending…",
+    "steps": {
+      "intro": "About you",
+      "order": "Your order",
+      "food": "The food",
+      "delivery": "The delivery",
+      "website": "The website",
+      "finish": "Finally"
+    },
+    "scale": {
+      "1": "Strongly disagree",
+      "2": "Disagree",
+      "3": "Neutral",
+      "4": "Agree",
+      "5": "Strongly agree"
+    },
+    "recommendScale": {
+      "1": "Definitely not",
+      "2": "Probably not",
+      "3": "Maybe",
+      "4": "Probably",
+      "5": "Definitely"
+    },
+    "unanswered": "Not answered yet",
+    "questions": {
+      "orderedBefore": "Have you ordered from Kebabish before?",
+      "dishes": "Which dishes did you order?",
+      "dishesHint": "Choose everything that applies.",
+      "favourite": "Which dish did you enjoy the most?",
+      "fresh": "The food was fresh and hot when it arrived.",
+      "taste": "The taste was what I hoped for.",
+      "value": "The portion size and the price felt fair.",
+      "ontime": "My order arrived within the delivery time I chose.",
+      "correct": "My order was complete and correct.",
+      "courier": "The delivery person was friendly and professional.",
+      "easy": "Ordering on the website was easy.",
+      "menu": "The menu (photos, descriptions and allergen info) helped me choose.",
+      "recommend": "How likely are you to recommend Kebabish to friends or family?",
+      "heard": "How did you find us?",
+      "comment": "What could we do better — or what went really well?",
+      "commentPlaceholder": "Write anything you like here…"
+    },
+    "orderedBeforeOptions": {
+      "many": "Yes, several times",
+      "once": "Yes, once",
+      "never": "Not yet — I'm just looking"
+    },
+    "noFavourite": "No favourite",
+    "heardOptions": {
+      "search": "Google or another search engine",
+      "social": "Social media",
+      "friends": "Friends or family",
+      "flyer": "A flyer, sticker or saw us nearby",
+      "other": "Something else"
+    },
+    "consent": {
+      "contact": "You may contact me about my feedback.",
+      "contactName": "Your name",
+      "contactEmail": "Your email address",
+      "quote": "You may show my comment on kebabish.nl, with my first name only.",
+      "privacy": "We only use your answers to improve Kebabish. More in our {privacy}.",
+      "privacyLink": "privacy policy"
+    },
+    "errors": {
+      "needRecommend": "Please answer this question to send your feedback.",
+      "needEmail": "Enter a valid email address, or untick the box.",
+      "invalid": "Please check your answers and try again.",
+      "duplicate": "We already have feedback for this order. Thank you!",
+      "tooMany": "You've sent feedback several times recently. Please try again later.",
+      "failed": "Your feedback couldn't be saved. Please try again later, or send us a WhatsApp message."
+    },
+    "thanks": {
+      "title": "Thank you for your feedback!",
+      "text": "We read everything and use it to make Kebabish better.",
+      "reviewText": "Did you enjoy it? A review on Google would help us enormously.",
+      "reviewCta": "Write a Google review",
+      "menu": "See the menu",
+      "home": "Back to the homepage"
+    },
+    "already": {
+      "title": "We already have your feedback",
+      "text": "Thank you — we've already received your feedback for this order. There's nothing more to do."
+    },
+    "prompt": {
+      "title": "How was your order?",
+      "text": "Tell us in two minutes — it shows us what works and what could be better.",
+      "cta": "Give your feedback"
+    },
+    "contactCta": {
+      "title": "Feedback or a complaint?",
+      "text": "Tell us how it went. It takes about two minutes.",
+      "cta": "Go to the feedback form"
+    }
   }
 }

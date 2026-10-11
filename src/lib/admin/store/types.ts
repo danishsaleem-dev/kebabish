@@ -179,6 +179,12 @@ export interface StoredSettings {
    * see src/components/home/Showcase.tsx.
    */
   galleryMediaIds?: string[];
+  /**
+   * The Google review link shown to a happy customer once they have sent
+   * feedback. Empty until the owner pastes it (we have no Business Profile URL
+   * to assume). Google-hosted addresses only — see feedback/review-url.ts.
+   */
+  googleReviewUrl?: string;
 }
 
 export interface StoredIngredient {

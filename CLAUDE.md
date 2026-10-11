@@ -482,6 +482,70 @@ JPEG rather than generated at request time, specifically so it never
 depends on font availability on whatever machine ends up building the
 site.
 
+### Customer feedback (migration `0018_feedback.sql`)
+
+A public form at **`/feedback`** (both locales), a table, an admin screen, and prompts in the
+places a customer is already looking. Run the migration before relying on it — but note the code
+is built to **degrade, not fail, without it**: the form says it couldn't save (and the log says
+"run migration 0018"), the dashboard/order-page lookups return "no feedback", and the admin page
+shows a "table isn't set up" card. Every read in `src/lib/feedback/data.ts` swallows a missing
+table for exactly this reason; only `insertFeedback` reports it.
+
+- **The questions live in code, not the database** (`src/lib/feedback/questions.ts`): eight
+  1–5 statements in three sections (food: fresh/taste/value; delivery: ontime/correct/courier;
+  website: easy/menu), one required "would you recommend" (`recommend`), a "how did you find us"
+  choice, a free comment, and a dish picker (+ "which was your favourite"). Wording is in
+  `messages/*.json` under `feedback.questions.*`. Answers are stored as JSON keyed by question
+  id, so **adding or retiring a question never needs a migration** — add it to `SCALE_QUESTIONS`
+  and the messages; an old row just lacks the key. `recommend` is also its own column because it
+  is the number everything sorts and alerts on.
+- **Why steps, and why only one required question:** nine ratings on one screen read as a
+  survey and get abandoned; the same nine as four short steps read as quick taps. A tired
+  customer who skips a question is still worth hearing from, so only `recommend` is required. A
+  visitor who answers "not yet" to "have you ordered?" skips food and delivery entirely. The
+  scale is a real radio group (arrow keys, "Agree, 4 of 5" for screen readers) dressed as a
+  segmented control, with the two ends and the chosen label spelled out.
+- **Two modes.** *Order-linked* (`/feedback?order=KBB-…&t=<token>`): the token is the same
+  HMAC as the order page's, so it needs no login; the dishes come from the order. *General*
+  (footer, contact page, a QR on the bag): dishes are picked from the live menu. A reference with
+  a bad token silently becomes general feedback — the page never confirms whether a reference
+  exists. **One feedback per order** (unique index on `order_id`; a repeat gets "we already have
+  it"). `?src=` is whitelisted (`email`, `dashboard`, `confirmation`, `footer`, `contact`,
+  `packaging`, `direct`) — use `kebabish.nl/feedback?src=packaging` for a sticker/QR to count
+  packaging responses separately.
+- **The server action trusts nothing** (`feedback/actions.ts`): question ids and 1–5 values are
+  checked against the real list, dishes against the real menu (or the order's own lines),
+  comment trimmed to 1000, unknown keys dropped. Spam is handled by a honeypot, a per-instance
+  throttle (`throttle.ts`, 6/hour, same blunt kind as the password-reset one) and the unique
+  index — it is not a security boundary, and a submission only adds a row for staff to read.
+- **Privacy:** two opt-in, unticked consents. *Contact me* — only then are a name and email kept
+  on the row. *You may quote my comment (first name only)* — only offered once there is a
+  comment; the admin shows an "OK to quote" badge (for the testimonials section, which is fed by
+  `reviews-data.ts` by hand). The privacy policy (nl/en) lists feedback under data, purpose and
+  retention, and its "last updated" date was bumped.
+- **Unhappy customers are told to staff immediately.** `recommend <= 2` sends
+  `sendLowFeedbackEmail` (same address as the new-order alert) with the order, dishes, comment and
+  whether they may be contacted — a bad experience is cheap to fix only while it is fresh. The
+  admin has a "Needs follow-up" filter (unhappy and not marked handled) and a banner.
+- **Happy customers are asked for a public review.** After submit, `recommend >= 4` shows a
+  "write a Google review" button **if** Settings → Feedback → *Google review link* is set (Google
+  hosts only — `review-url.ts`; we have no Business Profile URL of our own to assume). Unset =
+  not asked. An unhappy customer is never shown it.
+- **Where customers are invited:** the **delivered email** (feedback is its main button, order
+  page demoted to a link), the **customer dashboard** (a banner for the latest unrated delivered
+  order from the last 14 days, plus per-order "Give feedback" / "Feedback sent"), the **order
+  confirmation page** once the order is delivered and unrated, the **footer**, and the **contact
+  page**. The page itself is `noindex` and not in the sitemap (it carries an order link in the URL).
+- **Admin:** `/admin/feedback`, **owner/staff only** (`OwnerStaffOnly` layout + the action checks
+  the role itself; managers and kitchen are turned away). Summary strip, per-question averages
+  with a 1–5 distribution, dishes (mentions / favourite / taste), "how people found us", and a
+  filterable responses list with "Mark handled". The admin is English-only and outside
+  `[locale]`, so `labels.ts` reads the English messages server-side and hands the client
+  component just the feedback slice (importing the whole file client-side would ship every page's
+  copy). Statistics are pure functions in `stats.ts`.
+- **Not built:** showing a response on the order's own admin page, and promoting a quote to the
+  testimonials section automatically (that list is still hand-edited in `reviews-data.ts`).
+
 ### SEO audit and structured data (Oct 2026)
 
 A full audit found real bugs, not polish. It was done by crawling the built site, and is now

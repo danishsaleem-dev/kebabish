@@ -392,7 +392,8 @@
     "vatId": "BTW-id",
     "reviews": "Reviews",
     "privacy": "Privacybeleid",
-    "terms": "Algemene voorwaarden"
+    "terms": "Algemene voorwaarden",
+    "feedback": "Feedback"
   },
   "errorPage": {
     "title": "Er ging iets mis",
@@ -461,7 +462,7 @@
   },
   "privacy": {
     "title": "Privacybeleid",
-    "updated": "Laatst bijgewerkt: 11 oktober 2026",
+    "updated": "Laatst bijgewerkt: 12 oktober 2026",
     "intro": "Kebabish hecht veel waarde aan de bescherming van jouw persoonsgegevens. In dit privacybeleid leggen we uit welke gegevens we verzamelen, waarom, en welke rechten je hebt.",
     "sections": [
       {
@@ -483,7 +484,8 @@
           "Je bezorgadres, alleen als je zelf kiest om het te bewaren voor een volgende bestelling — dat kun je op je accountpagina weer verwijderen",
           "Je toestemming voor nieuws en aanbiedingen per e-mail, met de datum en de plek waar je die gaf — standaard staat die uit en je kunt hem altijd intrekken",
           "Communicatie via WhatsApp, telefoon of e-mail wanneer je contact met ons opneemt",
-          "Technische gegevens zoals IP-adres en browsertype, voor de beveiliging en werking van de website"
+          "Technische gegevens zoals IP-adres en browsertype, voor de beveiliging en werking van de website",
+          "Je feedback (je antwoorden en eventuele opmerking), gekoppeld aan je bestelling als je het formulier opent via de link in je e-mail, je account of je bestelpagina. Je naam en e-mailadres bewaren we daarbij alleen als je aangeeft dat we contact met je mogen opnemen"
         ]
       },
       {
@@ -496,7 +498,8 @@
           "Contact met je op te nemen over je bestelling",
           "Een klantaccount en bestelgeschiedenis aan te bieden, als je daarvoor kiest",
           "Te voldoen aan wettelijke verplichtingen, zoals onze fiscale administratie",
-          "Onze website te beveiligen en technisch te verbeteren"
+          "Onze website te beveiligen en technisch te verbeteren",
+          "Feedback te lezen en te gebruiken om ons eten, onze bezorging en onze website te verbeteren, en — alleen als je dat hebt toegestaan — contact met je op te nemen of je opmerking (met alleen je voornaam) op onze website te tonen"
         ]
       },
       {
@@ -535,7 +538,8 @@
       {
         "heading": "Bewaartermijn",
         "body": [
-          "Wij bewaren jouw gegevens niet langer dan noodzakelijk voor het doel waarvoor ze zijn verzameld. Bestelgegevens en facturen die we nodig hebben voor onze fiscale administratie bewaren wij 7 jaar, zoals de Nederlandse belastingregels dat van ons als ondernemer vereisen. Overige persoonsgegevens bewaren wij niet langer dan voor hun doel nodig is."
+          "Wij bewaren jouw gegevens niet langer dan noodzakelijk voor het doel waarvoor ze zijn verzameld. Bestelgegevens en facturen die we nodig hebben voor onze fiscale administratie bewaren wij 7 jaar, zoals de Nederlandse belastingregels dat van ons als ondernemer vereisen. Overige persoonsgegevens bewaren wij niet langer dan voor hun doel nodig is.",
+          "Feedback bewaren we zolang die ons helpt Kebabish te verbeteren; op je verzoek verwijderen we jouw feedback eerder."
         ]
       },
       {
@@ -707,5 +711,112 @@
     "deliveryServiceType": "Bezorging van Pakistaans eten",
     "cateringServiceName": "Catering",
     "cateringServiceType": "Pakistaanse catering"
+  },
+  "feedback": {
+    "metaTitle": "Geef je feedback",
+    "metaDescription": "Vertel Kebabish hoe je bestelling was: het eten, de bezorging en de website. Het duurt ongeveer twee minuten en helpt ons beter te worden.",
+    "eyebrow": "Feedback",
+    "title": "Hoe was het?",
+    "intro": "Jouw mening helpt ons beter te worden. Het duurt ongeveer twee minuten en alle vragen zijn optioneel, behalve de laatste.",
+    "forOrder": "Over je bestelling {reference}",
+    "stepOf": "Stap {current} van {total}",
+    "optional": "Optioneel",
+    "required": "Verplicht",
+    "next": "Volgende",
+    "back": "Vorige",
+    "submit": "Feedback versturen",
+    "sending": "Versturen…",
+    "steps": {
+      "intro": "Over jou",
+      "order": "Je bestelling",
+      "food": "Het eten",
+      "delivery": "De bezorging",
+      "website": "De website",
+      "finish": "Tot slot"
+    },
+    "scale": {
+      "1": "Helemaal oneens",
+      "2": "Oneens",
+      "3": "Neutraal",
+      "4": "Eens",
+      "5": "Helemaal eens"
+    },
+    "recommendScale": {
+      "1": "Zeker niet",
+      "2": "Waarschijnlijk niet",
+      "3": "Misschien",
+      "4": "Waarschijnlijk wel",
+      "5": "Zeker wel"
+    },
+    "unanswered": "Nog niet beantwoord",
+    "questions": {
+      "orderedBefore": "Heb je al eens bij Kebabish besteld?",
+      "dishes": "Welke gerechten heb je besteld?",
+      "dishesHint": "Kies alles wat van toepassing is.",
+      "favourite": "Welk gerecht vond je het lekkerst?",
+      "fresh": "Het eten was vers en warm toen het aankwam.",
+      "taste": "De smaak was zoals ik had gehoopt.",
+      "value": "De portie en de prijs stonden in een goede verhouding.",
+      "ontime": "Mijn bestelling kwam binnen het gekozen tijdvak aan.",
+      "correct": "Mijn bestelling was compleet en klopte.",
+      "courier": "De bezorger was vriendelijk en netjes.",
+      "easy": "Bestellen via de website was makkelijk.",
+      "menu": "Het menu (foto’s, beschrijvingen en allergenen) hielp me kiezen.",
+      "recommend": "Hoe waarschijnlijk is het dat je Kebabish aanbeveelt bij vrienden of familie?",
+      "heard": "Hoe heb je ons gevonden?",
+      "comment": "Wat kunnen we beter doen — of wat ging juist goed?",
+      "commentPlaceholder": "Schrijf hier gerust wat je kwijt wilt…"
+    },
+    "orderedBeforeOptions": {
+      "many": "Ja, al meerdere keren",
+      "once": "Ja, één keer",
+      "never": "Nog niet — ik kijk rond"
+    },
+    "noFavourite": "Geen voorkeur",
+    "heardOptions": {
+      "search": "Google of een andere zoekmachine",
+      "social": "Social media",
+      "friends": "Via vrienden of familie",
+      "flyer": "Folder, sticker of in de buurt gezien",
+      "other": "Anders"
+    },
+    "consent": {
+      "contact": "Je mag contact met me opnemen over mijn feedback.",
+      "contactName": "Je naam",
+      "contactEmail": "Je e-mailadres",
+      "quote": "Je mag mijn opmerking op kebabish.nl plaatsen, met alleen mijn voornaam.",
+      "privacy": "We gebruiken je antwoorden alleen om Kebabish te verbeteren. Meer in ons {privacy}.",
+      "privacyLink": "privacybeleid"
+    },
+    "errors": {
+      "needRecommend": "Beantwoord deze vraag om te kunnen versturen.",
+      "needEmail": "Vul een geldig e-mailadres in, of haal het vinkje weg.",
+      "invalid": "Controleer je antwoorden en probeer het opnieuw.",
+      "duplicate": "We hebben al feedback voor deze bestelling ontvangen. Bedankt!",
+      "tooMany": "Je hebt kort geleden al meerdere keren feedback gestuurd. Probeer het later opnieuw.",
+      "failed": "Je feedback kon niet worden opgeslagen. Probeer het later opnieuw, of stuur ons een berichtje via WhatsApp."
+    },
+    "thanks": {
+      "title": "Bedankt voor je feedback!",
+      "text": "We lezen alles en gebruiken het om Kebabish beter te maken.",
+      "reviewText": "Vond je het lekker? Je helpt ons enorm met een review op Google.",
+      "reviewCta": "Schrijf een Google-review",
+      "menu": "Bekijk het menu",
+      "home": "Terug naar de homepage"
+    },
+    "already": {
+      "title": "We hebben je feedback al ontvangen",
+      "text": "Bedankt, voor deze bestelling hebben we je feedback al binnen. Je hoeft niets meer te doen."
+    },
+    "prompt": {
+      "title": "Hoe was je bestelling?",
+      "text": "Vertel het ons in twee minuten — zo weten we wat goed gaat en wat beter kan.",
+      "cta": "Geef je feedback"
+    },
+    "contactCta": {
+      "title": "Feedback of een klacht?",
+      "text": "Vertel ons hoe het ging. Het duurt ongeveer twee minuten.",
+      "cta": "Naar het feedbackformulier"
+    }
   }
 }

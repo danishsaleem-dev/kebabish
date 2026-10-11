@@ -1,6 +1,7 @@
 "use server";
 
 import { validPaymentLinkUrl } from "@/lib/payment-link";
+import { validReviewUrl } from "@/lib/feedback/review-url";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
@@ -38,6 +39,13 @@ const settingsSchema = z.object({
     .refine((v) => v === "" || /^NL\d{9}B\d{2}$/.test(v), "Use the Dutch format, e.g. NL123456789B01."),
   showLegalNameOnInvoice: z.boolean(),
   showLaunchBadge: z.boolean(),
+  googleReviewUrl: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === "" || validReviewUrl(v) !== null,
+      "That isn't a Google review link \u2014 it should start with https:// and be a google.com, g.page or goo.gl address."
+    ),
   paymentLinkUrl: z
     .string()
     .trim()
@@ -86,6 +94,7 @@ export async function updateSettingsAction(
     showLegalNameOnInvoice: formData.get("showLegalNameOnInvoice") === "on",
     showLaunchBadge: formData.get("showLaunchBadge") === "on",
     paymentLinkUrl: formData.get("paymentLinkUrl") ?? "",
+    googleReviewUrl: formData.get("googleReviewUrl") ?? "",
     slotMinutes: formData.get("slotMinutes") ?? DEFAULT_SLOT_MINUTES,
     slotCapacity: formData.get("slotCapacity") ?? 10,
     bookingWindowDays: formData.get("bookingWindowDays") ?? 7,

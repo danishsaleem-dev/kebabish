@@ -11,6 +11,7 @@ import { formatEuro, fromCents, vatIncludedCents } from "@/lib/money";
 import { getPublicSettings } from "@/lib/admin/store";
 import { listCreditNotesForCustomer } from "@/lib/refunds";
 import { siteConfig } from "@/lib/site-config";
+import { orderHasFeedback } from "@/lib/feedback/data";
 import { validPaymentLinkUrl } from "@/lib/payment-link";
 import { auth } from "@/lib/auth";
 import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
@@ -55,6 +56,13 @@ export default async function CheckoutCompletePage({
   const settings = await getPublicSettings();
   const vatRate = settings.vatRatePercent ?? null;
   const tFooter = await getTranslations({ locale, namespace: "footer" });
+  const tFeedback = await getTranslations({ locale, namespace: "feedback" });
+  // Once it has actually arrived — not before — invite them to say how it was,
+  // unless they already have.
+  const askForFeedback =
+    order.status === "delivered" &&
+    (order.paymentStatus === "paid" || order.paymentStatus === "refunded") &&
+    !(await orderHasFeedback(order.id));
 
   // Reconcile here as well as in the webhook: the customer often lands back
   // before Mollie has called us, and locally there's no webhook at all.
@@ -183,6 +191,21 @@ export default async function CheckoutCompletePage({
 
       {paid && order.status !== "cancelled" && (
         <OrderProgress status={order.status} refunded={refunded} t={t} />
+      )}
+
+      {askForFeedback && (
+        <div className="print:hidden mt-8 w-full max-w-md rounded-3xl border-2 border-ember-600/30 bg-cream-50 p-6 text-center">
+          <p className="font-display text-lg font-semibold text-charcoal-600">
+            {tFeedback("prompt.title")}
+          </p>
+          <p className="mt-1.5 text-sm text-ink/65">{tFeedback("prompt.text")}</p>
+          <Link
+            href={`/feedback?order=${encodeURIComponent(order.reference)}&t=${token ?? ""}&src=confirmation`}
+            className="mt-4 inline-flex items-center justify-center rounded-full bg-ember-600 px-7 py-3 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+          >
+            {tFeedback("prompt.cta")}
+          </Link>
+        </div>
       )}
 
       {creditNotes.length > 0 && (

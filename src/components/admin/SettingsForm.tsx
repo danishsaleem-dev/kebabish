@@ -431,6 +431,28 @@ export default function SettingsForm({
         </p>
       </Card>
 
+      <Card>
+        <CardHeader
+          title="Feedback"
+          subtitle="Customers send feedback at kebabish.nl/feedback; you read it under Feedback in the menu."
+        />
+        <div className="mt-5">
+          <Field
+            label="Google review link (optional)"
+            hint="Shown only to customers who say they'd recommend you (4 or 5 out of 5), as an invitation to leave a public review. In Google Business Profile choose “Ask for reviews” and paste the link here. Leave empty to not ask."
+            error={e.googleReviewUrl}
+          >
+            <Input
+              name="googleReviewUrl"
+              type="url"
+              defaultValue={settings.googleReviewUrl ?? ""}
+              placeholder="https://g.page/r/…/review"
+              invalid={Boolean(e.googleReviewUrl)}
+            />
+          </Field>
+        </div>
+      </Card>
+
       <div className="flex items-center gap-3">
         <SubmitButton>Save settings</SubmitButton>
       </div>

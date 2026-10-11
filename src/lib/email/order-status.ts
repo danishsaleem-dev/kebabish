@@ -62,7 +62,7 @@ function copy(
         return {
           subject: `Je bestelling ${ref} is bezorgd`,
           title: "Eet smakelijk!",
-          body: "Je bestelling is bezorgd. We hopen dat je ervan geniet. Iets niet in orde? Laat het ons weten via WhatsApp of e-mail.",
+          body: "Je bestelling is bezorgd. We hopen dat je ervan geniet. Hoe was het? Vertel het ons in twee minuten \u2014 en iets niet in orde? Laat het ons weten via WhatsApp of e-mail.",
         };
       case "cancelled":
         return {
@@ -99,7 +99,7 @@ function copy(
       return {
         subject: `Your order ${ref} has been delivered`,
         title: "Enjoy your meal!",
-        body: "Your order has been delivered. We hope you enjoy it. Anything not right? Let us know by WhatsApp or email.",
+        body: "Your order has been delivered. We hope you enjoy it. How was it? Tell us in two minutes \u2014 and if anything isn't right, let us know by WhatsApp or email.",
       };
     case "cancelled":
       return {
@@ -136,11 +136,22 @@ export interface OrderStatusEmailExtra {
   partial?: boolean;
 }
 
-function html(order: OrderSummary, locale: Locale, c: Copy, extra?: OrderStatusEmailExtra): string {
+function html(
+  order: OrderSummary,
+  locale: Locale,
+  c: Copy,
+  extra?: OrderStatusEmailExtra,
+  wantsFeedback = false
+): string {
   const logoUrl = `${siteConfig.website}/logo/Kebabish-light.png`;
   const prefix = locale === "nl" ? "" : "/en";
   const orderUrl = `${siteConfig.website}${prefix}/checkout/complete?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}`;
   const view = locale === "nl" ? "Bekijk je bestelling" : "View your order";
+  // After delivery the main thing to do is say how it went; the order page is
+  // the quieter second link. The same signed token as the order page vouches
+  // for the order, so the form needs no login.
+  const feedbackUrl = `${siteConfig.website}${prefix}/feedback?order=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}&src=email`;
+  const feedbackLabel = locale === "nl" ? "Geef je feedback" : "Give your feedback";
   const hi = locale === "nl" ? `Hoi ${order.customerName},` : `Hi ${order.customerName},`;
   const reasonLine = extra?.reason
     ? `<p style="margin:12px 0 0;font-size:14px;line-height:1.6;color:#1a1713;"><strong>${locale === "nl" ? "Reden" : "Reason"}:</strong> ${escapeHtml(extra.reason)}</p>`
@@ -173,11 +184,24 @@ function html(order: OrderSummary, locale: Locale, c: Copy, extra?: OrderStatusE
                 ${reasonLine}${creditLine}
               </td>
             </tr>
+            ${
+              wantsFeedback
+                ? `<tr>
+              <td style="padding:20px 28px 0;" align="center">
+                <a href="${feedbackUrl}" style="display:inline-block;background:#a95026;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:8px;">${feedbackLabel}</a>
+              </td>
+            </tr>
             <tr>
+              <td style="padding:12px 28px 0;" align="center">
+                <a href="${orderUrl}" style="font-size:13px;color:#a95026;text-decoration:underline;">${view}</a>
+              </td>
+            </tr>`
+                : `<tr>
               <td style="padding:20px 28px 0;" align="center">
                 <a href="${orderUrl}" style="display:inline-block;background:#a95026;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:8px;">${view}</a>
               </td>
-            </tr>
+            </tr>`
+            }
             <tr>
               <td style="padding:20px 28px 28px;font-size:12px;line-height:1.6;color:#6b6459;">
                 WhatsApp / ${siteConfig.contact.phone} · ${siteConfig.contact.email}
@@ -215,7 +239,7 @@ export async function sendOrderStatusEmail(
       from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
       to: order.customerEmail,
       subject: c.subject,
-      html: html(order, locale, c, extra),
+      html: html(order, locale, c, extra, kind === "delivered"),
       ...(extra?.creditNote
         ? { attachments: [{ filename: `${extra.creditNote.number}.pdf`, content: extra.creditNote.pdf }] }
         : {}),
