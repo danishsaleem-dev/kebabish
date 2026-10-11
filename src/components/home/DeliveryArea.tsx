@@ -55,7 +55,7 @@ export default async function DeliveryArea({ locale }: { locale: string }) {
           <Link
             data-reveal
             href="/contact"
-            className="mt-8 inline-flex items-center gap-2.5 rounded-full bg-charcoal-600 px-8 py-4 font-display text-sm font-semibold text-cream-100 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-ember-600"
+            className="mt-8 inline-flex items-center gap-2.5 rounded-full bg-charcoal-600 px-8 py-4 font-display text-sm font-semibold text-cream-100 transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-ember-600"
           >
             <MapPin size={18} />
             {t("home.deliveryCta")}

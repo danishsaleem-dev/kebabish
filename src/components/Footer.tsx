@@ -78,7 +78,6 @@ export default function Footer({
         </FooterColumn>
 
         <FooterColumn title={t("contact")}>
-          <li className="text-cream-200/70">{siteConfig.address.street}</li>
           <li className="text-cream-200/70">
             {siteConfig.address.postalCode} {siteConfig.address.city}
           </li>

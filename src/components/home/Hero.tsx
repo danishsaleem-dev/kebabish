@@ -112,7 +112,7 @@ export default async function Hero({
             data-hero-cta
             data-reveal
             href="/menu"
-            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-ember-600 px-8 py-4 text-sm font-semibold text-cream-50 shadow-lg shadow-ember-800/30 transition-[background-color,transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 hover:shadow-xl hover:shadow-ember-800/40 sm:w-auto"
+            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-ember-600 px-8 py-4 text-sm font-semibold text-cream-50 shadow-lg shadow-ember-800/30 transition-[background-color,translate,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 hover:shadow-xl hover:shadow-ember-800/40 sm:w-auto"
           >
             <UtensilsCrossed
               size={18}
@@ -128,7 +128,7 @@ export default async function Hero({
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-200/30 bg-cream-200/10 px-8 py-4 text-sm font-semibold text-cream-100 backdrop-blur-sm transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-cream-200/20 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-200/30 bg-cream-200/10 px-8 py-4 text-sm font-semibold text-cream-100 backdrop-blur-sm transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-cream-200/20 sm:w-auto"
             >
               <MessageCircle size={18} />
               {t("hero.ctaWhatsapp")}

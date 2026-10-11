@@ -45,7 +45,7 @@ export default async function ContactPage({
   const status = getStoreStatus(settings);
   const weekdays = tStatus.raw("weekdays") as string[];
   const sortedHours = [...settings.hours].sort((a, b) => a.day - b.day);
-  const fullAddress = `${siteConfig.address.street}, ${siteConfig.address.postalCode} ${siteConfig.address.city}`;
+  const fullAddress = `${siteConfig.address.postalCode} ${siteConfig.address.city}`;
   const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
 
   return (

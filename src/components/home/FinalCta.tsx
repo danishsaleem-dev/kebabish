@@ -52,7 +52,7 @@ export default async function FinalCta({
           <Link
             data-reveal
             href="/menu"
-            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-cream-100 px-8 py-4 font-display text-sm font-semibold text-charcoal-700 shadow-lg shadow-ember-800/25 transition-[transform,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-xl sm:w-auto"
+            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-cream-100 px-8 py-4 font-display text-sm font-semibold text-charcoal-700 shadow-lg shadow-ember-800/25 transition-[translate,box-shadow] duration-300 hover:-translate-y-0.5 hover:shadow-xl sm:w-auto"
           >
             <UtensilsCrossed
               size={18}
@@ -67,7 +67,7 @@ export default async function FinalCta({
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-100/45 px-8 py-4 font-display text-sm font-semibold text-cream-50 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-cream-100/15 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-100/45 px-8 py-4 font-display text-sm font-semibold text-cream-50 transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-cream-100/15 sm:w-auto"
             >
               <MessageCircle size={18} />
               {t("common.whatsappUs")}

@@ -74,7 +74,7 @@ export default async function ComingSoonPage({
           href={whatsappHref}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-ember-600 px-8 py-4 text-sm font-semibold text-cream-50 shadow-lg shadow-ember-800/30 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 sm:w-auto"
+          className="mt-8 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-ember-600 px-8 py-4 text-sm font-semibold text-cream-50 shadow-lg shadow-ember-800/30 transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 sm:w-auto"
         >
           <MessageCircle size={18} />
           {t("ctaWhatsapp")}

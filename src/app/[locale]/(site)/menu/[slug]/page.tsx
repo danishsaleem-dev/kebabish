@@ -238,11 +238,10 @@ function ItemHeading({
 
       {allergens.length > 0 && (
         <section className="mt-5" aria-label={allergensTitle}>
-          <h2 className="text-xs font-semibold uppercase tracking-[0.14em] text-charcoal-600/70">
-            {allergensTitle}
-          </h2>
-          <p className="mt-1 text-sm text-ink/60">{allergensContains}</p>
-          <ul className="mt-2.5 flex flex-wrap gap-2">
+          <h2 className="sr-only">{allergensTitle}</h2>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-sm text-ink/60">{allergensContains}</p>
+            <ul className="flex flex-wrap gap-2">
             {allergens.map((label) => (
               <li
                 key={label}
@@ -251,7 +250,8 @@ function ItemHeading({
                 {label}
               </li>
             ))}
-          </ul>
+            </ul>
+          </div>
         </section>
       )}
     </div>

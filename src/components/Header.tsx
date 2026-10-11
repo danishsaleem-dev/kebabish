@@ -117,7 +117,7 @@ export default function Header({
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-full bg-ember-600 px-5 py-2.5 font-display text-sm font-semibold text-cream-50 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-ember-500"
+              className="inline-flex items-center gap-2 rounded-full bg-ember-600 px-5 py-2.5 font-display text-sm font-semibold text-cream-50 transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-ember-500"
             >
               <MessageCircle size={17} />
               {tCommon("orderNow")}

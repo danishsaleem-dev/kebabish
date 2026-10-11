@@ -39,7 +39,7 @@ export default function FeaturedDishCard({
     <Link
       href={`/menu/${item.slug}`}
       data-reveal={reveal ? "" : undefined}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[transform,box-shadow] duration-500 ease-brand hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10"
+      className="group flex flex-col overflow-hidden rounded-3xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[translate,box-shadow] duration-500 ease-brand hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10"
     >
       <div className="relative aspect-4/3 overflow-hidden bg-cream-300">
         {item.image ? (

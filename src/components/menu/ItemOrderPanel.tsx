@@ -211,7 +211,7 @@ export default function ItemOrderPanel({
             type="button"
             onClick={handleAdd}
             disabled={missingRequired.length > 0}
-            className="inline-flex flex-1 items-center justify-center gap-2.5 rounded-full bg-ember-600 px-7 py-4 font-display text-sm font-semibold text-cream-50 transition-[background-color,transform] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 disabled:translate-y-0 disabled:opacity-45 sm:flex-none"
+            className="inline-flex flex-1 items-center justify-center gap-2.5 rounded-full bg-ember-600 px-7 py-4 font-display text-sm font-semibold text-cream-50 transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 disabled:translate-y-0 disabled:opacity-45 sm:flex-none"
           >
             {justAdded ? <Check size={18} /> : <ShoppingBag size={18} />}
             {justAdded ? t("added") : t("addToCart")}
