@@ -36,7 +36,7 @@ export default function AccountPreferences({
               className="mt-0.5 h-4 w-4 shrink-0 rounded border-hairline accent-ember-600"
             />
             <span>
-              Email me news and offers from Kebabish.
+              I want to receive offers and news from Kebabish.
               <span className="block text-xs text-muted">
                 {marketingOptIn && consentDate
                   ? `You agreed on ${consentDate}. Untick it to stop.`

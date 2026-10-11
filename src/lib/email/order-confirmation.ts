@@ -44,6 +44,8 @@ const COPY = {
       "Voor vers bereide en snel bederfelijke levensmiddelen geldt geen wettelijke bedenktijd van 14 dagen.",
     kvk: "KVK",
     vatId: "BTW-id",
+    terms: "Algemene voorwaarden",
+    privacy: "Privacybeleid",
     dateLocale: "nl-NL",
   },
   en: {
@@ -70,6 +72,8 @@ const COPY = {
       "The statutory 14-day cooling-off period does not apply to freshly prepared and perishable food.",
     kvk: "KVK",
     vatId: "VAT ID",
+    terms: "Terms & conditions",
+    privacy: "Privacy policy",
     dateLocale: "en-GB",
   },
 } as const;
@@ -197,7 +201,11 @@ function html(
               </td>
             </tr>
           </table>
-          <p style="margin:16px 0 0;font-size:11px;color:#8a8378;">${escapeHtml(identity)}</p>
+          <p style="margin:16px 0 0;font-size:11px;color:#8a8378;">
+            <a href="${siteConfig.website}${prefix}/terms" style="color:#8a8378;">${c.terms}</a> ·
+            <a href="${siteConfig.website}${prefix}/privacy" style="color:#8a8378;">${c.privacy}</a>
+          </p>
+          <p style="margin:6px 0 0;font-size:11px;color:#8a8378;">${escapeHtml(identity)}</p>
         </td>
       </tr>
     </table>

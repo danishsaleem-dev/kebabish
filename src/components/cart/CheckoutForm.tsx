@@ -290,7 +290,7 @@ export default function CheckoutForm({
           <textarea
             name="notes"
             rows={3}
-            maxLength={500}
+            maxLength={250}
             placeholder={t("notesPlaceholder")}
             className={`mt-4 ${inputClass} h-auto py-3`}
           />

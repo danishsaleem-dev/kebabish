@@ -93,7 +93,7 @@ export default function SignupForm({
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border-hairline accent-ember-600"
               />
               <span>
-                Email me news and offers from Kebabish.
+                I want to receive offers and news from Kebabish.
                 <span className="block text-xs text-muted">
                   Optional. You can switch this off any time in your account.
                 </span>

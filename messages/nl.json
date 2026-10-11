@@ -133,8 +133,8 @@
     "title": "Contact & Bezorggebied",
     "intro": "Vragen over je bestelling of ons bezorggebied? Neem contact op.",
     "addressTitle": "Onze keuken",
-    "hoursTitle": "Openingstijden",
-    "hoursNote": "Geen dine-in — alleen bezorgen.",
+    "hoursTitle": "Bestel- en bezorgtijden",
+    "hoursNote": "Geen afhalen mogelijk — alleen bezorging.",
     "deliveryCheckTitle": "Check of wij bij jou bezorgen",
     "deliveryCheckText": "Vul je postcode in om te zien of je binnen ons bezorggebied van 10 km valt.",
     "socialsTitle": "Volg ons"
@@ -231,7 +231,8 @@
     "slotReassigned": "Deze tijd is vol. Kies de eerstvolgende beschikbare bezorgtijd.",
     "slotNoneToday": "Geen bezorgtijden meer beschikbaar op deze dag.",
     "slotUnavailable": "Deze bezorgtijd is niet meer geldig — kies een andere.",
-    "slotFull": "Deze bezorgtijd is zojuist volgeboekt — kies een andere.",
+    "slotFull": "Dit tijdvak is vol. Om elk gerecht vers en met zorg te bereiden, beperken we het aantal bestellingen per tijdvak. Kies het volgende beschikbare moment.",
+    "slotClosed": "Dit tijdvak is gesloten omdat de voorbereiding al is gestart. Kies het volgende beschikbare bezorgmoment.",
     "notAccepting": "We nemen op dit moment geen bestellingen aan. Probeer het later opnieuw.",
     "notes": "Opmerkingen bij je bestelling",
     "notesPlaceholder": "Deurcode, allergieën, of iets anders dat we moeten weten",
@@ -250,7 +251,7 @@
     "trackTitle": "Voortgang van je bestelling",
     "trackCancelled": "Deze bestelling is geannuleerd. Als je al had betaald, wordt het bedrag teruggestort.",
     "saveAddress": "Bewaar dit adres voor mijn volgende bestelling",
-    "marketingOptIn": "Stuur me nieuws en aanbiedingen van Kebabish per e-mail.",
+    "marketingOptIn": "Ik wil aanbiedingen en nieuws van Kebabish ontvangen.",
     "marketingOptInHint": "Optioneel. Je kunt je er altijd weer voor afmelden.",
     "vatIncluded": "Alle prijzen zijn inclusief btw.",
     "legalAgree": "Door te bestellen ga je akkoord met onze <terms>algemene voorwaarden</terms> en ons <privacy>privacybeleid</privacy>.",
@@ -267,7 +268,7 @@
     "completeTitle": "Bedankt voor je bestelling",
     "completePaid": "Betaling ontvangen. We gaan ermee aan de slag.",
     "completePending": "We wachten nog op de bevestiging van je betaling. Deze pagina ververst zichzelf.",
-    "completeFailed": "Die betaling is niet gelukt. Er is niets afgeschreven.",
+    "completeFailed": "De betaling is niet voltooid. Je winkelwagen is bewaard. Heb je problemen met betalen of wil je je bestelling bevestigen? Neem dan gerust contact met ons op via WhatsApp of bel ons.",
     "completeReference": "Je bestelnummer is {reference}.",
     "backToMenu": "Terug naar het menu",
     "receiptTitle": "Bonnetje",
@@ -394,7 +395,7 @@
         "heading": "Welke gegevens wij verwerken",
         "body": ["Afhankelijk van hoe je van onze diensten gebruikmaakt, verwerken wij de volgende gegevens:"],
         "list": [
-          "Naam, bezorgadres, telefoonnummer en (optioneel) e-mailadres bij het plaatsen van een bestelling",
+          "Naam, e-mailadres, telefoonnummer, bezorgadres en gekozen bezorgmoment bij het plaatsen van een bestelling",
           "Bestelgeschiedenis en de inhoud van je bestelling",
           "Accountgegevens als je een klantaccount aanmaakt (naam, e-mailadres, wachtwoord in versleutelde vorm)",
           "Je bezorgadres, alleen als je zelf kiest om het te bewaren voor een volgende bestelling — dat kun je op je accountpagina weer verwijderen",
@@ -434,6 +435,20 @@
         ]
       },
       {
+        "heading": "Verplichte en optionele gegevens",
+        "body": [
+          "Voor een bestelling zijn je naam, e-mailadres, telefoonnummer, bezorgadres en het gekozen bezorgmoment verplicht: zonder deze gegevens kunnen we je bestelling niet bevestigen of bezorgen.",
+          "Optioneel zijn: een opmerking bij je bestelling, een klantaccount (en daarin je telefoonnummer), een opgeslagen bezorgadres en je toestemming voor nieuws en aanbiedingen. Bestellen kan altijd zonder deze keuzes."
+        ]
+      },
+      {
+        "heading": "Waar je gegevens worden verwerkt",
+        "body": [
+          "Onze database staat bij Supabase in Ierland (Europese Unie) en onze website draait bij Vercel in de regio Dublin (Ierland).",
+          "Een aantal van onze leveranciers is een Amerikaans bedrijf of gebruikt Amerikaanse systemen, onder meer Vercel, Resend (e-mail) en Google (kaart). Voor zover daardoor persoonsgegevens buiten de Europese Economische Ruimte terechtkomen, gebeurt dat op grond van een adequaatheidsbesluit van de Europese Commissie (het EU-VS Data Privacy Framework) of op basis van de modelcontractbepalingen van de Europese Commissie, zoals vastgelegd in onze verwerkersovereenkomsten met deze leveranciers."
+        ]
+      },
+      {
         "heading": "Bewaartermijn",
         "body": [
           "Wij bewaren jouw gegevens niet langer dan noodzakelijk voor het doel waarvoor ze zijn verzameld. Bestelgegevens en facturen die we nodig hebben voor onze fiscale administratie bewaren wij 7 jaar, zoals de Nederlandse belastingregels dat van ons als ondernemer vereisen. Overige persoonsgegevens bewaren wij niet langer dan voor hun doel nodig is."
@@ -458,6 +473,12 @@
           "Een klacht in te dienen bij de Autoriteit Persoonsgegevens"
         ],
         "footer": "Neem voor het uitoefenen van deze rechten contact met ons op via info@kebabish.nl."
+      },
+      {
+        "heading": "Geautomatiseerde besluitvorming",
+        "body": [
+          "Wij nemen geen besluiten die uitsluitend gebaseerd zijn op geautomatiseerde verwerking en die rechtsgevolgen voor je hebben of je op een vergelijkbare manier aanmerkelijk treffen."
+        ]
       },
       {
         "heading": "Beveiliging",

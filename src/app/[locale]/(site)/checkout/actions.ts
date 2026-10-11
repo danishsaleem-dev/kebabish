@@ -62,7 +62,7 @@ const checkoutSchema = z.object({
   street: z.string().trim().min(3),
   postcode: z.string().trim().min(4),
   city: z.string().trim().min(2),
-  notes: z.string().trim().max(500).default(""),
+  notes: z.string().trim().max(250).default(""),
   deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   deliverySlotStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   deliverySlotEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
@@ -191,8 +191,10 @@ export async function checkoutAction(
         (s) => s.start === details.deliverySlotStart && s.end === details.deliverySlotEnd
       )
     : false;
-  if (!validSlot || isPastCutoff(details.deliveryDate, details.deliverySlotStart, now, day?.slotMinutes)) {
-    return { ok: false, error: "slotUnavailable" };
+  if (!validSlot) return { ok: false, error: "slotUnavailable" };
+  // A real slot whose ordering window has closed gets its own, clearer message.
+  if (isPastCutoff(details.deliveryDate, details.deliverySlotStart, now, day?.slotMinutes)) {
+    return { ok: false, error: "slotClosed" };
   }
 
   const reserved = await reserveDeliverySlot(
@@ -398,8 +400,11 @@ export async function retryPaymentAction(formData: FormData): Promise<void> {
     generateDaySlots(day).some(
       (s) => s.start === order.deliverySlotStart && s.end === order.deliverySlotEnd
     ) &&
-    !isPastCutoff(order.deliveryDate, order.deliverySlotStart, now, day.slotMinutes);
+    true;
   if (!stillValid) return giveUp("slotUnavailable");
+  if (isPastCutoff(order.deliveryDate, order.deliverySlotStart, now, day!.slotMinutes)) {
+    return giveUp("slotClosed");
+  }
 
   if (!(await reserveDeliverySlot(order.deliveryDate, weekday, order.deliverySlotStart))) {
     return giveUp("slotFull");

@@ -133,8 +133,8 @@
     "title": "Contact & Delivery Area",
     "intro": "Questions about your order or our delivery area? Get in touch.",
     "addressTitle": "Our kitchen",
-    "hoursTitle": "Opening Hours",
-    "hoursNote": "No dine-in — delivery only.",
+    "hoursTitle": "Ordering & delivery hours",
+    "hoursNote": "No pickup available — delivery only.",
     "deliveryCheckTitle": "Check if we deliver to you",
     "deliveryCheckText": "Enter your postcode to see if you're within our 10 km delivery area.",
     "socialsTitle": "Follow us"
@@ -231,7 +231,8 @@
     "slotReassigned": "This time is full. Please choose the next available delivery time.",
     "slotNoneToday": "No delivery times left for this day.",
     "slotUnavailable": "That delivery time isn't valid anymore — please choose another.",
-    "slotFull": "That delivery time just filled up — please choose another.",
+    "slotFull": "This slot is full. To prepare every meal fresh and with care, we limit the number of orders per time slot. Please choose the next available slot.",
+    "slotClosed": "This slot is closed because preparation has already started. Please choose the next available delivery time.",
     "notAccepting": "We aren’t taking orders right now. Please try again later.",
     "notes": "Notes for your order",
     "notesPlaceholder": "Door code, allergies, anything else we should know",
@@ -250,7 +251,7 @@
     "trackTitle": "Your order progress",
     "trackCancelled": "This order was cancelled. If you had already paid, the amount is being refunded.",
     "saveAddress": "Save this address for my next order",
-    "marketingOptIn": "Email me news and offers from Kebabish.",
+    "marketingOptIn": "I want to receive offers and news from Kebabish.",
     "marketingOptInHint": "Optional. You can unsubscribe at any time.",
     "vatIncluded": "All prices include VAT.",
     "legalAgree": "By placing your order you agree to our <terms>terms and conditions</terms> and <privacy>privacy policy</privacy>.",
@@ -267,7 +268,7 @@
     "completeTitle": "Thanks for your order",
     "completePaid": "Payment received. We've started on it.",
     "completePending": "We're waiting for your payment to confirm. This page updates itself.",
-    "completeFailed": "That payment didn't go through. Nothing was charged.",
+    "completeFailed": "The payment was not completed. Your cart has been saved. If you have trouble paying or want to confirm your order, please contact us via WhatsApp or call us.",
     "completeReference": "Your order number is {reference}.",
     "backToMenu": "Back to the menu",
     "receiptTitle": "Receipt",
@@ -394,7 +395,7 @@
         "heading": "What data we collect",
         "body": ["Depending on how you use our services, we process the following data:"],
         "list": [
-          "Name, delivery address, phone number and (optionally) email address when placing an order",
+          "Name, email address, phone number, delivery address and chosen delivery time when placing an order",
           "Order history and the contents of your order",
           "Account details if you create a customer account (name, email, password stored in encrypted form)",
           "Your delivery address, only if you choose to save it for next time — you can remove it from your account page",
@@ -434,6 +435,20 @@
         ]
       },
       {
+        "heading": "Required and optional information",
+        "body": [
+          "To place an order your name, email address, phone number, delivery address and chosen delivery time are required: without them we can't confirm or deliver your order.",
+          "Optional are: a note with your order, a customer account (and your phone number in it), a saved delivery address and your consent to receive news and offers. You can always order without these."
+        ]
+      },
+      {
+        "heading": "Where your data is processed",
+        "body": [
+          "Our database is hosted by Supabase in Ireland (European Union) and our website runs on Vercel in the Dublin (Ireland) region.",
+          "Some of our providers are US companies or use US systems, including Vercel, Resend (email) and Google (map). Where this means personal data ends up outside the European Economic Area, it is done on the basis of a European Commission adequacy decision (the EU-US Data Privacy Framework) or the European Commission's standard contractual clauses, as set out in our data processing agreements with these providers."
+        ]
+      },
+      {
         "heading": "Retention period",
         "body": [
           "We do not keep your data longer than necessary for the purpose it was collected for. Order data and invoices we need for our tax records are kept for 7 years, as Dutch tax rules require of us as a business. Other personal data is not kept longer than its purpose requires."
@@ -458,6 +473,12 @@
           "Lodge a complaint with the Dutch Data Protection Authority (Autoriteit Persoonsgegevens)"
         ],
         "footer": "To exercise any of these rights, contact us at info@kebabish.nl."
+      },
+      {
+        "heading": "Automated decision-making",
+        "body": [
+          "We do not make decisions based solely on automated processing that have legal effects on you or similarly significantly affect you."
+        ]
       },
       {
         "heading": "Security",

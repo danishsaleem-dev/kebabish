@@ -20,7 +20,7 @@ import ReceiptPrintButton from "@/components/cart/ReceiptPrintButton";
 export const dynamic = "force-dynamic";
 
 /** `?retry=` values the retry action can send back, each a `checkout.*` message. */
-const RETRY_ERRORS = ["slotUnavailable", "slotFull", "notAccepting", "failed"];
+const RETRY_ERRORS = ["slotUnavailable", "slotClosed", "slotFull", "notAccepting", "failed"];
 
 export async function generateMetadata({
   params,
