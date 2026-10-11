@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
-import { siteConfig } from "@/lib/site-config";
+import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 
 /**
  * What a visitor sees when something unexpected breaks on a page, instead of
@@ -35,6 +35,14 @@ export default function ErrorPage({
         >
           {t("retry")}
         </button>
+        <a
+          href={whatsappOrderLink(t("whatsappMessage"))}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-full bg-charcoal-600 px-7 py-3.5 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-charcoal-500"
+        >
+          {t("whatsapp")}
+        </a>
         <a
           href={`tel:${siteConfig.contact.phone.replace(/[^\d+]/g, "")}`}
           className="rounded-full border border-charcoal-600/25 px-7 py-3.5 font-display text-sm font-semibold text-charcoal-600 transition-colors hover:border-charcoal-600"

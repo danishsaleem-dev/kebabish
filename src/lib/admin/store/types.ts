@@ -160,6 +160,12 @@ export interface StoredSettings {
    * a switch for the owner/accountant rather than a decision made in code.
    */
   showLegalNameOnInvoice?: boolean;
+  /**
+   * The "Nieuw in Hoogkarspel" badge above the homepage headline. A launch
+   * message, so the owner switches it off once it stops being true. Absent
+   * (settings saved before this existed) counts as on.
+   */
+  showLaunchBadge?: boolean;
 }
 
 export interface StoredIngredient {

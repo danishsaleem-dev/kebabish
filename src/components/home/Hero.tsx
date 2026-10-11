@@ -11,10 +11,12 @@ export default async function Hero({
   locale,
   heroVideo,
   isOpen,
+  showBadge = true,
 }: {
   locale: string;
   heroVideo: { web: boolean; mobile: boolean };
   isOpen: boolean;
+  showBadge?: boolean;
 }) {
   const { web, mobile } = heroVideo;
   const hasVideo = web || mobile;
@@ -71,14 +73,16 @@ export default async function Hero({
           />
         </div>
 
-        <p
-          data-hero-eyebrow
-          data-reveal
-          className="mt-5 inline-flex items-center gap-2 rounded-full border border-cream-200/25 bg-cream-200/10 px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cream-200/90 backdrop-blur-sm sm:mt-7 sm:text-[0.7rem]"
-        >
-          <span className="h-1.5 w-1.5 rounded-full bg-ember-500" />
-          {t("hero.eyebrow")}
-        </p>
+        {showBadge && (
+          <p
+            data-hero-eyebrow
+            data-reveal
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-cream-200/25 bg-cream-200/10 px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cream-200/90 backdrop-blur-sm sm:mt-7 sm:text-[0.7rem]"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-ember-500" />
+            {t("hero.eyebrow")}
+          </p>
+        )}
 
         <h1
           data-reveal-mask

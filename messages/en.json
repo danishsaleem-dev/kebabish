@@ -318,8 +318,10 @@
   },
   "errorPage": {
     "title": "Something went wrong",
-    "text": "Sorry, this page couldn't be loaded. Please try again. Still not working? Call us and we'll take your order directly.",
-    "retry": "Try again"
+    "text": "Online ordering is temporarily unavailable. Feel free to order via WhatsApp. Or try again in a moment; if it still doesn't work, call us and we'll take your order directly.",
+    "retry": "Try again",
+    "whatsapp": "Order via WhatsApp",
+    "whatsappMessage": "Hello Kebabish, I'd like to place an order."
   },
   "notFoundPage": {
     "title": "This page doesn't exist",

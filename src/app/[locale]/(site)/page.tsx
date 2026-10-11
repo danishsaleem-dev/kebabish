@@ -30,7 +30,7 @@ export default async function HomePage({
           client island that drives the GSAP timelines and smooth scrolling. */}
       <Motion />
 
-      <Hero locale={locale} heroVideo={getHeroVideoAvailability()} isOpen={isOpen} />
+      <Hero locale={locale} heroVideo={getHeroVideoAvailability()} isOpen={isOpen} showBadge={settings.showLaunchBadge ?? true} />
       <Marquee items={marqueeItems} />
       <Story locale={locale} />
       <Popular locale={locale} isOpen={isOpen} />

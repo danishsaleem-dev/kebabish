@@ -36,6 +36,7 @@ const settingsSchema = z.object({
     .transform((v) => v.replace(/[\s.]/g, "").toUpperCase())
     .refine((v) => v === "" || /^NL\d{9}B\d{2}$/.test(v), "Use the Dutch format, e.g. NL123456789B01."),
   showLegalNameOnInvoice: z.boolean(),
+  showLaunchBadge: z.boolean(),
   slotMinutes: z.coerce
     .number()
     .int("Whole minutes only.")
@@ -75,6 +76,7 @@ export async function updateSettingsAction(
     vatRatePercent: formData.get("vatRatePercent") ?? "",
     vatNumber: formData.get("vatNumber") ?? "",
     showLegalNameOnInvoice: formData.get("showLegalNameOnInvoice") === "on",
+    showLaunchBadge: formData.get("showLaunchBadge") === "on",
     slotMinutes: formData.get("slotMinutes") ?? DEFAULT_SLOT_MINUTES,
     slotCapacity: formData.get("slotCapacity") ?? 10,
     bookingWindowDays: formData.get("bookingWindowDays") ?? 7,

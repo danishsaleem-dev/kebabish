@@ -67,6 +67,16 @@ export default function SettingsForm({
               placeholder="Leave empty for no notice"
             />
           </Field>
+          <div>
+            <Checkbox
+              name="showLaunchBadge"
+              label="Show the “New in Hoogkarspel” badge on the homepage"
+              defaultChecked={settings.showLaunchBadge ?? true}
+            />
+            <p className="mt-1.5 text-xs text-muted">
+              The small label above the homepage headline. Untick it once Kebabish is no longer new.
+            </p>
+          </div>
         </div>
       </Card>
 

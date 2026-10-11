@@ -318,8 +318,10 @@
   },
   "errorPage": {
     "title": "Er ging iets mis",
-    "text": "Sorry, deze pagina kon niet worden geladen. Probeer het opnieuw. Lukt het nog steeds niet? Bel ons, dan helpen we je bestelling direct.",
-    "retry": "Opnieuw proberen"
+    "text": "Online bestellen is tijdelijk niet beschikbaar. Bestel gerust via WhatsApp. Of probeer het zo nog eens, lukt het nog steeds niet? Bel ons, dan helpen we je bestelling direct.",
+    "retry": "Opnieuw proberen",
+    "whatsapp": "Bestel via WhatsApp",
+    "whatsappMessage": "Hallo Kebabish, ik wil graag bestellen."
   },
   "notFoundPage": {
     "title": "Deze pagina bestaat niet",

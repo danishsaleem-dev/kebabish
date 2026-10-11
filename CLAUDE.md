@@ -978,6 +978,14 @@ the hours list; migration `0013_slot_default_capacity.sql`):
 
 Not done yet from the spec: `is_test` order flag.
 
+### Error page and launch badge
+
+`[locale]/error.tsx` says "Online bestellen is tijdelijk niet beschikbaar. Bestel gerust via
+WhatsApp." and offers retry, a pre-filled WhatsApp link and the phone number — a broken page
+must never be a dead end mid-order. The homepage's "Nieuw in Hoogkarspel" badge is the
+`showLaunchBadge` setting (Settings → Taking orders; absent counts as on), so it can be switched
+off when Kebabish is no longer new — no code change.
+
 ### Launch checklist (state as of the final readiness pass, 11 Oct 2026)
 
 Code is launch-ready; what's left is data and accounts. Before turning the
