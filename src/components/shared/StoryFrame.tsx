@@ -56,7 +56,7 @@ export default function StoryFrame({
         className="absolute -bottom-8 -right-4 hidden aspect-square w-40 overflow-hidden rounded-2xl border-[6px] border-cream-200 bg-charcoal-800 shadow-xl shadow-charcoal-950/10 sm:block sm:w-48 lg:-right-8"
       >
         <Image
-          src="/images/story/spices.jpg"
+          src="/images/story/burger.webp"
           alt={detailAlt}
           fill
           sizes="200px"
