@@ -180,6 +180,28 @@
  * Utilities
  * ------------------------------------------------------------------------- */
 
+/*
+ * Hero type sits straight on the video now — no full-bleed dark scrim — so
+ * legibility has to come from the letters themselves. A tight, dark shadow
+ * does what the scrim used to without dimming a single pixel of the footage:
+ * it rides the type, so bright frames get contrast exactly where it's needed
+ * and the picture stays the picture. Two layers — one close and dense for
+ * edge definition, one wide and soft to lift the glyph off busy texture.
+ */
+@utility type-on-media {
+  text-shadow:
+    0 1px 2px rgba(10, 8, 6, 0.55),
+    0 4px 18px rgba(10, 8, 6, 0.45);
+}
+
+/* The same idea, heavier, for the headline's large display type. */
+@utility type-on-media-strong {
+  text-shadow:
+    0 1px 2px rgba(10, 8, 6, 0.6),
+    0 3px 10px rgba(10, 8, 6, 0.5),
+    0 10px 40px rgba(10, 8, 6, 0.45);
+}
+
 /* Fine film grain — keeps the large flat cream areas from looking sterile. */
 @utility grain {
   position: relative;
@@ -238,6 +260,16 @@
   transform-box: fill-box;
   transform-origin: 50% 50%;
   animation: radar-pulse 3.6s ease-out infinite;
+}
+
+/* A lazily-mounted video shouldn't pop in over its own poster. */
+@keyframes media-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes radar-pulse {

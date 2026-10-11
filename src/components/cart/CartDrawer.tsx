@@ -3,7 +3,9 @@
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { X, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import Image from "next/image";
 import { Link } from "@/i18n/navigation";
+import BrandLogo from "@/components/shared/BrandLogo";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
 import CartLineNotice from "@/components/cart/CartLineNotice";
 import { formatEuro } from "@/lib/money";
@@ -96,8 +98,26 @@ export default function CartDrawer() {
             <ul className="flex-1 divide-y divide-charcoal-600/10 overflow-y-auto px-5">
               {lines.map((line) => (
                 <li key={line.id} className="py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="flex items-start gap-3">
+                    {/* Same thumbnail as the cart page, so the drawer shows
+                        what was ordered rather than only its name. */}
+                    <span className="relative block h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-cream-300">
+                      {line.image ? (
+                        <Image src={line.image} alt="" fill sizes="56px" className="object-cover" />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]">
+                          <BrandLogo
+                            src="/logo/Kebabish-light.png"
+                            alt=""
+                            width={120}
+                            height={90}
+                            className="h-auto w-8 opacity-30"
+                          />
+                        </span>
+                      )}
+                    </span>
+
+                    <div className="min-w-0 flex-1">
                       <p className="font-display text-[0.95rem] font-semibold text-charcoal-600">
                         {line.name}
                       </p>

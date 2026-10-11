@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import BrandLogo from "@/components/shared/BrandLogo";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Leaf, Flame } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { getPublicItem, getPublicItemSlugs } from "@/lib/public-menu";
+import { getPublicItem, getPublicItemSlugs, getRelatedItems } from "@/lib/public-menu";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
@@ -13,6 +12,8 @@ import { localeAlternates } from "@/lib/seo";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import { formatEuro } from "@/lib/money";
 import ItemOrderPanel from "@/components/menu/ItemOrderPanel";
+import ItemGallery from "@/components/menu/ItemGallery";
+import FeaturedDishCard from "@/components/home/FeaturedDishCard";
 
 export async function generateStaticParams() {
   const slugs = await getPublicItemSlugs();
@@ -55,7 +56,10 @@ export default async function ItemPage({
 
   const { item, category } = found;
   const t = await getTranslations({ locale });
-  const settings = await getPublicSettings();
+  const [settings, related] = await Promise.all([
+    getPublicSettings(),
+    getRelatedItems(slug, locale),
+  ]);
   const { isOpen } = getStoreStatus(settings);
 
   const whatsappHref = whatsappOrderLink(
@@ -105,18 +109,25 @@ export default async function ItemPage({
           one copy: the media column spans both rows on desktop, so the
           heading and order panel auto-place beside it. */}
       <div className="mt-8 grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
-        <div className="lg:row-span-2">
-          <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-cream-300">
-            {item.image ? (
-              <Image
-                src={item.image}
-                alt={item.name}
-                fill
-                priority
-                sizes="(min-width: 1024px) 45vw, 90vw"
-                className="object-cover"
-              />
-            ) : (
+        {/* The photos stick while the right column scrolls: a dish with
+            several extras groups makes that column far taller than this one,
+            and the photo scrolling away left a long empty gutter. `self-start`
+            is what makes it work — a stretched grid item can't stick. */}
+        <div className="lg:sticky lg:top-28 lg:row-span-2 lg:self-start">
+          {item.images.length > 0 ? (
+            <ItemGallery
+              images={item.images}
+              alt={item.name}
+              photoLabels={item.images.map((_, i) =>
+                t("item.photoCounter", { current: i + 1, total: item.images.length })
+              )}
+              zoomLabel={t("item.zoomPhoto")}
+              closeLabel={t("item.closePhoto")}
+              previousLabel={t("item.previousPhoto")}
+              nextLabel={t("item.nextPhoto")}
+            />
+          ) : (
+            <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-cream-300">
               <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]">
                 <BrandLogo
                   src="/logo/Kebabish-light.png"
@@ -126,9 +137,8 @@ export default async function ItemPage({
                   className="h-auto w-28 opacity-25"
                 />
               </div>
-            )}
-          </div>
-
+            </div>
+          )}
         </div>
 
         <ItemHeading {...headingProps} />
@@ -170,6 +180,38 @@ export default async function ItemPage({
                 {item.description}
               </p>
             )}
+          </div>
+        </section>
+      )}
+
+      {related.length > 0 && (
+        <section className="mt-14 border-t border-charcoal-600/10 pt-10 sm:mt-16 sm:pt-12">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <h2 className="font-display text-2xl font-semibold text-charcoal-600">
+              {t("item.relatedTitle")}
+            </h2>
+            <Link
+              href="/menu"
+              className="link-underline font-display text-sm font-semibold text-ember-600"
+            >
+              {t("item.relatedAll")}
+            </Link>
+          </div>
+
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+            {related.map((dish) => (
+              <FeaturedDishCard
+                key={dish.slug}
+                item={dish}
+                addLabel={t("menu.addToOrder")}
+                priceOnRequestLabel={t("menu.priceOnRequest")}
+                vegetarianLabel={t("menu.vegetarian")}
+                soldOutLabel={t("menu.soldOut")}
+                isOpen={isOpen}
+                unavailableLabel={t("status.menuUnavailable")}
+                reveal={false}
+              />
+            ))}
           </div>
         </section>
       )}

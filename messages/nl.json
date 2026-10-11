@@ -53,7 +53,61 @@
     "storyImageAlt1": "Gemarineerde kip die in de tandoor boven de vlammen gaart",
     "storyImageAlt2": "Verse Pakistaanse kruiden en specerijen",
     "popularNote": "Prijzen op aanvraag — stuur ons een appje voor de actuele prijslijst.",
-    "deliveryTownsLabel": "Wij bezorgen onder andere in"
+    "deliveryTownsLabel": "Wij bezorgen onder andere in",
+    "storyVideoLabel": "Beelden uit de keuken van Kebabish",
+    "categoriesEyebrow": "Ons menu",
+    "categoriesTitle": "Kies waar je zin in hebt",
+    "categoriesCta": "Bekijk het hele menu",
+    "categoriesCount": "{count, plural, =1 {1 gerecht} other {# gerechten}}",
+    "showcaseEyebrow": "In beeld",
+    "showcaseTitle": "Zo ziet het eruit",
+    "showcaseText": "Foto's van onze gerechten, vers uit de keuken in Hoogkarspel.",
+    "reviewsEyebrow": "Ervaringen",
+    "reviewsTitle": "Wat onze klanten zeggen",
+    "reviewsCta": "Lees alle reviews",
+    "reviewsRating": "{rating} van 5 sterren",
+    "reviewsVia": "via {source}",
+    "faqEyebrow": "Veelgestelde vragen",
+    "faqTitle": "Alles wat je wilt weten",
+    "faqText": "Staat je vraag er niet bij? Stuur ons een appje of bel ons \u2014 we antwoorden meestal binnen een paar minuten.",
+    "faq": [
+      {
+        "q": "Kan ik mijn bestelling ook zelf ophalen?",
+        "a": "Nee, Kebabish bezorgt alleen. We hebben geen restaurant waar je kunt eten en je kunt je bestelling ook niet ophalen \u2014 we brengen alles bij je thuis."
+      },
+      {
+        "q": "In welke plaatsen bezorgen jullie?",
+        "a": "We bezorgen binnen ongeveer 10 kilometer rondom Hoogkarspel. Op de pagina Bezorggebied zie je precies welke plaatsen daarbij horen, en bij het afrekenen controleren we je postcode automatisch."
+      },
+      {
+        "q": "Hoe werkt het kiezen van een bezorgtijd?",
+        "a": "Bij het afrekenen kies je zelf een bezorgmoment. Elk moment heeft een beperkt aantal plekken, zodat de keuken niet overbelast raakt en je bestelling echt binnen dat tijdvak aankomt. Je kunt ook een paar dagen vooruit bestellen \u2014 handig als je iets plant."
+      },
+      {
+        "q": "Hoe kan ik betalen?",
+        "a": "Je betaalt online via onze betaalpartner Mollie, met iDEAL, creditcard, Apple Pay, Google Pay of Klarna. Liever via WhatsApp bestellen? Dat kan ook \u2014 dan stemmen we de betaling onderling af."
+      },
+      {
+        "q": "Zijn er bezorgkosten of een minimale bestelwaarde?",
+        "a": "Eventuele bezorgkosten en een minimale bestelwaarde zie je altijd in je winkelwagen en bij het afrekenen, voordat je betaalt. Er komt nooit iets bij waar je niet eerst het bedrag van hebt gezien."
+      },
+      {
+        "q": "Ik heb een allergie. Waar kan ik dat zien?",
+        "a": "Bij elk gerecht staat welke van de 14 wettelijk verplichte allergenen erin kunnen voorkomen. Twijfel je, of heb je een ernstige allergie? Neem dan contact met ons op v\u00f3\u00f3r je bestelt, dan kijken we er samen naar."
+      },
+      {
+        "q": "Kan ik mijn bestelling nog annuleren of wijzigen?",
+        "a": "Neem dan zo snel mogelijk contact met ons op via WhatsApp of telefoon. Zodra we met de bereiding zijn begonnen, kunnen we een bestelling helaas niet meer annuleren \u2014 het gaat om vers bereid eten."
+      },
+      {
+        "q": "Moet ik een account aanmaken om te bestellen?",
+        "a": "Nee, je kunt gewoon als gast afrekenen. Met een account bewaren we wel je bezorgadres en je bestelgeschiedenis, zodat je volgende bestelling een paar tikken sneller gaat."
+      },
+      {
+        "q": "Verzorgen jullie ook grotere bestellingen of catering?",
+        "a": "Ja. Voor feesten, bedrijfsborrels en familiebijeenkomsten maken we graag iets op maat. Neem contact met ons op via WhatsApp of bekijk onze cateringpagina."
+      }
+    ]
   },
   "about": {
     "title": "Over Kebabish",
@@ -167,7 +221,15 @@
     "removeToContinue": "Verwijder dit gerecht om verder te gaan.",
     "priceUpdated": "Prijs bijgewerkt",
     "blockedNotice": "Een of meer gerechten in je winkelwagen kunnen niet meer besteld worden. Verwijder de gemarkeerde gerechten om verder te gaan met afrekenen — de rest van je bestelling blijft staan.",
-    "itemCount": "{count, plural, =0 {Geen items} one {# item} other {# items}}"
+    "itemCount": "{count, plural, =0 {Geen items} one {# item} other {# items}}",
+    "lineLabel": "Gerecht",
+    "summaryTitle": "Overzicht",
+    "freeDeliveryReached": "Je bezorging is gratis.",
+    "freeDeliveryProgress": "Nog {missing} tot gratis bezorging",
+    "deliveryOnlyNote": "Alleen bezorgen, binnen {radius} km van Hoogkarspel.",
+    "securePaymentNote": "Veilig betalen via Mollie.",
+    "slotNote": "Je kiest je bezorgmoment bij het afrekenen.",
+    "each": "per stuk"
   },
   "allergenNames": {
     "gluten": "Glutenbevattende granen",
@@ -187,6 +249,13 @@
   },
   "item": {
     "aboutTitle": "Over dit gerecht",
+    "photoCounter": "Foto {current} van {total}",
+    "zoomPhoto": "Bekijk de foto op volledig formaat",
+    "closePhoto": "Foto sluiten",
+    "previousPhoto": "Vorige foto",
+    "nextPhoto": "Volgende foto",
+    "relatedTitle": "Misschien ook lekker",
+    "relatedAll": "Bekijk het hele menu",
     "allergens": "Allergenen",
     "allergensContains": "Dit gerecht bevat:",
     "videoLabel": "Video van {item}",

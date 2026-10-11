@@ -163,7 +163,15 @@ export async function updateSettingsAction(
     };
   }
 
-  await updateSettings({ ...parsed.data, hours });
+  // Ordered list, so it arrives as repeated fields like the hours do. Kept
+  // out of the zod object above because that parses a flat record of single
+  // values; `getAll` is what preserves the order Danish dragged them into.
+  const galleryMediaIds = formData
+    .getAll("galleryMediaIds")
+    .map(String)
+    .filter((id) => id.trim() !== "");
+
+  await updateSettings({ ...parsed.data, hours, galleryMediaIds });
 
   revalidatePath("/admin/settings");
   revalidatePath("/admin");

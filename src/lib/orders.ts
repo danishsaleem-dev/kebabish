@@ -6,7 +6,8 @@ import { siteConfig } from "@/lib/site-config";
 import { isSellablePrice, toCents } from "@/lib/money";
 import type { MolliePaymentStatus } from "@/lib/mollie";
 import { cancelPayment, getPayment, toPaymentStatus } from "@/lib/mollie";
-import type { StoredPromoCode } from "@/lib/admin/store/types";
+import type { StoredPromoCode, StoreShape } from "@/lib/admin/store/types";
+import { dishImage } from "@/lib/dish-images";
 import { sendNewOrderEmail, sendUnacceptedOrderEmail } from "@/lib/email/new-order";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
@@ -127,9 +128,23 @@ export async function priceCart(
   };
 }
 
+/** The dish's photo, by the same rule the public menu uses. */
+function itemImage(item: StoreShape["items"][number], store: StoreShape): string | undefined {
+  const uploaded = item.imageIds?.length
+    ? (store.media ?? []).find((m) => m.id === item.imageIds[0])?.url
+    : undefined;
+  return uploaded ?? dishImage(item.slug);
+}
+
 /** What the cart page needs to know about one line, without throwing. */
 export type CartLineStatus =
-  | { status: "ok"; unitPrice: number; optionPrices: Record<string, number> }
+  | {
+      status: "ok";
+      unitPrice: number;
+      optionPrices: Record<string, number>;
+      /** Current photo, so the cart can show (and backfill) it. */
+      image?: string;
+    }
   | { status: "soldOut" | "unavailable" | "optionsChanged" };
 
 /**
@@ -172,7 +187,12 @@ export async function inspectCart(
       }
     }
 
-    return { status: "ok" as const, unitPrice: item.price, optionPrices };
+    return {
+      status: "ok" as const,
+      unitPrice: item.price,
+      optionPrices,
+      image: itemImage(item, store),
+    };
   });
 }
 

@@ -45,11 +45,20 @@ export default async function Hero({
       </div>
 
       {/* ---- scrims ------------------------------------------------------ */}
-      {/* Two stacked gradients: a vertical one to seat the type, and a warm
-          ember glow low-left that ties the image back to the logo's flame. */}
-      <div className="absolute inset-0 bg-gradient-to-b from-charcoal-950/90 via-charcoal-950/65 to-charcoal-950/95" />
-      <div className="absolute inset-0 bg-[radial-gradient(80%_60%_at_15%_100%,rgba(169,80,38,0.42),transparent_65%)]" />
-      <div className="grain absolute inset-0" />
+      {/* The footage is already dark and graded, so it is deliberately NOT
+          covered: what used to be a full-bleed 65-95% charcoal wash is now
+          only an edge treatment. The top band keeps the fixed header's links
+          readable while the page sits at the hero, the bottom one seats the
+          scroll cue, and the middle — the actual food — is left untouched.
+          Contrast for the copy comes from the type itself (type-on-media)
+          and the soft bloom below, both of which follow the words instead of
+          flattening the whole frame. */}
+      <div className="absolute inset-x-0 top-0 h-44 bg-gradient-to-b from-charcoal-950/70 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-52 bg-gradient-to-t from-charcoal-950/65 to-transparent" />
+      {/* A warm ember bloom behind the copy block only — reads as light
+          thrown from the logo's flame rather than as a filter over the video. */}
+      <div className="absolute inset-0 bg-[radial-gradient(52%_44%_at_50%_52%,rgba(10,8,6,0.52),transparent_72%)]" />
+      <div className="absolute inset-0 bg-[radial-gradient(70%_50%_at_12%_105%,rgba(169,80,38,0.3),transparent_62%)]" />
 
       {/* Cream curtain that lifts on load. */}
       <div
@@ -77,7 +86,7 @@ export default async function Hero({
           <p
             data-hero-eyebrow
             data-reveal
-            className="mt-5 inline-flex items-center gap-2 rounded-full border border-cream-200/25 bg-cream-200/10 px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cream-200/90 backdrop-blur-sm sm:mt-7 sm:text-[0.7rem]"
+            className="mt-5 inline-flex items-center gap-2 rounded-full border border-cream-100/30 bg-charcoal-950/35 px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cream-100 shadow-lg shadow-charcoal-950/25 backdrop-blur-md sm:mt-7 sm:text-[0.7rem]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-ember-500" />
             {t("hero.eyebrow")}
@@ -86,7 +95,7 @@ export default async function Hero({
 
         <h1
           data-reveal-mask
-          className="mt-5 text-balance font-display text-[2.05rem] font-semibold leading-[1.06] text-cream-100 sm:mt-6 sm:text-6xl lg:text-7xl"
+          className="type-on-media-strong mt-5 text-balance font-display text-[2.05rem] font-semibold leading-[1.06] text-cream-50 sm:mt-6 sm:text-6xl lg:text-7xl"
         >
           <MaskedWords text={t("hero.title")} />
         </h1>
@@ -94,7 +103,11 @@ export default async function Hero({
         <p
           data-hero-sub
           data-reveal
-          className="mt-4 font-display text-base italic text-ember-400 sm:mt-5 sm:text-xl"
+          // Cream, not ember: with the scrim gone the tagline sits straight
+          // on footage that is frequently bright orange (flames, curry), and
+          // ember-on-ember all but disappeared there. Ember still carries the
+          // eyebrow dot, the primary button and every section accent.
+          className="type-on-media mt-4 font-display text-base italic text-cream-100 sm:mt-5 sm:text-xl"
         >
           {t("hero.subtitle")}
         </p>
@@ -102,7 +115,7 @@ export default async function Hero({
         <p
           data-hero-desc
           data-reveal
-          className="mx-auto mt-3 max-w-xl text-pretty text-[0.95rem] leading-relaxed text-cream-200/80 sm:mt-4 sm:text-lg"
+          className="type-on-media mx-auto mt-3 max-w-xl text-pretty text-[0.95rem] leading-relaxed text-cream-100/95 sm:mt-4 sm:text-lg"
         >
           {t("hero.description")}
         </p>
@@ -112,7 +125,7 @@ export default async function Hero({
             data-hero-cta
             data-reveal
             href="/menu"
-            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-ember-600 px-8 py-4 text-sm font-semibold text-cream-50 shadow-lg shadow-ember-800/30 transition-[background-color,translate,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 hover:shadow-xl hover:shadow-ember-800/40 sm:w-auto"
+            className="group inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-ember-600 px-8 py-4 text-sm font-semibold text-cream-50 shadow-[0_10px_30px_-8px_rgba(10,8,6,0.75)] ring-1 ring-cream-100/15 transition-[background-color,translate,box-shadow] duration-300 hover:-translate-y-0.5 hover:bg-ember-500 hover:shadow-[0_16px_40px_-10px_rgba(169,80,38,0.8)] sm:w-auto"
           >
             <UtensilsCrossed
               size={18}
@@ -128,7 +141,7 @@ export default async function Hero({
               href={whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-200/30 bg-cream-200/10 px-8 py-4 text-sm font-semibold text-cream-100 backdrop-blur-sm transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-cream-200/20 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-100/35 bg-charcoal-950/40 px-8 py-4 text-sm font-semibold text-cream-50 shadow-[0_10px_30px_-10px_rgba(10,8,6,0.7)] backdrop-blur-md transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-charcoal-950/60 sm:w-auto"
             >
               <MessageCircle size={18} />
               {t("hero.ctaWhatsapp")}
@@ -137,7 +150,7 @@ export default async function Hero({
             <span
               data-hero-cta
               data-reveal
-              className="inline-flex w-full cursor-default items-center justify-center gap-2.5 rounded-full border border-cream-200/15 px-8 py-4 text-sm font-semibold text-cream-100/50 sm:w-auto"
+              className="inline-flex w-full cursor-default items-center justify-center gap-2.5 rounded-full border border-cream-100/20 bg-charcoal-950/35 px-8 py-4 text-sm font-semibold text-cream-100/60 backdrop-blur-md sm:w-auto"
             >
               <MessageCircle size={18} />
               {t("common.closedNow")}
@@ -148,7 +161,7 @@ export default async function Hero({
         <p
           data-hero-badge
           data-reveal
-          className="mt-6 px-8 text-[0.65rem] font-medium uppercase tracking-[0.16em] text-cream-200/55 sm:mt-7 sm:px-0 sm:text-[0.7rem]"
+          className="type-on-media mt-6 px-8 text-[0.65rem] font-medium uppercase tracking-[0.16em] text-cream-100/80 sm:mt-7 sm:px-0 sm:text-[0.7rem]"
         >
           {t("hero.badge")}
         </p>
@@ -160,7 +173,7 @@ export default async function Hero({
         data-reveal
         className="absolute inset-x-0 bottom-6 z-10 hidden justify-center sm:flex"
       >
-        <span className="flex flex-col items-center gap-2 text-[0.65rem] font-medium uppercase tracking-[0.22em] text-cream-200/50">
+        <span className="type-on-media flex flex-col items-center gap-2 text-[0.65rem] font-medium uppercase tracking-[0.22em] text-cream-100/70">
           {t("hero.scrollCue")}
           <ArrowDown size={14} className="animate-bounce" />
         </span>

@@ -1012,6 +1012,63 @@ prefilled** (Mollie drops URL parameters) and gives the site **no webhook or ret
   match them), no automatic confirmation, and a manual step per order. Remove it once the API
   checkout is live.
 
+### Homepage sections, menu sidebar, dish gallery, cart (design pass, Oct 2026)
+
+Danish asked for a round of visual work. What it changed, and the decisions inside it:
+
+- **The hero no longer dims the video.** The full-bleed 65–95% charcoal wash is gone; only a
+  top band (so the fixed header stays readable), a bottom band (scroll cue) and a soft bloom
+  behind the copy remain. Legibility now comes from the type: `type-on-media` /
+  `type-on-media-strong` in `globals.css` are two-layer text shadows that ride the letters, so
+  bright frames get contrast exactly where it is needed and the footage stays untouched. The
+  secondary CTA became a real glass panel (`bg-charcoal-950/40` + blur) because a 10% cream
+  tint vanished over a bright frame. **The tagline is cream, not ember** — over flames and
+  curry, ember-on-ember was unreadable; ember still carries the eyebrow, the primary button and
+  every section accent. (Watch for this: `text-ember-300` does not exist — the scale starts at
+  400 — and an undefined Tailwind token silently renders as inherited near-black.)
+- **New sections**, in page order after Story: `Categories`, then (after Why) `Showcase`,
+  `Testimonials`, and `Faq` before the final CTA. `Showcase` and `Testimonials` **render
+  nothing** until there is real content behind them, the same rule as `aggregateRating`.
+- **`Categories`** is built from `getPublicCategories()` (new, in `public-menu.ts`): visible
+  categories with an item count, using the category's own photo, else a dish's from inside it.
+  First tile spans two columns so the grid reads as composed at any number of categories.
+- **`Showcase`** is the media library: *Settings → Homepage photos* (a `GalleryField`, same
+  component the dish editor uses) writes `settings.galleryMediaIds`, an ordered list. Mosaic
+  grid (every 6th tile 2×2) with a lightbox.
+- **`Faq`** uses native `<details name="kebabish-faq">` — keyboard- and screen-reader-correct
+  for free, works with JS off, exclusive-accordion where supported, and the answers are in the
+  server HTML even while collapsed so they are indexable. It also emits **FAQPage JSON-LD**
+  from the same strings. Content is in `messages/*.json` under `home.faq`; it states only
+  facts already true (delivery-only, the radius, slots, allergens, no 14-day cooling-off) and
+  deliberately avoids anything we would have to invent, prices and halal included.
+- **Story shows a video** (`StoryVideo`): the vertical hero clip for now, mounted only when the
+  section is near, never on save-data or 2g, and never under `prefers-reduced-motion`. The
+  poster still is the server-rendered layer underneath, so it degrades to exactly what was
+  there before.
+- **`/menu` has a real sidebar on `lg`+** — search, categories as a list with *live counts*
+  (a category nothing matches is greyed and unclickable), dietary checkboxes, clear-all —
+  with dishes alone on the right. Below `lg` the compact search + filters-panel row is kept
+  as it was. Dishes are **two per row on mobile**.
+- **`FeaturedDishCard` sizes itself by container query, not viewport** (`@container` +
+  `@min-[16rem]:`). The same card is ~160px wide two-per-row on a phone and full width on the
+  homepage, and a media query cannot tell those apart. Narrow: tighter padding, smaller type,
+  price stacked above a full-width button, leaf-only vegetarian badge.
+- **The dish page shows every photo.** `PublicMenuItem.images` is new (all uploads in admin
+  order, falling back to the one placeholder) — until now any photo after the first was
+  uploaded and then never rendered anywhere. `ItemGallery` adds arrows, thumbnails, a counter
+  and full-screen zoom **only when there are two or more**; one photo looks exactly as before.
+  All of them are in the server HTML (inactive ones hidden, not absent) so they stay crawlable
+  and switching cross-fades instead of flashing. The media column is **sticky** (`lg:sticky` +
+  `lg:self-start` — a stretched grid item cannot stick), and a **related dishes** strip
+  (`getRelatedItems()`: same category first, topped up from the rest, orderable dishes ranked
+  first) closes the page.
+- **The cart carries the dish photo.** `CartLine.image` is optional and never part of the
+  line's identity; `inspectCart` now returns the current image and `CartProvider` backfills it,
+  so baskets saved before this (and photos changed in /admin since) heal themselves without a
+  reprice notice. Cart page and drawer both show it. The cart page is cards rather than a
+  divided list, with a free-delivery progress bar (only when there is a fee to lose), the total
+  on the checkout button, and three reassurance lines.
+
 ### Error page and launch badge
 
 `[locale]/error.tsx` says "Online bestellen is tijdelijk niet beschikbaar. Bestel gerust via

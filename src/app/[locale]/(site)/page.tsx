@@ -4,6 +4,10 @@ import Motion from "@/components/motion/Motion";
 import Hero from "@/components/home/Hero";
 import Marquee from "@/components/home/Marquee";
 import Story from "@/components/home/Story";
+import Categories from "@/components/home/Categories";
+import Showcase from "@/components/home/Showcase";
+import Testimonials from "@/components/home/Testimonials";
+import Faq from "@/components/home/Faq";
 import Popular from "@/components/home/Popular";
 import Why from "@/components/home/Why";
 import DeliveryArea from "@/components/home/DeliveryArea";
@@ -33,9 +37,16 @@ export default async function HomePage({
       <Hero locale={locale} heroVideo={getHeroVideoAvailability()} isOpen={isOpen} showBadge={settings.showLaunchBadge ?? true} />
       <Marquee items={marqueeItems} />
       <Story locale={locale} />
+      <Categories locale={locale} />
       <Popular locale={locale} isOpen={isOpen} />
       <Why locale={locale} />
+      {/* Showcase and Testimonials each render nothing until there is real
+          content behind them (photos picked in /admin, reviews Danish
+          supplied), so the page reads correctly either way. */}
+      <Showcase locale={locale} />
+      <Testimonials locale={locale} />
       <DeliveryArea locale={locale} />
+      <Faq locale={locale} />
       <FinalCta locale={locale} isOpen={isOpen} />
     </>
   );

@@ -85,6 +85,7 @@ export default function ItemOrderPanel({
       {
         slug: item.slug,
         name: item.name,
+        image: item.image,
         unitPrice: item.price ?? 0,
         options: chosen,
         instructions: instructions.trim(),

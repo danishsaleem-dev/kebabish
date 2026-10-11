@@ -37,6 +37,14 @@ export interface CartLine {
   options: CartOption[];
   instructions: string;
   quantity: number;
+  /**
+   * The dish photo, so the cart and drawer can show what was ordered rather
+   * than a list of names. Optional, and never part of the line's identity: a
+   * basket saved before this existed (or one whose photo changed in /admin)
+   * is backfilled from the menu by the check below, not treated as a
+   * different line.
+   */
+  image?: string;
 }
 
 export type NewCartLine = Omit<CartLine, "id" | "quantity">;
@@ -156,20 +164,32 @@ export default function CartProvider({ children }: { children: ReactNode }) {
         if (!res.ok || cancelled) return;
         const { results } = (await res.json()) as {
           results: (
-            | { status: "ok"; unitPrice: number; optionPrices: Record<string, number> }
+            | {
+                status: "ok";
+                unitPrice: number;
+                optionPrices: Record<string, number>;
+                image?: string;
+              }
             | { status: CartIssue }
           )[];
         };
         if (cancelled || results.length !== snapshot.length) return;
 
         const nextIssues: Record<string, CartIssue> = {};
-        const priceFixes = new Map<string, { unitPrice: number; optionPrices: Record<string, number> }>();
+        const priceFixes = new Map<
+          string,
+          { unitPrice: number; optionPrices: Record<string, number> }
+        >();
+        // A photo arriving (or changing) is not a price change — it must not
+        // raise the "price updated" notice — so it is tracked separately.
+        const imageFixes = new Map<string, string>();
         snapshot.forEach((line, i) => {
           const r = results[i];
           if (r.status !== "ok") {
             nextIssues[line.id] = r.status;
             return;
           }
+          if (r.image && r.image !== line.image) imageFixes.set(line.id, r.image);
           const optionsDiffer = line.options.some(
             (o) => r.optionPrices[`${o.groupId}:${o.optionId}`] !== o.price
           );
@@ -178,6 +198,15 @@ export default function CartProvider({ children }: { children: ReactNode }) {
           }
         });
         setIssues(nextIssues);
+
+        if (imageFixes.size > 0) {
+          setLines((prev) =>
+            prev.map((l) => {
+              const image = imageFixes.get(l.id);
+              return image ? { ...l, image } : l;
+            })
+          );
+        }
 
         if (priceFixes.size > 0) {
           setLines((prev) =>

@@ -53,7 +53,61 @@
     "storyImageAlt1": "Marinated chicken roasting in the tandoor over open flames",
     "storyImageAlt2": "Fresh Pakistani herbs and spices",
     "popularNote": "Prices on request — message us for the current price list.",
-    "deliveryTownsLabel": "We deliver to"
+    "deliveryTownsLabel": "We deliver to",
+    "storyVideoLabel": "Footage from the Kebabish kitchen",
+    "categoriesEyebrow": "Our menu",
+    "categoriesTitle": "Pick what you fancy",
+    "categoriesCta": "See the full menu",
+    "categoriesCount": "{count, plural, =1 {1 dish} other {# dishes}}",
+    "showcaseEyebrow": "In pictures",
+    "showcaseTitle": "This is what it looks like",
+    "showcaseText": "Photos of our dishes, fresh out of the kitchen in Hoogkarspel.",
+    "reviewsEyebrow": "Experiences",
+    "reviewsTitle": "What our customers say",
+    "reviewsCta": "Read all reviews",
+    "reviewsRating": "{rating} out of 5 stars",
+    "reviewsVia": "via {source}",
+    "faqEyebrow": "Frequently asked questions",
+    "faqTitle": "Everything you want to know",
+    "faqText": "Question not answered here? Send us a WhatsApp message or call us \u2014 we usually reply within a few minutes.",
+    "faq": [
+      {
+        "q": "Can I collect my order myself?",
+        "a": "No, Kebabish delivers only. There is no restaurant to eat in and no pickup option \u2014 we bring everything to your door."
+      },
+      {
+        "q": "Which towns do you deliver to?",
+        "a": "We deliver within roughly 10 kilometres of Hoogkarspel. The Delivery area page lists exactly which towns that covers, and checkout checks your postcode automatically."
+      },
+      {
+        "q": "How does choosing a delivery time work?",
+        "a": "You pick a delivery window yourself at checkout. Each window has a limited number of places, so the kitchen never gets flooded and your order really does arrive inside that slot. You can also order a few days ahead, which helps if you are planning something."
+      },
+      {
+        "q": "How can I pay?",
+        "a": "You pay online through our payment partner Mollie, using iDEAL, credit card, Apple Pay, Google Pay or Klarna. Prefer to order over WhatsApp? That works too \u2014 we then arrange payment between us."
+      },
+      {
+        "q": "Is there a delivery fee or a minimum order?",
+        "a": "Any delivery fee and minimum order value are always shown in your basket and at checkout, before you pay. Nothing is ever added that you have not seen the amount of first."
+      },
+      {
+        "q": "I have an allergy. Where can I see the details?",
+        "a": "Every dish lists which of the 14 legally declarable allergens it may contain. If you are unsure, or your allergy is severe, contact us before you order and we will go through it with you."
+      },
+      {
+        "q": "Can I still cancel or change my order?",
+        "a": "Contact us as soon as possible over WhatsApp or by phone. Once we have started cooking we can no longer cancel an order \u2014 it is freshly prepared food."
+      },
+      {
+        "q": "Do I need an account to order?",
+        "a": "No, you can check out as a guest. An account does save your delivery address and order history, so your next order takes a few taps less."
+      },
+      {
+        "q": "Do you handle larger orders or catering?",
+        "a": "Yes. For parties, company drinks and family gatherings we are happy to put something together. Get in touch over WhatsApp or take a look at our catering page."
+      }
+    ]
   },
   "about": {
     "title": "About Kebabish",
@@ -167,7 +221,15 @@
     "removeToContinue": "Remove this dish to continue.",
     "priceUpdated": "Price updated",
     "blockedNotice": "One or more dishes in your cart can no longer be ordered. Remove the marked dishes to continue to checkout — the rest of your order stays as it is.",
-    "itemCount": "{count, plural, =0 {No items} one {# item} other {# items}}"
+    "itemCount": "{count, plural, =0 {No items} one {# item} other {# items}}",
+    "lineLabel": "Dish",
+    "summaryTitle": "Summary",
+    "freeDeliveryReached": "Your delivery is free.",
+    "freeDeliveryProgress": "{missing} to go for free delivery",
+    "deliveryOnlyNote": "Delivery only, within {radius} km of Hoogkarspel.",
+    "securePaymentNote": "Secure payment through Mollie.",
+    "slotNote": "You pick your delivery time at checkout.",
+    "each": "each"
   },
   "allergenNames": {
     "gluten": "Cereals containing gluten",
@@ -187,6 +249,13 @@
   },
   "item": {
     "aboutTitle": "About this dish",
+    "photoCounter": "Photo {current} of {total}",
+    "zoomPhoto": "View the photo full size",
+    "closePhoto": "Close photo",
+    "previousPhoto": "Previous photo",
+    "nextPhoto": "Next photo",
+    "relatedTitle": "You might also like",
+    "relatedAll": "See the full menu",
     "allergens": "Allergens",
     "allergensContains": "This dish contains:",
     "videoLabel": "Video of {item}",

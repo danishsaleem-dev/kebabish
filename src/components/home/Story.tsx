@@ -6,9 +6,21 @@ import { menu } from "@/lib/menu-data";
 import { siteConfig } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
+import StoryVideo from "@/components/home/StoryVideo";
+import { getHeroVideoAvailability } from "@/lib/hero-video";
 
 export default async function Story({ locale }: { locale: string }) {
   const t = await getTranslations({ locale });
+
+  // Danish asked for the vertical hero clip here for now; the frame is
+  // portrait, so that variant fits it without cropping. Checked at build
+  // time like the hero's own, so a missing file just leaves the still.
+  const { mobile, web } = getHeroVideoAvailability();
+  const storyVideo = mobile
+    ? "/video/hero-mobile.mp4"
+    : web
+      ? "/video/hero-web.mp4"
+      : null;
 
   const stats = [
     { value: `${siteConfig.deliveryRadiusKm} km`, label: t("home.storyStat1Label") },
@@ -25,6 +37,10 @@ export default async function Story({ locale }: { locale: string }) {
             data-reveal="scale"
             className="relative aspect-4/5 overflow-hidden rounded-[1.75rem] bg-charcoal-800 sm:aspect-3/4"
           >
+            {/* The poster still is the server-rendered layer — a crawler, a
+                no-JS reader and anyone on a slow connection sees this — and
+                StoryVideo fades the clip in over it once the section is
+                near. Same still either way, so there is no visible swap. */}
             <Image
               src="/images/story/tandoor.jpg"
               alt={t("home.storyImageAlt1")}
@@ -33,7 +49,14 @@ export default async function Story({ locale }: { locale: string }) {
               data-parallax="0.06"
               className="scale-110 object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-charcoal-950/45 to-transparent" />
+            {storyVideo && (
+              <StoryVideo
+                src={storyVideo}
+                poster="/images/story/tandoor.jpg"
+                label={t("home.storyVideoLabel")}
+              />
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-charcoal-950/45 to-transparent" />
           </div>
 
           {/* Overlapping detail shot, hidden on the narrowest screens where

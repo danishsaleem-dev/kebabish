@@ -2,14 +2,14 @@ import { Building2, ExternalLink } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import SettingsForm from "@/components/admin/SettingsForm";
-import { getSettings } from "@/lib/admin/store";
+import { getSettings, listMedia } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
 
 export const metadata = { title: "Settings" };
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const settings = await getSettings();
+  const [settings, mediaLibrary] = await Promise.all([getSettings(), listMedia()]);
 
   const businessFacts = [
     { label: "Trading name", value: siteConfig.brandName },
@@ -59,7 +59,7 @@ export default async function SettingsPage() {
   return (
     <AdminShell title="Settings">
       <div className="mx-auto max-w-4xl space-y-4 sm:space-y-6">
-        <SettingsForm settings={settings} />
+        <SettingsForm settings={settings} mediaLibrary={mediaLibrary} />
 
         <Card>
           <div className="flex items-start gap-3">

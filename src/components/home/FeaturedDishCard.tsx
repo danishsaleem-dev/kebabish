@@ -9,6 +9,12 @@ import BrandLogo from "@/components/shared/BrandLogo";
  * A dish card. The whole card links to the item page — that's where extras
  * get chosen and the dish is added to the cart, so there's no separate
  * "add" action here to conflict with it.
+ *
+ * It sizes itself by **container** query, not viewport: the same card is two
+ * per row on a phone's menu grid (~160px wide) and full width on the
+ * homepage, and a media query can't tell those apart. Below ~16rem of its own
+ * width it tightens its padding and type and stacks the price above the
+ * button; above it, nothing changes from before.
  */
 export default function FeaturedDishCard({
   item,
@@ -36,18 +42,19 @@ export default function FeaturedDishCard({
   reveal?: boolean;
 }) {
   return (
-    <Link
-      href={`/menu/${item.slug}`}
-      data-reveal={reveal ? "" : undefined}
-      className="group flex flex-col overflow-hidden rounded-3xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[translate,box-shadow] duration-500 ease-brand hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10"
-    >
-      <div className="relative aspect-4/3 overflow-hidden bg-cream-300">
+    <div className="@container h-full">
+      <Link
+        href={`/menu/${item.slug}`}
+        data-reveal={reveal ? "" : undefined}
+        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[translate,box-shadow] duration-500 ease-brand hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10 @min-[16rem]:rounded-3xl"
+      >
+        <div className="relative aspect-4/3 overflow-hidden bg-cream-300">
         {item.image ? (
           <Image
             src={item.image}
             alt={item.name}
             fill
-            sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 90vw"
+            sizes="(min-width: 1280px) 25vw, (min-width: 640px) 45vw, 47vw"
             className="object-cover transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
           />
         ) : (
@@ -69,49 +76,52 @@ export default function FeaturedDishCard({
 
         {item.vegetarian && (
           <span
-            className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-cream-50/95 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-green-800 backdrop-blur-sm"
+            className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-cream-50/95 p-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-green-800 backdrop-blur-sm @min-[16rem]:left-3 @min-[16rem]:top-3 @min-[16rem]:px-2.5 @min-[16rem]:py-1"
             title={vegetarianLabel}
           >
             <Leaf size={12} />
-            {vegetarianLabel}
+            {/* The leaf alone carries it on a narrow card; the word would
+                crowd the photo. `title` keeps it reachable either way. */}
+            <span className="hidden @min-[16rem]:inline">{vegetarianLabel}</span>
           </span>
         )}
       </div>
 
-      <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-display text-lg font-semibold leading-snug text-charcoal-600">
-          {item.name}
-        </h3>
+        <div className="flex flex-1 flex-col p-3.5 @min-[16rem]:p-5">
+          <h3 className="font-display text-[0.95rem] font-semibold leading-snug text-charcoal-600 @min-[16rem]:text-lg">
+            {item.name}
+          </h3>
 
-        {item.variants.length > 0 && (
-          <p className="mt-1.5 line-clamp-2 text-sm leading-snug text-ink/55">
-            {item.variants.join(" · ")}
-          </p>
-        )}
-
-        <div className="mt-auto flex items-center justify-between gap-3 pt-5">
-          <span className="font-display text-sm font-semibold text-charcoal-500">
-            {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
-            {item.portion && (
-              <span className="ml-1.5 font-sans text-xs font-normal text-ink/50">
-                · {item.portion}
-              </span>
-            )}
-          </span>
-
-          {item.soldOut ? (
-            <Pill muted>{soldOutLabel}</Pill>
-          ) : isOpen ? (
-            <Pill>
-              <Plus size={14} />
-              {addLabel}
-            </Pill>
-          ) : (
-            <Pill muted>{unavailableLabel}</Pill>
+          {item.variants.length > 0 && (
+            <p className="mt-1 line-clamp-2 text-xs leading-snug text-ink/55 @min-[16rem]:mt-1.5 @min-[16rem]:text-sm">
+              {item.variants.join(" · ")}
+            </p>
           )}
+
+          <div className="mt-auto flex flex-col items-start gap-2 pt-3.5 @min-[16rem]:flex-row @min-[16rem]:items-center @min-[16rem]:justify-between @min-[16rem]:gap-3 @min-[16rem]:pt-5">
+            <span className="font-display text-sm font-semibold text-charcoal-500">
+              {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
+              {item.portion && (
+                <span className="ml-1.5 font-sans text-xs font-normal text-ink/50">
+                  · {item.portion}
+                </span>
+              )}
+            </span>
+
+            {item.soldOut ? (
+              <Pill muted>{soldOutLabel}</Pill>
+            ) : isOpen ? (
+              <Pill>
+                <Plus size={14} />
+                {addLabel}
+              </Pill>
+            ) : (
+              <Pill muted>{unavailableLabel}</Pill>
+            )}
+          </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
@@ -124,7 +134,7 @@ function Pill({
 }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2.5 text-xs font-semibold transition-colors duration-300 ${
+      className={`inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors duration-300 @min-[16rem]:w-auto @min-[16rem]:px-4 @min-[16rem]:py-2.5 ${
         muted
           ? "bg-charcoal-600/10 text-charcoal-500"
           : "bg-charcoal-600 text-cream-100 group-hover:bg-ember-600"

@@ -9,9 +9,10 @@ import {
   SubmitButton,
   Textarea,
 } from "@/components/admin/ui/Form";
+import GalleryField from "@/components/admin/media/GalleryField";
 import { updateSettingsAction } from "@/app/admin/(dashboard)/settings/actions";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
-import type { StoredSettings } from "@/lib/admin/store/types";
+import type { StoredMedia, StoredSettings } from "@/lib/admin/store/types";
 import { useToast } from "@/components/admin/ui/Toast";
 
 const EMPTY: FormState = { ok: false };
@@ -22,8 +23,11 @@ const DAY_NAMES = [
 
 export default function SettingsForm({
   settings,
+  mediaLibrary,
 }: {
   settings: StoredSettings;
+  /** The image library, for picking the homepage showcase photos. */
+  mediaLibrary: StoredMedia[];
 }) {
   const [state, formAction] = useActionState(updateSettingsAction, EMPTY);
   const e = state.errors ?? {};
@@ -408,6 +412,23 @@ export default function SettingsForm({
             accountant whether they must also carry the registered company name — if so, tick this.
           </p>
         </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Homepage photos"
+          subtitle="The photo showcase on the homepage. Pick as many or as few as you like — the first one is shown largest, and the section is hidden completely while this is empty."
+        />
+        <div className="mt-5">
+          <GalleryField
+            library={mediaLibrary}
+            name="galleryMediaIds"
+            initialIds={settings.galleryMediaIds ?? []}
+          />
+        </div>
+        <p className="mt-3 text-xs text-muted">
+          Drag to reorder. Visitors can click any photo to see it full size.
+        </p>
       </Card>
 
       <div className="flex items-center gap-3">

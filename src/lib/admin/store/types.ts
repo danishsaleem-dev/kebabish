@@ -173,6 +173,12 @@ export interface StoredSettings {
    * Empty = the normal automatic Mollie checkout.
    */
   paymentLinkUrl?: string;
+  /**
+   * Media ids for the homepage photo showcase, in display order. Empty (or
+   * absent) hides the section entirely rather than showing placeholders —
+   * see src/components/home/Showcase.tsx.
+   */
+  galleryMediaIds?: string[];
 }
 
 export interface StoredIngredient {

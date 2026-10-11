@@ -40,6 +40,12 @@ export interface PublicMenuItem {
   spicy: boolean;
   soldOut: boolean;
   image?: string;
+  /**
+   * Every uploaded photo of the dish, in admin order (the first is the
+   * featured one). A dish with no uploads has exactly one entry: the stock
+   * placeholder `image` falls back to, so the gallery never renders empty.
+   */
+  images: string[];
   /** Plain text; line breaks are meaningful. Empty when none was written. */
   description: string;
   /** Uploaded video URL, or "" for none. */
@@ -47,6 +53,16 @@ export interface PublicMenuItem {
   /** Everything this dish contains — manual flags plus its recipe's. */
   allergens: { id: string; label: string }[];
   optionGroups: PublicOptionGroup[];
+}
+
+/** A category as the homepage's category cards need it. */
+export interface PublicCategory {
+  id: string;
+  label: string;
+  description: string;
+  /** The category's own uploaded photo, else a dish's, else undefined. */
+  image?: string;
+  itemCount: number;
 }
 
 export interface PublicMenuCategory {
@@ -113,9 +129,11 @@ function toPublicItem(
 ): PublicMenuItem {
   const media = data.media ?? [];
   // An uploaded photo wins; otherwise the stock placeholder keyed by slug.
-  const uploaded = item.imageIds?.length
-    ? media.find((m) => m.id === item.imageIds[0])?.url
-    : undefined;
+  const uploaded = (item.imageIds ?? []).flatMap((id) => {
+    const url = media.find((m) => m.id === id)?.url;
+    return url ? [url] : [];
+  });
+  const fallback = dishImage(item.slug);
 
   return {
     slug: item.slug,
@@ -128,7 +146,8 @@ function toPublicItem(
     vegetarian: item.vegetarian,
     spicy: item.spicy,
     soldOut: item.soldOut,
-    image: uploaded ?? dishImage(item.slug),
+    image: uploaded[0] ?? fallback,
+    images: uploaded.length > 0 ? uploaded : fallback ? [fallback] : [],
     description: pick(locale, item.description ?? "", item.descriptionEn),
     videoUrl: item.videoUrl ?? "",
     allergens: allergensFor(item, data),
@@ -193,6 +212,67 @@ export async function getPublicItemSlugs(): Promise<string[]> {
   return data.items
     .filter((i) => i.visible && visibleCategories.has(i.categoryId))
     .map((i) => i.slug);
+}
+
+/**
+ * Categories for the homepage's category cards: visible, in menu order, and
+ * only ones that actually have something to show. The photo is the one set on
+ * the category in /admin; with none set it borrows the first dish photo in it,
+ * so a card is never a blank rectangle while Danish is still filling things in.
+ */
+export async function getPublicCategories(locale = "nl"): Promise<PublicCategory[]> {
+  const data = await read();
+  const media = data.media ?? [];
+
+  return [...data.categories]
+    .filter((c) => c.visible)
+    .sort((a, b) => a.position - b.position)
+    .map((category) => {
+      const items = data.items.filter(
+        (i) => i.categoryId === category.id && i.visible
+      );
+      const own = category.imageId
+        ? media.find((m) => m.id === category.imageId)?.url
+        : undefined;
+      const borrowed = items
+        .map((i) => toPublicItem(i, [], data, locale).image)
+        .find(Boolean);
+
+      return {
+        id: category.id,
+        label: pick(locale, category.label, category.labelEn),
+        description: category.description,
+        image: own ?? borrowed,
+        itemCount: items.length,
+      };
+    })
+    .filter((c) => c.itemCount > 0);
+}
+
+/**
+ * "More from this category" under a dish. Same category first, topped up from
+ * the rest of the menu when the category is too small to fill the row — an
+ * empty related strip is worse than one that reaches a little wider.
+ */
+export async function getRelatedItems(
+  slug: string,
+  locale = "nl",
+  limit = 4
+): Promise<PublicMenuItem[]> {
+  const categories = await getPublicMenu(locale);
+  const home = categories.find((c) => c.items.some((i) => i.slug === slug));
+
+  const sameCategory = (home?.items ?? []).filter((i) => i.slug !== slug);
+  const rest = categories
+    .filter((c) => c.id !== home?.id)
+    .flatMap((c) => c.items)
+    .filter((i) => i.slug !== slug);
+
+  // An orderable dish is a better suggestion than one that can't be bought.
+  const rank = (i: PublicMenuItem) => (i.soldOut ? 2 : i.price == null ? 1 : 0);
+  return [...sameCategory, ...rest]
+    .sort((a, b) => rank(a) - rank(b))
+    .slice(0, limit);
 }
 
 /**
