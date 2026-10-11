@@ -347,9 +347,23 @@ async function promoAlreadyUsedBy(
   return (data?.length ?? 0) > 0;
 }
 
-/** #KB-000000 — short enough to read down the phone. */
-function newReference(): string {
+/** The old random format, still used until migration 0016 has been run. */
+function legacyReference(): string {
   return `#KB-${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+/**
+ * KBB-2026-000123 — the next number from a per-year counter in the database
+ * (`next_order_reference()`, migration 0016). Falls back to the random legacy
+ * format if the function isn't there yet, so deploying before the migration
+ * doesn't stop anyone ordering. A real database error is not hidden: it
+ * throws, like any other failure to write an order.
+ */
+async function newReference(): Promise<string> {
+  const { data, error } = await supabaseAdmin().rpc("next_order_reference");
+  if (!error && typeof data === "string") return data;
+  if (error && error.code !== "PGRST202") throw new Error(error.message);
+  return legacyReference();
 }
 
 export interface CreateOrderInput {
@@ -400,7 +414,7 @@ export async function createOrder(input: CreateOrderInput) {
   // The reference is unique in the database; on the rare collision, try a
   // new one rather than failing someone's checkout.
   for (let attempt = 0; attempt < 5; attempt++) {
-    const reference = newReference();
+    const reference = await newReference();
 
     const { data, error } = await supabase
       .from("orders")

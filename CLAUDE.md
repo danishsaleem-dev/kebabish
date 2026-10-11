@@ -978,6 +978,15 @@ the hours list; migration `0013_slot_default_capacity.sql`):
 
 Not done yet from the spec: `is_test` order flag.
 
+### Order numbers (migration `0016_order_numbers.sql`)
+
+Orders are numbered `KBB-2026-000123`: a per-year counter (`order_counters`), bumped
+atomically by `next_order_reference()` — no `#`, so it is safe in URLs. Gaps are fine here
+(an abandoned checkout used its number); the *invoice* number is the gap-free one. Orders
+made before the migration keep their random `#KB-123456` reference — nothing is renamed and
+nothing parses the format. Until 0016 is run, `newReference()` falls back to the old random
+format (on `PGRST202`), so deploying first doesn't stop ordering.
+
 ### Error page and launch badge
 
 `[locale]/error.tsx` says "Online bestellen is tijdelijk niet beschikbaar. Bestel gerust via

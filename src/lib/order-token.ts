@@ -4,7 +4,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 /**
  * Proof-of-possession for an order's confirmation link.
  *
- * The order reference (#KB-123456) is only six random digits, so on its own
+ * The order reference (KBB-2026-000123) is a running number, so on its own
  * it is guessable — and the confirmation page shows the customer's name,
  * address and items. The link Mollie sends the customer back to therefore
  * carries a token derived from the reference with a server secret: nobody
