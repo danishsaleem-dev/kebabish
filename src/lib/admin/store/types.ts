@@ -27,6 +27,8 @@ export interface StoredMedia {
 export interface StoredCategory {
   id: string;
   label: string;
+  /** English name, if different from `label`. Empty/absent = same as `label`. */
+  labelEn?: string;
   description: string;
   /** Display order on the public menu; 1-based. */
   position: number;
@@ -37,7 +39,20 @@ export interface StoredCategory {
 
 export interface StoredItem {
   slug: string;
+  /**
+   * The name in the site's default language (Dutch). It is also what every
+   * order snapshots and what the kitchen reads, so it stays one language.
+   */
   name: string;
+  /** English name for /en pages. Empty/absent = show `name` there too. */
+  nameEn?: string;
+  /**
+   * Portion or quantity as the customer should see it — "500 g", "4 stuks".
+   * Free text, shown beside the price. Empty/absent = not shown.
+   */
+  portion?: string;
+  /** One of at most FEATURED_LIMIT dishes shown on the homepage. */
+  featured?: boolean;
   categoryId: string;
   price: number | null;
   variants: string[];
@@ -51,11 +66,12 @@ export interface StoredItem {
    */
   visible: boolean;
   /**
-   * Plain-text description for the dish's page (and its search snippet).
-   * Single language — whatever Danish types — like category labels; line
-   * breaks are kept. Empty string means none.
+   * Plain-text description for the dish's page (and its search snippet), in
+   * the default language; line breaks are kept. Empty string means none.
    */
   description: string;
+  /** English description for /en pages. Empty/absent = show `description`. */
+  descriptionEn?: string;
   /**
    * Public URL of an uploaded video in the `videos` storage bucket, or ""
    * for none. Kept off the image media library on purpose: that bucket is
@@ -82,6 +98,7 @@ export interface StoredItem {
 export interface StoredOption {
   id: string;
   label: string;
+  labelEn?: string;
   /** Surcharge in euros. 0 is free. */
   price: number;
 }
@@ -94,6 +111,7 @@ export interface StoredOption {
 export interface StoredOptionGroup {
   id: string;
   label: string;
+  labelEn?: string;
   /** 0 makes the group optional; 1+ forces a choice. */
   minChoices: number;
   /** 1 renders as radios, more as checkboxes capped at this many. */

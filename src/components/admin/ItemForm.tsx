@@ -76,17 +76,45 @@ export default function ItemForm({
           <FormError message={state.message} />
 
           <Card>
-            <Field label="Dish name" error={e.name}>
-              <Input
-                name="name"
-                defaultValue={item?.name}
-                placeholder="Chicken Biryani"
-                invalid={Boolean(e.name)}
-                required
-              />
-            </Field>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Dish name (Dutch)"
+                error={e.name}
+                hint="The main name. Orders and the kitchen always use this one."
+              >
+                <Input
+                  name="name"
+                  defaultValue={item?.name}
+                  placeholder="Kip Biryani"
+                  invalid={Boolean(e.name)}
+                  required
+                />
+              </Field>
+              <Field
+                label="Dish name (English)"
+                error={e.nameEn}
+                hint="Shown on the English site. Leave empty to use the Dutch name."
+              >
+                <Input
+                  name="nameEn"
+                  defaultValue={item?.nameEn ?? ""}
+                  placeholder="Chicken Biryani"
+                  invalid={Boolean(e.nameEn)}
+                />
+              </Field>
+            </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="Portion" error={e.portion} hint="Optional, e.g. 500 g or 4 stuks. Shown next to the price.">
+                <Input
+                  name="portion"
+                  defaultValue={item?.portion ?? ""}
+                  placeholder="500 g"
+                  maxLength={40}
+                  invalid={Boolean(e.portion)}
+                />
+              </Field>
+
               <Field label="Price (€)" error={e.price} hint='Leave empty to show "price on request".'>
                 <Input
                   name="price"
@@ -118,15 +146,29 @@ export default function ItemForm({
               title="Description"
               subtitle="Shown on the dish's page and in Google's search result. A sentence or two is plenty."
             />
-            <div className="mt-4">
-              <Field label="Description" error={e.description}>
+            <div className="mt-4 space-y-4">
+              <Field label="Description (Dutch)" error={e.description}>
                 <Textarea
                   name="description"
                   rows={4}
                   maxLength={1500}
                   defaultValue={item?.description ?? ""}
-                  placeholder="Slow-cooked chicken in a rich, spiced tomato and cream sauce, served with…"
+                  placeholder="Langzaam gegaard kippenvlees in een rijke, gekruide saus, geserveerd met…"
                   invalid={Boolean(e.description)}
+                />
+              </Field>
+              <Field
+                label="Description (English)"
+                error={e.descriptionEn}
+                hint="Leave empty to show the Dutch description on the English site."
+              >
+                <Textarea
+                  name="descriptionEn"
+                  rows={4}
+                  maxLength={1500}
+                  defaultValue={item?.descriptionEn ?? ""}
+                  placeholder="Slow-cooked chicken in a rich, spiced sauce, served with…"
+                  invalid={Boolean(e.descriptionEn)}
                 />
               </Field>
             </div>
@@ -303,6 +345,15 @@ export default function ItemForm({
               label="Show on website"
               defaultChecked={item?.visible ?? true}
             />
+            <Checkbox
+              name="featured"
+              form="item-form"
+              label="Featured on the homepage"
+              defaultChecked={item?.featured}
+            />
+            {e.featured && (
+              <p className="text-xs font-medium text-danger">{e.featured}</p>
+            )}
             <Checkbox
               name="vegetarian"
               form="item-form"

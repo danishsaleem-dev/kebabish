@@ -1,5 +1,6 @@
 import { readStore } from "@/lib/admin/store";
 import { isSellablePrice } from "@/lib/money";
+import { FEATURED_LIMIT } from "@/lib/featured";
 import { buildSeed } from "@/lib/admin/store/seed";
 import { dishImage } from "@/lib/dish-images";
 import type { StoreShape, StoredOptionGroup } from "@/lib/admin/store/types";
@@ -30,6 +31,9 @@ export interface PublicOptionGroup {
 export interface PublicMenuItem {
   slug: string;
   name: string;
+  /** "500 g", "4 stuks" — empty when the dish has none. */
+  portion: string;
+  featured: boolean;
   price: number | null;
   variants: string[];
   vegetarian: boolean;
@@ -48,8 +52,19 @@ export interface PublicMenuItem {
 export interface PublicMenuCategory {
   id: string;
   label: string;
+  /** True when `label` is an English name written in /admin (so it must win over built-in translations). */
+  labelIsCustom: boolean;
   description: string;
   items: PublicMenuItem[];
+}
+
+/**
+ * The text for one language: the English field when it's English and
+ * something was written there, otherwise the default (Dutch) text. Never
+ * empty because of a missing translation.
+ */
+function pick(locale: string, base: string, english?: string): string {
+  return locale === "en" && english?.trim() ? english : base;
 }
 
 async function read(): Promise<StoreShape> {
@@ -93,7 +108,8 @@ function allergensFor(
 function toPublicItem(
   item: StoreShape["items"][number],
   groups: StoredOptionGroup[],
-  data: StoreShape
+  data: StoreShape,
+  locale: string
 ): PublicMenuItem {
   const media = data.media ?? [];
   // An uploaded photo wins; otherwise the stock placeholder keyed by slug.
@@ -103,7 +119,9 @@ function toPublicItem(
 
   return {
     slug: item.slug,
-    name: item.name,
+    name: pick(locale, item.name, item.nameEn),
+    portion: item.portion?.trim() ?? "",
+    featured: Boolean(item.featured),
     // A placeholder price must never look (or be) purchasable.
     price: isSellablePrice(item.price) ? item.price : null,
     variants: item.variants ?? [],
@@ -111,7 +129,7 @@ function toPublicItem(
     spicy: item.spicy,
     soldOut: item.soldOut,
     image: uploaded ?? dishImage(item.slug),
-    description: item.description ?? "",
+    description: pick(locale, item.description ?? "", item.descriptionEn),
     videoUrl: item.videoUrl ?? "",
     allergens: allergensFor(item, data),
     optionGroups: (item.optionGroupIds ?? [])
@@ -119,19 +137,19 @@ function toPublicItem(
       .filter((g): g is StoredOptionGroup => Boolean(g))
       .map((g) => ({
         id: g.id,
-        label: g.label,
+        label: pick(locale, g.label, g.labelEn),
         minChoices: g.minChoices,
         maxChoices: g.maxChoices,
         options: g.options.map((o) => ({
           id: o.id,
-          label: o.label,
+          label: pick(locale, o.label, o.labelEn),
           price: o.price,
         })),
       })),
   };
 }
 
-export async function getPublicMenu(): Promise<PublicMenuCategory[]> {
+export async function getPublicMenu(locale = "nl"): Promise<PublicMenuCategory[]> {
   const data = await read();
 
   return [...data.categories]
@@ -139,16 +157,17 @@ export async function getPublicMenu(): Promise<PublicMenuCategory[]> {
     .sort((a, b) => a.position - b.position)
     .map((category) => ({
       id: category.id,
-      label: category.label,
+      label: pick(locale, category.label, category.labelEn),
+      labelIsCustom: locale === "en" && Boolean(category.labelEn?.trim()),
       description: category.description,
       items: data.items
         .filter((i) => i.categoryId === category.id && i.visible)
-        .map((i) => toPublicItem(i, data.optionGroups ?? [], data)),
+        .map((i) => toPublicItem(i, data.optionGroups ?? [], data, locale)),
     }))
     .filter((c) => c.items.length > 0);
 }
 
-export async function getPublicItem(slug: string): Promise<{
+export async function getPublicItem(slug: string, locale = "nl"): Promise<{
   item: PublicMenuItem;
   category: { id: string; label: string };
 } | null> {
@@ -160,8 +179,8 @@ export async function getPublicItem(slug: string): Promise<{
   if (!category?.visible) return null;
 
   return {
-    item: toPublicItem(item, data.optionGroups ?? [], data),
-    category: { id: category.id, label: category.label },
+    item: toPublicItem(item, data.optionGroups ?? [], data, locale),
+    category: { id: category.id, label: pick(locale, category.label, category.labelEn) },
   };
 }
 
@@ -174,4 +193,20 @@ export async function getPublicItemSlugs(): Promise<string[]> {
   return data.items
     .filter((i) => i.visible && visibleCategories.has(i.categoryId))
     .map((i) => i.slug);
+}
+
+/**
+ * The homepage's dishes: the ones flagged "featured" in the admin, in menu
+ * order, at most FEATURED_LIMIT. Nothing flagged yet falls back to the first
+ * dishes on the menu rather than leaving the section empty — and only ones
+ * that can actually be ordered lead the fallback, so a "price on request"
+ * dish isn't the showcase.
+ */
+export async function getFeaturedItems(locale = "nl"): Promise<PublicMenuItem[]> {
+  const all = (await getPublicMenu(locale)).flatMap((c) => c.items);
+  const featured = all.filter((i) => i.featured).slice(0, FEATURED_LIMIT);
+  if (featured.length > 0) return featured;
+  return [...all]
+    .sort((a, b) => Number(b.price != null) - Number(a.price != null))
+    .slice(0, FEATURED_LIMIT);
 }

@@ -33,15 +33,29 @@ export default function CategoryForm({
       {category && <input type="hidden" name="id" value={category.id} />}
       <FormError message={state.message} />
 
-      <Field label="Category name" error={e.label}>
-        <Input
-          name="label"
-          defaultValue={category?.label}
-          placeholder="Main Dishes"
-          invalid={Boolean(e.label)}
-          required
-        />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Category name (Dutch)" error={e.label}>
+          <Input
+            name="label"
+            defaultValue={category?.label}
+            placeholder="Rijstgerechten"
+            invalid={Boolean(e.label)}
+            required
+          />
+        </Field>
+        <Field
+          label="Category name (English)"
+          hint="Leave empty to use the Dutch name."
+          error={e.labelEn}
+        >
+          <Input
+            name="labelEn"
+            defaultValue={category?.labelEn ?? ""}
+            placeholder="Rice dishes"
+            invalid={Boolean(e.labelEn)}
+          />
+        </Field>
+      </div>
 
       <Field
         label="Description"

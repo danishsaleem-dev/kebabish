@@ -92,6 +92,11 @@ export default function FeaturedDishCard({
         <div className="mt-auto flex items-center justify-between gap-3 pt-5">
           <span className="font-display text-sm font-semibold text-charcoal-500">
             {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
+            {item.portion && (
+              <span className="ml-1.5 font-sans text-xs font-normal text-ink/50">
+                · {item.portion}
+              </span>
+            )}
           </span>
 
           {item.soldOut ? (

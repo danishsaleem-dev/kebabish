@@ -4,17 +4,7 @@ import { Link } from "@/i18n/navigation";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
-import { getPublicMenu } from "@/lib/public-menu";
-
-/** The dishes shown on the homepage, in order, when they're on the menu. */
-const FEATURED = [
-  "chicken-biryani",
-  "chicken-chapli-kebab",
-  "chicken-shoarma",
-  "zinger-burger",
-  "qeema-naan",
-  "milk-shake",
-];
+import { getFeaturedItems } from "@/lib/public-menu";
 
 export default async function Popular({
   locale,
@@ -24,15 +14,8 @@ export default async function Popular({
   isOpen: boolean;
 }) {
   const t = await getTranslations({ locale });
-  const menu = await getPublicMenu();
-  const all = menu.flatMap((c) => c.items);
-
-  // Fall back to whatever's on the menu if a featured dish was renamed or
-  // removed in /admin — an empty section would look broken.
-  const dishes = FEATURED.map((slug) => all.find((i) => i.slug === slug))
-    .filter((item) => item != null)
-    .concat(all.filter((i) => !FEATURED.includes(i.slug)))
-    .slice(0, 6);
+  // The dishes flagged "featured" in /admin (at most four), not a list in code.
+  const dishes = await getFeaturedItems(locale);
 
   return (
     <section className="grain bg-cream-100 py-20 sm:py-28 lg:py-32">
@@ -54,7 +37,9 @@ export default async function Popular({
 
         <div
           data-reveal-group
-          className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3"
+          className={`mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 ${
+            dishes.length >= 4 ? "lg:grid-cols-4" : dishes.length === 3 ? "lg:grid-cols-3" : ""
+          }`}
         >
           {dishes.map((item) => (
             <FeaturedDishCard

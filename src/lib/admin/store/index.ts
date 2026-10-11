@@ -191,6 +191,27 @@ export async function updateItem(
   });
 }
 
+/**
+ * Move a dish one step up or down *within its category*. The public menu
+ * shows dishes in array order, so reordering is just swapping with the
+ * nearest neighbour that shares the category — no separate position field
+ * to keep in step.
+ */
+export async function moveItem(slug: string, direction: "up" | "down") {
+  return mutate((data) => {
+    const index = data.items.findIndex((i) => i.slug === slug);
+    if (index === -1) return;
+    const categoryId = data.items[index].categoryId;
+    const step = direction === "up" ? -1 : 1;
+    for (let j = index + step; j >= 0 && j < data.items.length; j += step) {
+      if (data.items[j].categoryId === categoryId) {
+        [data.items[index], data.items[j]] = [data.items[j], data.items[index]];
+        return;
+      }
+    }
+  });
+}
+
 export async function deleteItem(slug: string) {
   return mutate((data) => {
     data.items = data.items.filter((i) => i.slug !== slug);

@@ -6,7 +6,7 @@ import Card, { CardHeader } from "@/components/admin/ui/Card";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 import type { StoredOptionGroup } from "@/lib/admin/store/types";
 
-type Draft = { label: string; price: string };
+type Draft = { label: string; labelEn: string; price: string };
 
 /**
  * Create/edit one group of extras.
@@ -30,8 +30,12 @@ export default function OptionGroupForm({
 
   const [options, setOptions] = useState<Draft[]>(
     group?.options.length
-      ? group.options.map((o) => ({ label: o.label, price: String(o.price) }))
-      : [{ label: "", price: "0" }]
+      ? group.options.map((o) => ({
+          label: o.label,
+          labelEn: o.labelEn ?? "",
+          price: String(o.price),
+        }))
+      : [{ label: "", labelEn: "", price: "0" }]
   );
 
   const update = (i: number, patch: Partial<Draft>) =>
@@ -42,7 +46,11 @@ export default function OptionGroupForm({
   const serialised = JSON.stringify(
     options
       .filter((o) => o.label.trim() !== "")
-      .map((o) => ({ label: o.label.trim(), price: Number(o.price || 0) }))
+      .map((o) => ({
+        label: o.label.trim(),
+        labelEn: o.labelEn.trim(),
+        price: Number(o.price || 0),
+      }))
   );
 
   return (
@@ -57,14 +65,28 @@ export default function OptionGroupForm({
         />
 
         <div className="mt-4 space-y-4">
-          <Field label="Group name" error={state.errors?.label}>
-            <input
-              name="label"
-              defaultValue={group?.label}
-              placeholder="Sauces"
-              className="h-10 w-full rounded-lg border border-hairline bg-panel px-3 text-sm text-heading focus:border-ember-500 focus:outline-none"
-            />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Group name (Dutch)" error={state.errors?.label}>
+              <input
+                name="label"
+                defaultValue={group?.label}
+                placeholder="Sauzen"
+                className="h-10 w-full rounded-lg border border-hairline bg-panel px-3 text-sm text-heading focus:border-ember-500 focus:outline-none"
+              />
+            </Field>
+            <Field
+              label="Group name (English)"
+              hint="Leave empty to use the Dutch name."
+              error={state.errors?.labelEn}
+            >
+              <input
+                name="labelEn"
+                defaultValue={group?.labelEn ?? ""}
+                placeholder="Sauces"
+                className="h-10 w-full rounded-lg border border-hairline bg-panel px-3 text-sm text-heading focus:border-ember-500 focus:outline-none"
+              />
+            </Field>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
@@ -104,12 +126,12 @@ export default function OptionGroupForm({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <CardHeader
             title="Options"
-            subtitle="Leave a price at 0 for a free choice."
+            subtitle="Dutch name, English name (optional) and surcharge. A price of 0 is a free choice."
           />
           <button
             type="button"
             onClick={() =>
-              setOptions((prev) => [...prev, { label: "", price: "0" }])
+              setOptions((prev) => [...prev, { label: "", labelEn: "", price: "0" }])
             }
             className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-2 text-xs font-semibold text-heading transition-colors hover:border-ember-500 hover:text-ember-600"
           >
@@ -124,13 +146,20 @@ export default function OptionGroupForm({
 
         <ul className="mt-4 space-y-2">
           {options.map((option, i) => (
-            <li key={i} className="flex items-center gap-2">
+            <li key={i} className="flex flex-wrap items-center gap-2">
               <input
                 value={option.label}
                 onChange={(e) => update(i, { label: e.target.value })}
-                placeholder="Garlic sauce"
-                aria-label={`Option ${i + 1} name`}
-                className="h-10 flex-1 rounded-lg border border-hairline bg-panel px-3 text-sm text-heading focus:border-ember-500 focus:outline-none"
+                placeholder="Knoflooksaus"
+                aria-label={`Option ${i + 1} name (Dutch)`}
+                className="h-10 min-w-0 flex-1 basis-40 rounded-lg border border-hairline bg-panel px-3 text-sm text-heading focus:border-ember-500 focus:outline-none"
+              />
+              <input
+                value={option.labelEn}
+                onChange={(e) => update(i, { labelEn: e.target.value })}
+                placeholder="Garlic sauce (English)"
+                aria-label={`Option ${i + 1} name (English)`}
+                className="h-10 min-w-0 flex-1 basis-40 rounded-lg border border-hairline bg-panel px-3 text-sm text-heading focus:border-ember-500 focus:outline-none"
               />
               <div className="flex items-center gap-1.5">
                 <span className="text-sm text-muted">€</span>

@@ -25,7 +25,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string; slug: string }>;
 }): Promise<Metadata> {
   const { locale, slug } = await params;
-  const found = await getPublicItem(slug);
+  const found = await getPublicItem(slug, locale);
   if (!found) return {};
 
   const { item } = found;
@@ -50,7 +50,7 @@ export default async function ItemPage({
   params: Promise<{ locale: string; slug: string }>;
 }) {
   const { locale, slug } = await params;
-  const found = await getPublicItem(slug);
+  const found = await getPublicItem(slug, locale);
   if (!found) notFound();
 
   const { item, category } = found;
@@ -217,6 +217,9 @@ function ItemHeading({
         <span className="font-display text-2xl font-semibold text-charcoal-600">
           {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
         </span>
+        {item.portion && (
+          <span className="text-sm text-ink/55">{item.portion}</span>
+        )}
 
         {item.vegetarian && (
           <Tag>

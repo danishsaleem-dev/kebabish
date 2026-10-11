@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { CheckCircle2, Clock, MapPin, UserPlus, LogIn, XCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { getInvoiceNumber, getOrderByReference, syncPaymentStatus } from "@/lib/orders";
+import { getInvoiceNumber, getOrderByReference, localizeLineNames, syncPaymentStatus } from "@/lib/orders";
 import { getPayment } from "@/lib/mollie";
 import { isValidOrderToken } from "@/lib/order-token";
 import { formatEuro, fromCents, vatIncludedCents } from "@/lib/money";
@@ -48,6 +48,7 @@ export default async function CheckoutCompletePage({
   const tCart = await getTranslations({ locale, namespace: "cart" });
   const order = await getOrderByReference(ref);
   if (!order) notFound();
+  const receiptLines = await localizeLineNames(order.lines, locale);
   const settings = await getPublicSettings();
   const vatRate = settings.vatRatePercent ?? null;
   const tFooter = await getTranslations({ locale, namespace: "footer" });
@@ -203,7 +204,7 @@ export default async function CheckoutCompletePage({
             {t("receiptItems")}
           </p>
           <ul className="mt-3 space-y-3 text-sm">
-            {order.lines.map((line, i) => (
+            {receiptLines.map((line, i) => (
               <li key={i} className="flex justify-between gap-3">
                 <span className="text-ink/75">
                   {line.quantity}× {line.name}

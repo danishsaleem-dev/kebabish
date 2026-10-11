@@ -855,7 +855,28 @@ queries read its columns):
   Call / WhatsApp / Navigate buttons (`lib/phone.ts`). Still no order total —
   deliberate.
 
-Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, bilingual dish fields, featured/sort/portion, password reset, marketing opt-in, saved addresses, promo-code extras, slot settings.
+**Menu content (bilingual names, portion, featured, order)** — all optional
+fields in the JSONB store document, so no migration:
+
+- **Dutch is the default, English is an override.** `name`/`description`/
+  category `label`/extras `label` are the default (Dutch) text; `nameEn`,
+  `descriptionEn`, `labelEn` are used on `/en` *only when filled in*,
+  otherwise the Dutch text shows — a missing translation never leaves a blank.
+  `public-menu.ts` does this in one place (`pick()`), and the public
+  functions take a `locale`. **Orders always snapshot the default (Dutch)
+  name** — it's what the kitchen reads — and `localizeLineNames()` swaps in
+  the English name only for the customer-facing receipt and confirmation email.
+- **`portion`** is free text ("500 g", "4 stuks") shown beside the price.
+- **Featured** (`featured`, at most `FEATURED_LIMIT` = 4, enforced in the
+  create/update actions) replaces the old hard-coded slug list in
+  `Popular.tsx`; with none flagged, the homepage falls back to the first
+  orderable dishes.
+- **Dish order** is the order of `store.items` within a category (that's what
+  the public menu already used) — `moveItem()` swaps with the nearest dish of
+  the same category, driven by the arrows in the admin items table ("Menu
+  order" is its default sort and the only one the arrows work in).
+
+Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, password reset, marketing opt-in, saved addresses, promo-code extras, slot settings.
 
 ### Allergens are user-extendable
 

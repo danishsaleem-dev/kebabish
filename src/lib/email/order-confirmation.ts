@@ -4,7 +4,7 @@ import { siteConfig } from "@/lib/site-config";
 import { fromCents, vatIncludedCents } from "@/lib/money";
 import { getPublicSettings } from "@/lib/admin/store";
 import { orderAccessToken } from "@/lib/order-token";
-import { getInvoiceNumber, type OrderSummary } from "@/lib/orders";
+import { getInvoiceNumber, localizeLineNames, type OrderSummary } from "@/lib/orders";
 
 /**
  * The customer's copy of a paid order. Sent from the same single place as
@@ -223,13 +223,14 @@ export async function sendOrderConfirmationEmail(
   try {
     const settings = await getPublicSettings();
     const invoiceNumber = await getInvoiceNumber(order.reference);
+    const localized = { ...order, lines: await localizeLineNames(order.lines, lang) };
     const resend = new Resend(apiKey);
     const { error } = await resend.emails.send({
       from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
       to: order.customerEmail,
       subject: COPY[lang].subject(order.reference),
       html: html(
-        order,
+        localized,
         lang,
         settings.vatRatePercent ?? null,
         settings.vatNumber || undefined,

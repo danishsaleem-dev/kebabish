@@ -18,6 +18,8 @@ import {
   deleteRecipe,
   getItem,
   moveCategory,
+  moveItem,
+  listItems,
   saveRecipe,
   slugify,
   updateAllergen,
@@ -29,6 +31,7 @@ import {
 import type { IngredientGroup } from "@/lib/admin/ingredients";
 import type { Unit } from "@/lib/admin/units";
 import { MIN_DISH_PRICE } from "@/lib/money";
+import { FEATURED_LIMIT } from "@/lib/featured";
 import { flashRedirect } from "@/lib/admin/flash";
 import { deleteVideoByUrl, isOwnVideoUrl } from "@/lib/admin/videos";
 
@@ -83,6 +86,7 @@ function refreshMenu() {
 
 const categorySchema = z.object({
   label: z.string().trim().min(2, "Give the category a name."),
+  labelEn: z.string().trim().max(60, "Keep this under 60 characters.").default(""),
   description: z.string().trim().max(200, "Keep this under 200 characters.").default(""),
   visible: z.boolean(),
   imageId: z.string().trim().optional(),
@@ -95,6 +99,7 @@ export async function createCategoryAction(
   await requireRole(OWNER_STAFF);
   const parsed = categorySchema.safeParse({
     label: formData.get("label"),
+    labelEn: formData.get("labelEn") ?? "",
     description: formData.get("description") ?? "",
     visible: formData.get("visible") === "on",
     imageId: String(formData.get("imageId") ?? "") || undefined,
@@ -117,6 +122,7 @@ export async function updateCategoryAction(
   const id = String(formData.get("id") ?? "");
   const parsed = categorySchema.safeParse({
     label: formData.get("label"),
+    labelEn: formData.get("labelEn") ?? "",
     description: formData.get("description") ?? "",
     visible: formData.get("visible") === "on",
     // Empty string means "cleared", so it must overwrite rather than be dropped.
@@ -165,6 +171,9 @@ export async function moveCategoryAction(formData: FormData): Promise<void> {
 
 const itemSchema = z.object({
   name: z.string().trim().min(2, "Give the dish a name."),
+  nameEn: z.string().trim().max(80, "Keep the English name under 80 characters.").default(""),
+  portion: z.string().trim().max(40, "Keep the portion short, e.g. 500 g.").default(""),
+  featured: z.boolean(),
   categoryId: z.string().trim().min(1, "Pick a category."),
   price: z
     .union([
@@ -185,6 +194,11 @@ const itemSchema = z.object({
       v.split(",").map((s) => s.trim()).filter(Boolean)
     ),
   description: z
+    .string()
+    .default("")
+    .transform((v) => v.trim())
+    .pipe(z.string().max(1500, "Keep the description under 1500 characters.")),
+  descriptionEn: z
     .string()
     .default("")
     .transform((v) => v.trim())
@@ -212,6 +226,10 @@ const itemSchema = z.object({
 function readItemForm(formData: FormData) {
   return itemSchema.safeParse({
     name: formData.get("name"),
+    nameEn: formData.get("nameEn") ?? "",
+    portion: formData.get("portion") ?? "",
+    featured: formData.get("featured") === "on",
+    descriptionEn: formData.get("descriptionEn") ?? "",
     categoryId: formData.get("categoryId"),
     price: formData.get("price") ?? "",
     variants: formData.get("variants") ?? "",
@@ -231,6 +249,26 @@ function readItemForm(formData: FormData) {
   });
 }
 
+/**
+ * At most FEATURED_LIMIT dishes can be featured — the homepage has room for
+ * that many. Counted over every *other* dish, so re-saving an already
+ * featured dish never trips it.
+ */
+async function featuredLimitError(
+  featured: boolean,
+  exceptSlug?: string
+): Promise<Record<string, string> | null> {
+  if (!featured) return null;
+  const others = (await listItems()).filter(
+    (i) => i.featured && i.slug !== exceptSlug
+  ).length;
+  return others >= FEATURED_LIMIT
+    ? {
+        featured: `Only ${FEATURED_LIMIT} dishes can be featured on the homepage — untick another one first.`,
+      }
+    : null;
+}
+
 export async function createItemAction(
   _prev: FormState,
   formData: FormData
@@ -238,6 +276,8 @@ export async function createItemAction(
   await requireRole(OWNER_STAFF_MANAGER);
   const parsed = readItemForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+  const tooMany = await featuredLimitError(parsed.data.featured);
+  if (tooMany) return { ok: false, errors: tooMany };
 
   const item = await createItem(parsed.data);
   refreshMenu();
@@ -254,6 +294,8 @@ export async function updateItemAction(
   const slug = String(formData.get("slug") ?? "");
   const parsed = readItemForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+  const tooMany = await featuredLimitError(parsed.data.featured, slug);
+  if (tooMany) return { ok: false, errors: tooMany };
 
   const previous = await getItem(slug);
   const item = await updateItem(slug, parsed.data);
@@ -279,6 +321,15 @@ export async function deleteItemAction(
   await deleteVideoByUrl(previous?.videoUrl);
   refreshMenu();
   redirect(flashRedirect("/admin/menu", "Dish deleted."));
+}
+
+/** Up/down arrows in the items table — reorders within the dish's category. */
+export async function moveItemAction(formData: FormData): Promise<void> {
+  await requireRole(OWNER_STAFF_MANAGER);
+  const slug = String(formData.get("slug") ?? "");
+  const direction = formData.get("direction") === "up" ? "up" : "down";
+  await moveItem(slug, direction);
+  refreshMenu();
 }
 
 /** Inline "show on website" toggle in the items table — no full edit needed. */
@@ -516,6 +567,7 @@ export async function deleteRecipeAction(
 
 const optionSchema = z.object({
   label: z.string().trim().min(1, "Every option needs a name."),
+  labelEn: z.string().trim().max(60).default(""),
   price: z.coerce
     .number()
     .min(0, "A surcharge can't be negative.")
@@ -525,6 +577,7 @@ const optionSchema = z.object({
 const optionGroupSchema = z
   .object({
     label: z.string().trim().min(2, "Give the group a name."),
+    labelEn: z.string().trim().max(60, "Keep this under 60 characters.").default(""),
     minChoices: z.coerce.number().int().min(0).max(20),
     maxChoices: z.coerce.number().int().min(1).max(20),
     options: z.array(optionSchema).min(1, "Add at least one option."),
@@ -555,6 +608,7 @@ function readOptionGroupForm(formData: FormData) {
 
   return optionGroupSchema.safeParse({
     label: formData.get("label"),
+    labelEn: formData.get("labelEn") ?? "",
     minChoices: formData.get("minChoices") ?? 0,
     maxChoices: formData.get("maxChoices") ?? 1,
     options,
@@ -562,7 +616,7 @@ function readOptionGroupForm(formData: FormData) {
 }
 
 /** Stable, readable option ids, unique inside their group. */
-function withOptionIds(options: { label: string; price: number }[]) {
+function withOptionIds(options: { label: string; labelEn: string; price: number }[]) {
   const taken: string[] = [];
   return options.map((o) => {
     const base = slugify(o.label) || "option";
@@ -570,7 +624,7 @@ function withOptionIds(options: { label: string; price: number }[]) {
     let n = 2;
     while (taken.includes(id)) id = `${base}-${n++}`;
     taken.push(id);
-    return { id, label: o.label, price: o.price };
+    return { id, label: o.label, labelEn: o.labelEn, price: o.price };
   });
 }
 

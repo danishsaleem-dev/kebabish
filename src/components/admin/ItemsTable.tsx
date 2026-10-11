@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowDown,
+  ArrowUp,
   ChevronsUpDown,
   Eye,
   EyeOff,
@@ -10,6 +12,7 @@ import {
   Leaf,
   Pencil,
   Search,
+  Star,
 } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
 import Dropdown from "@/components/admin/ui/Dropdown";
@@ -17,6 +20,7 @@ import DeleteButton from "@/components/admin/ui/DeleteButton";
 import { formatMoney } from "@/lib/admin/units";
 import {
   deleteItemAction,
+  moveItemAction,
   toggleItemVisibilityAction,
 } from "@/app/admin/(dashboard)/menu/actions";
 import type { StoredCategory, StoredItem } from "@/lib/admin/store/types";
@@ -27,7 +31,7 @@ export interface ItemRow {
   costPerPortion: number | null;
 }
 
-type SortKey = "name" | "category" | "price" | "cost";
+type SortKey = "order" | "name" | "category" | "price" | "cost";
 
 export default function ItemsTable({
   rows,
@@ -42,8 +46,30 @@ export default function ItemsTable({
   const [visibility, setVisibility] = useState<"all" | "visible" | "hidden">(
     "all"
   );
-  const [sort, setSort] = useState<SortKey>("name");
+  // "order" is the real menu order — what customers see — and the only
+  // sort the up/down arrows make sense in.
+  const [sort, setSort] = useState<SortKey>("order");
   const [desc, setDesc] = useState(false);
+
+  // Position in the store's array = position on the public menu, within a
+  // category. First/last per category decides which arrows are live.
+  const orderIndex = useMemo(
+    () => new Map(rows.map((r, i) => [r.item.slug, i])),
+    [rows]
+  );
+  const categoryPosition = useMemo(
+    () => new Map(categories.map((c) => [c.id, c.position])),
+    [categories]
+  );
+  const edges = useMemo(() => {
+    const first = new Map<string, string>();
+    const last = new Map<string, string>();
+    for (const { item } of rows) {
+      if (!first.has(item.categoryId)) first.set(item.categoryId, item.slug);
+      last.set(item.categoryId, item.slug);
+    }
+    return { first, last };
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -53,12 +79,22 @@ export default function ItemsTable({
       if (visibility === "visible" && !item.visible) return false;
       if (visibility === "hidden" && item.visible) return false;
       if (!q) return true;
-      return item.name.toLowerCase().includes(q);
+      return (
+        item.name.toLowerCase().includes(q) ||
+        (item.nameEn ?? "").toLowerCase().includes(q)
+      );
     });
 
     return [...rowsFiltered].sort((a, b) => {
       const dir = desc ? -1 : 1;
       switch (sort) {
+        case "order":
+          return (
+            ((categoryPosition.get(a.item.categoryId) ?? 0) -
+              (categoryPosition.get(b.item.categoryId) ?? 0) ||
+              (orderIndex.get(a.item.slug) ?? 0) - (orderIndex.get(b.item.slug) ?? 0)) *
+            dir
+          );
         case "category":
           return a.categoryLabel.localeCompare(b.categoryLabel) * dir;
         case "price":
@@ -69,7 +105,7 @@ export default function ItemsTable({
           return a.item.name.localeCompare(b.item.name) * dir;
       }
     });
-  }, [rows, query, categoryId, visibility, sort, desc]);
+  }, [rows, query, categoryId, visibility, sort, desc, categoryPosition, orderIndex]);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDesc((d) => !d);
@@ -130,9 +166,12 @@ export default function ItemsTable({
       </div>
 
       <div className="overflow-x-auto border-t border-hairline">
-        <table className="w-full min-w-[880px] border-collapse text-left">
+        <table className="w-full min-w-[960px] border-collapse text-left">
           <thead>
             <tr className="bg-canvas/60">
+              <Th sortKey="order" {...{ sort, desc, toggleSort }}>
+                Menu order
+              </Th>
               <Th sortKey="name" {...{ sort, desc, toggleSort }}>
                 Dish
               </Th>
@@ -159,9 +198,48 @@ export default function ItemsTable({
                 onClick={() => router.push(`/admin/menu/items/${item.slug}/edit`)}
                 className="cursor-pointer transition-colors hover:bg-canvas/60"
               >
+                <td
+                  className="w-24 px-4 py-4"
+                  onClick={(ev) => ev.stopPropagation()}
+                >
+                  {sort === "order" && !desc ? (
+                    <div className="flex items-center gap-1">
+                      {(["up", "down"] as const).map((direction) => {
+                        const atEdge =
+                          (direction === "up" ? edges.first : edges.last).get(
+                            item.categoryId
+                          ) === item.slug;
+                        const Icon = direction === "up" ? ArrowUp : ArrowDown;
+                        return (
+                          <form action={moveItemAction} key={direction}>
+                            <input type="hidden" name="slug" value={item.slug} />
+                            <input type="hidden" name="direction" value={direction} />
+                            <button
+                              type="submit"
+                              disabled={atEdge}
+                              aria-label={`Move ${item.name} ${direction} within its category`}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-heading disabled:opacity-25 disabled:hover:bg-transparent disabled:hover:text-muted"
+                            >
+                              <Icon size={15} />
+                            </button>
+                          </form>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-faint">—</span>
+                  )}
+                </td>
                 <td className="px-5 py-4 sm:px-6">
                   <p className="flex items-center gap-2 text-sm font-semibold text-heading">
                     {item.name}
+                    {item.featured && (
+                      <Star
+                        size={14}
+                        className="shrink-0 fill-ember-600 text-ember-600"
+                        aria-label="Featured on the homepage"
+                      />
+                    )}
                     {item.vegetarian && (
                       <Leaf size={14} className="shrink-0 text-success" />
                     )}

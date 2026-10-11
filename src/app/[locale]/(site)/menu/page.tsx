@@ -32,13 +32,15 @@ export default async function MenuPage({
   const t = await getTranslations({ locale, namespace: "menu" });
   const [settings, menu] = await Promise.all([
     getPublicSettings(),
-    getPublicMenu(),
+    getPublicMenu(locale),
   ]);
   const { isOpen } = getStoreStatus(settings);
 
   const categories = menu.map((category) => ({
     ...category,
-    label: resolveCategoryLabel(category.id, category.label, t),
+    label: category.labelIsCustom
+      ? category.label
+      : resolveCategoryLabel(category.id, category.label, t),
   }));
 
   return (

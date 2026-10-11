@@ -686,6 +686,7 @@ export async function markOrderPaymentFailed(id: string) {
 }
 
 export interface ReceiptLine {
+  slug: string;
   name: string;
   quantity: number;
   unitPriceCents: number;
@@ -729,7 +730,7 @@ const ORDER_SELECT =
   "address_street, address_postcode, address_city, notes, subtotal_cents, " +
   "discount_cents, promo_code, delivery_fee_cents, " +
   "delivery_date, delivery_slot_start, delivery_slot_end, " +
-  "order_items(name, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "order_items(item_slug, name, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 interface OrderRow {
   id: string;
@@ -758,6 +759,7 @@ interface OrderRow {
   delivery_slot_end: string | null;
   order_items:
     | {
+        item_slug: string;
         name: string;
         quantity: number;
         unit_price_cents: number;
@@ -795,6 +797,7 @@ function mapOrderRow(row: OrderRow): OrderSummary {
     deliverySlotStart: row.delivery_slot_start,
     deliverySlotEnd: row.delivery_slot_end,
     lines: (row.order_items ?? []).map((l) => ({
+      slug: l.item_slug,
       name: l.name,
       quantity: l.quantity,
       unitPriceCents: l.unit_price_cents,
@@ -857,4 +860,27 @@ export async function listCustomerOrders(
 
   if (error) throw new Error(error.message);
   return (data ?? []).map((row) => mapOrderRow(row as unknown as OrderRow));
+}
+
+/**
+ * The dish names for a customer-facing receipt or email, in their language.
+ *
+ * Order lines snapshot the Dutch name — it's what the kitchen reads, and it
+ * keeps a past order saying what it said. An English customer's receipt
+ * should still read in English, so names are looked up again by slug and
+ * swapped for the English name where one exists. A dish that's since been
+ * deleted just keeps its snapshot.
+ */
+export async function localizeLineNames(
+  lines: ReceiptLine[],
+  locale: string
+): Promise<ReceiptLine[]> {
+  if (locale !== "en") return lines;
+  try {
+    const { items } = await readStore();
+    const english = new Map(items.map((i) => [i.slug, i.nameEn?.trim()]));
+    return lines.map((l) => ({ ...l, name: english.get(l.slug) || l.name }));
+  } catch {
+    return lines;
+  }
 }
