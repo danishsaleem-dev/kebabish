@@ -8,6 +8,7 @@ import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { siteConfig } from "@/lib/site-config";
 import { createPayment } from "@/lib/mollie";
+import { saveCustomerAddress, setMarketingConsent } from "@/lib/customers/accounts";
 import { isValidOrderToken, orderAccessToken } from "@/lib/order-token";
 import {
   CartPricingError,
@@ -64,6 +65,12 @@ const checkoutSchema = z.object({
   deliveryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   deliverySlotStart: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   deliverySlotEnd: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+  streetName: z.string().trim().max(120).default(""),
+  houseNumber: z.string().trim().max(20).default(""),
+  addition: z.string().trim().max(20).default(""),
+  // Checkboxes: only ever true when actually ticked.
+  marketingOptIn: z.boolean(),
+  saveAddress: z.boolean(),
 });
 
 export interface PromoState {
@@ -112,6 +119,11 @@ export async function checkoutAction(
     deliveryDate: formData.get("deliveryDate") ?? "",
     deliverySlotStart: formData.get("deliverySlotStart") ?? "",
     deliverySlotEnd: formData.get("deliverySlotEnd") ?? "",
+    streetName: formData.get("streetName") ?? "",
+    houseNumber: formData.get("houseNumber") ?? "",
+    addition: formData.get("addition") ?? "",
+    marketingOptIn: formData.get("marketingOptIn") === "on",
+    saveAddress: formData.get("saveAddress") === "on",
   });
 
   if (!parsed.success) return { ok: false, error: "invalidDetails" };
@@ -250,7 +262,32 @@ export async function checkoutAction(
     deliverySlotStart: details.deliverySlotStart,
     deliverySlotEnd: details.deliverySlotEnd,
     locale,
+    marketingOptIn: details.marketingOptIn,
   });
+
+  // Account side-effects. Neither is allowed to fail the checkout — the
+  // order exists and is about to be paid; a hiccup saving a preference must
+  // not turn into a failed payment.
+  if (customerId) {
+    try {
+      if (details.marketingOptIn) {
+        await setMarketingConsent(customerId, true, "checkout");
+      }
+      if (details.saveAddress) {
+        await saveCustomerAddress(customerId, {
+          // The street *name* on its own, so the form can be refilled in
+          // the same parts it was entered in.
+          street: details.streetName || details.street,
+          houseNumber: details.houseNumber,
+          addition: details.addition,
+          postcode: details.postcode,
+          city: details.city,
+        });
+      }
+    } catch (error) {
+      console.error("[checkout] could not update the customer's preferences:", error);
+    }
+  }
 
   // Return to whichever origin the customer is actually on — localhost in
   // dev, the preview URL on a preview deploy, the real domain in

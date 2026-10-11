@@ -5,6 +5,8 @@ import { Clock, LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-re
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
 import { listCustomerOrders } from "@/lib/orders";
+import { getCustomerProfile } from "@/lib/customers/accounts";
+import AccountPreferences from "@/components/shared/AccountPreferences";
 import { formatEuro, fromCents } from "@/lib/money";
 import Card from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
@@ -20,6 +22,7 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/login");
   const user = session.user;
   const orders = await listCustomerOrders(user.id);
+  const profile = await getCustomerProfile(user.id);
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -69,6 +72,23 @@ export default async function DashboardPage() {
             </div>
           </dl>
         </Card>
+
+        {profile && (
+          <AccountPreferences
+            marketingOptIn={profile.marketingOptIn}
+            consentDate={
+              profile.marketingConsentAt
+                ? new Date(profile.marketingConsentAt).toLocaleDateString("en-GB", {
+                    timeZone: "Europe/Amsterdam",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })
+                : null
+            }
+            savedAddress={profile.savedAddress}
+          />
+        )}
 
         <div>
           <h2 className="font-display text-lg font-semibold text-heading">

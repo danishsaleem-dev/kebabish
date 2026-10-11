@@ -86,6 +86,20 @@ export default function SignupForm({
               />
             </Field>
 
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-body-text">
+              <input
+                type="checkbox"
+                name="marketingOptIn"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-hairline accent-ember-600"
+              />
+              <span>
+                Email me news and offers from Kebabish.
+                <span className="block text-xs text-muted">
+                  Optional. You can switch this off any time in your account.
+                </span>
+              </span>
+            </label>
+
             <SubmitButton>
               <UserPlus size={15} />
               Create account

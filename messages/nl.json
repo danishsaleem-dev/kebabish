@@ -240,6 +240,9 @@
     "trackRefunded": "Het bedrag van deze bestelling is teruggestort.",
     "trackTitle": "Voortgang van je bestelling",
     "trackCancelled": "Deze bestelling is geannuleerd. Als je al had betaald, wordt het bedrag teruggestort.",
+    "saveAddress": "Bewaar dit adres voor mijn volgende bestelling",
+    "marketingOptIn": "Stuur me nieuws en aanbiedingen van Kebabish per e-mail.",
+    "marketingOptInHint": "Optioneel. Je kunt je er altijd weer voor afmelden.",
     "vatIncluded": "Alle prijzen zijn inclusief btw.",
     "legalAgree": "Door te bestellen ga je akkoord met onze <terms>algemene voorwaarden</terms> en ons <privacy>privacybeleid</privacy>.",
     "noCoolingOff": "Voor vers bereide en snel bederfelijke levensmiddelen geldt geen wettelijke bedenktijd van 14 dagen. Wil je een geplaatste bestelling annuleren? Neem dan zo snel mogelijk contact op met Kebabish via WhatsApp of telefoon.",
@@ -368,6 +371,8 @@
           "Naam, bezorgadres, telefoonnummer en (optioneel) e-mailadres bij het plaatsen van een bestelling",
           "Bestelgeschiedenis en de inhoud van je bestelling",
           "Accountgegevens als je een klantaccount aanmaakt (naam, e-mailadres, wachtwoord in versleutelde vorm)",
+          "Je bezorgadres, alleen als je zelf kiest om het te bewaren voor een volgende bestelling — dat kun je op je accountpagina weer verwijderen",
+          "Je toestemming voor nieuws en aanbiedingen per e-mail, met de datum en de plek waar je die gaf — standaard staat die uit en je kunt hem altijd intrekken",
           "Communicatie via WhatsApp, telefoon of e-mail wanneer je contact met ons opneemt",
           "Technische gegevens zoals IP-adres en browsertype, voor de beveiliging en werking van de website"
         ]

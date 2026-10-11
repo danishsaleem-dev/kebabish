@@ -40,13 +40,19 @@ export default function PostcodeField({
   placeholder,
   required,
   onResolved,
+  initial,
 }: {
   name: string;
   placeholder?: string;
   required?: boolean;
   onResolved: (address: ResolvedAddress) => void;
+  /** A saved address to start from — fills the field and resolves it at once. */
+  initial?: ResolvedAddress;
 }) {
-  const [value, setValue] = useState("");
+  const [value, setValue] = useState(initial?.postcode ?? "");
+  // Set when the postcode was put there by us (a saved address, or a pick),
+  // not typed — so the suggestion lookup below doesn't pop the list open.
+  const skipLookup = useRef(Boolean(initial));
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -63,6 +69,16 @@ export default function PostcodeField({
   }, []);
 
   useEffect(() => {
+    if (initial) onResolved(initial);
+    // Once, on mount: the saved address is a starting point, not live state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (skipLookup.current) {
+      skipLookup.current = false;
+      return;
+    }
     // A Dutch postcode is 4 digits + 2 letters — not worth querying before
     // there's enough to narrow it down to a specific neighbourhood.
     if (value.replace(/\s/g, "").length < 4) {
@@ -99,6 +115,7 @@ export default function PostcodeField({
       const doc = data?.response?.docs?.[0] as LookupDoc | undefined;
       if (!doc?.postcode) return;
 
+      skipLookup.current = true;
       setValue(doc.postcode);
       onResolved({
         street: doc.straatnaam ?? "",

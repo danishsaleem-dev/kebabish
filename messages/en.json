@@ -240,6 +240,9 @@
     "trackRefunded": "The amount for this order has been refunded.",
     "trackTitle": "Your order progress",
     "trackCancelled": "This order was cancelled. If you had already paid, the amount is being refunded.",
+    "saveAddress": "Save this address for my next order",
+    "marketingOptIn": "Email me news and offers from Kebabish.",
+    "marketingOptInHint": "Optional. You can unsubscribe at any time.",
     "vatIncluded": "All prices include VAT.",
     "legalAgree": "By placing your order you agree to our <terms>terms and conditions</terms> and <privacy>privacy policy</privacy>.",
     "noCoolingOff": "The statutory 14-day cooling-off period does not apply to freshly prepared and perishable food. If you want to cancel a placed order, contact Kebabish by WhatsApp or phone as soon as possible.",
@@ -368,6 +371,8 @@
           "Name, delivery address, phone number and (optionally) email address when placing an order",
           "Order history and the contents of your order",
           "Account details if you create a customer account (name, email, password stored in encrypted form)",
+          "Your delivery address, only if you choose to save it for next time — you can remove it from your account page",
+          "Your consent to receive news and offers by email, with the date and where you gave it — it is off by default and you can withdraw it at any time",
           "Communication via WhatsApp, phone or email when you contact us",
           "Technical data such as IP address and browser type, for website security and functionality"
         ]

@@ -892,7 +892,31 @@ exclusions — add any new top-level auth page there too. Verified end to end,
 including old password rejected, reused / tampered / wrong-account / expired /
 garbage tokens rejected, and expiry against a freshly signed control token.
 
-Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, marketing opt-in, saved addresses, promo-code extras, slot settings.
+**Marketing consent and saved address** (migration
+`0011_marketing_consent_and_saved_address.sql`, run *before* deploying):
+
+- **Consent is opt-in only.** The checkbox is the only thing that can turn it
+  on — signup form, checkout, or the account page — and none is pre-ticked. A
+  logged-in customer's consent lives on `customers` (`marketing_opt_in`, when,
+  and which of signup/checkout/dashboard it came from; withdrawing stamps
+  `marketing_withdrawn_at`). A *guest's* tick at checkout is recorded on the
+  order (`orders.marketing_opt_in`; the order's own time is the date). Ticking
+  again later never overwrites the original consent date, and checkout never
+  withdraws anyone. **Nothing sends marketing yet** — this only records it.
+  Whoever builds campaigns must (a) send only to opted-in customers and
+  opted-in guest orders not since withdrawn, and (b) put an unsubscribe link in
+  every email; guests have no account page, so that link needs its own signed
+  token (the password-reset token is the pattern to copy).
+- **Saved address** only when "save this address" is ticked at checkout
+  (signed-in customers only). Stored in the parts the form uses
+  (`saved_street`, `_house_number`, `_addition`, `_postcode`, `_city`) so it
+  can be put straight back; checkout then prefills it, plus name/email/phone.
+  It is shown, and removable, on `/dashboard`. Saving the preference never
+  fails a checkout — errors are logged and the order carries on.
+- `PostcodeField` takes an `initial` address, and no longer reopens its
+  suggestion list after a pick (the lookup is skipped for values we set).
+
+Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, promo-code extras, slot settings.
 
 ### Allergens are user-extendable
 

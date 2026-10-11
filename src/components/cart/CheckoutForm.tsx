@@ -31,12 +31,27 @@ export default function CheckoutForm({
   minimumOrder,
   deliveryTowns,
   hours,
+  account,
 }: {
   deliveryFee: number;
   freeDeliveryOver: number | null;
   minimumOrder: number;
   deliveryTowns: string[];
   hours: StoredSettings["hours"];
+  /** Present only for a signed-in customer: prefills the form, and unlocks "save my address". */
+  account?: {
+    name: string;
+    email: string;
+    phone: string;
+    marketingOptIn: boolean;
+    address: {
+      street: string;
+      houseNumber: string;
+      addition: string;
+      postcode: string;
+      city: string;
+    } | null;
+  };
 }) {
   const t = useTranslations("checkout");
   const tCart = useTranslations("cart");
@@ -48,10 +63,11 @@ export default function CheckoutForm({
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoPending, startPromoTransition] = useTransition();
 
-  const [resolvedStreet, setResolvedStreet] = useState("");
-  const [resolvedCity, setResolvedCity] = useState("");
-  const [houseNumber, setHouseNumber] = useState("");
-  const [addition, setAddition] = useState("");
+  const saved = account?.address ?? null;
+  const [resolvedStreet, setResolvedStreet] = useState(saved?.street ?? "");
+  const [resolvedCity, setResolvedCity] = useState(saved?.city ?? "");
+  const [houseNumber, setHouseNumber] = useState(saved?.houseNumber ?? "");
+  const [addition, setAddition] = useState(saved?.addition ?? "");
   const [slot, setSlot] = useState<DeliverySlotValue | null>(null);
 
   // Same matching rule as the server's isDeliverableTown() (orders.ts) —
@@ -136,6 +152,7 @@ export default function CheckoutForm({
           house number and addition joined together — so that's assembled
           here rather than adding new order/DB columns for it. */}
       <input type="hidden" name="street" value={combinedStreet} />
+      <input type="hidden" name="streetName" value={resolvedStreet} />
 
       <div className="min-w-0 space-y-8">
         <section>
@@ -144,7 +161,13 @@ export default function CheckoutForm({
           </h2>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label={t("name")} className="sm:col-span-2">
-              <input name="name" required autoComplete="name" className={inputClass} />
+              <input
+                name="name"
+                required
+                autoComplete="name"
+                defaultValue={account?.name}
+                className={inputClass}
+              />
             </Field>
             <Field label={t("email")}>
               <input
@@ -152,6 +175,7 @@ export default function CheckoutForm({
                 type="email"
                 required
                 autoComplete="email"
+                defaultValue={account?.email}
                 className={inputClass}
               />
             </Field>
@@ -161,6 +185,7 @@ export default function CheckoutForm({
                 type="tel"
                 required
                 autoComplete="tel"
+                defaultValue={account?.phone}
                 className={inputClass}
               />
             </Field>
@@ -181,6 +206,11 @@ export default function CheckoutForm({
                 name="postcode"
                 required
                 placeholder={t("postcodePlaceholder")}
+                initial={
+                  saved
+                    ? { street: saved.street, postcode: saved.postcode, city: saved.city }
+                    : undefined
+                }
                 onResolved={({ street, city }) => {
                   setResolvedStreet(street);
                   setResolvedCity(city);
@@ -230,6 +260,16 @@ export default function CheckoutForm({
           {resolvedCity && !deliverable && (
             <p className="mt-3 text-sm text-red-700">{t("outsideArea")}</p>
           )}
+          {account && (
+            <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm text-ink/75">
+              <input
+                type="checkbox"
+                name="saveAddress"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded accent-ember-600"
+              />
+              <span>{t("saveAddress")}</span>
+            </label>
+          )}
         </section>
 
         <DeliverySlotPicker hours={hours} value={slot} onChange={setSlot} />
@@ -246,6 +286,22 @@ export default function CheckoutForm({
             className={`mt-4 ${inputClass} h-auto py-3`}
           />
         </section>
+
+        {/* Off unless ticked — and not shown at all to someone who has
+            already said yes on their account. */}
+        {!account?.marketingOptIn && (
+          <label className="flex cursor-pointer items-start gap-2.5 text-sm text-ink/75">
+            <input
+              type="checkbox"
+              name="marketingOptIn"
+              className="mt-0.5 h-4 w-4 shrink-0 rounded accent-ember-600"
+            />
+            <span>
+              {t("marketingOptIn")}
+              <span className="block text-xs text-ink/50">{t("marketingOptInHint")}</span>
+            </span>
+          </label>
+        )}
       </div>
 
       <aside className="h-fit min-w-0 rounded-3xl border border-charcoal-600/12 bg-cream-50 p-6 lg:sticky lg:top-28">

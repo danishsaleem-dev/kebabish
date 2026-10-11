@@ -11,6 +11,7 @@ const signupSchema = z.object({
   name: z.string().trim().min(2, "Enter your name."),
   email: z.string().trim().email("That doesn't look like an email address."),
   phone: z.string().trim().optional(),
+  marketingOptIn: z.boolean(),
   password: z.string().min(8, "Password needs to be at least 8 characters."),
 });
 
@@ -22,6 +23,8 @@ export async function signupAction(
     name: formData.get("name"),
     email: formData.get("email"),
     phone: formData.get("phone") || undefined,
+    // A checkbox only counts when it is actually ticked — never defaulted.
+    marketingOptIn: formData.get("marketingOptIn") === "on",
     password: formData.get("password"),
   });
 

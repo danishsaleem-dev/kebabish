@@ -243,6 +243,8 @@ export interface CreateOrderInput {
   deliverySlotEnd: string;
   /** The site language the customer ordered in. */
   locale: string;
+  /** Ticked "email me offers" at checkout — false unless they did. */
+  marketingOptIn: boolean;
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -267,6 +269,7 @@ export async function createOrder(input: CreateOrderInput) {
         customer_phone: input.customerPhone,
         fulfilment: "delivery",
         locale: input.locale === "en" ? "en" : "nl",
+        marketing_opt_in: input.marketingOptIn,
         address_street: input.addressStreet,
         address_postcode: input.addressPostcode,
         address_city: input.addressCity,
