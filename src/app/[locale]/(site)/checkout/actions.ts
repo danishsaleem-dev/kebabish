@@ -249,6 +249,7 @@ export async function checkoutAction(
     deliveryDate: details.deliveryDate,
     deliverySlotStart: details.deliverySlotStart,
     deliverySlotEnd: details.deliverySlotEnd,
+    locale,
   });
 
   // Return to whichever origin the customer is actually on — localhost in

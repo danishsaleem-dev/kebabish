@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, Check, MapPin, X } from "lucide-react";
+import { AlertTriangle, Bell, Check, Clock, MapPin, X } from "lucide-react";
 import { acceptOrderAction, declineOrderAction } from "@/app/admin/(dashboard)/orders/actions";
 import { useToast } from "@/components/admin/ui/Toast";
 
@@ -11,11 +11,22 @@ interface PendingOrder {
   customerName: string;
   town: string;
   placedAt: string;
+  /** When the payment landed — the clock the wait is measured from. */
+  paidAt: string | null;
   total: string;
   itemSummary: string;
 }
 
 const POLL_MS = 8000;
+/** Wait thresholds, in seconds: amber, then red (the server emails at the same 5 min). */
+const WARN_AFTER = 3 * 60;
+const URGENT_AFTER = 5 * 60;
+
+function waitedSeconds(order: PendingOrder, now: number) {
+  return Math.max(0, Math.floor((now - Date.parse(order.paidAt ?? order.placedAt)) / 1000));
+}
+
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 const BEEP_MS = 1800;
 
 /** Two short beeps via Web Audio — no audio file to host, and it works
@@ -54,7 +65,15 @@ function beep() {
 export default function NewOrderAlert() {
   const [orders, setOrders] = useState<PendingOrder[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const { toast } = useToast();
+
+  // One-second tick for the "waiting" clocks — only while something is waiting.
+  useEffect(() => {
+    if (orders.length === 0) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [orders.length]);
 
   const poll = useCallback(async () => {
     try {
@@ -89,14 +108,26 @@ export default function NewOrderAlert() {
       return;
     }
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
-    toast(action === "accept" ? "Order accepted." : "Order declined.", "success");
+    toast(
+      result.message ?? (action === "accept" ? "Order accepted." : "Order declined."),
+      result.message?.includes("refund failed") ? "error" : "success"
+    );
   }
 
   if (orders.length === 0) return null;
 
+  const longest = Math.max(...orders.map((o) => waitedSeconds(o, now)));
+  const urgent = longest >= URGENT_AFTER;
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-heading/50 p-4">
       <div className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-2xl bg-panel shadow-2xl">
+        {urgent && (
+          <div className="flex items-center gap-2 bg-danger px-5 py-2.5 text-sm font-semibold text-white">
+            <AlertTriangle size={16} />
+            Urgent — a customer has been waiting over 5 minutes
+          </div>
+        )}
         <div className="flex items-center gap-2 border-b border-hairline p-5">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
             <Bell size={17} />
@@ -128,6 +159,21 @@ export default function NewOrderAlert() {
                 <MapPin size={13} className="mt-0.5 shrink-0" />
                 {order.town}
               </p>
+              {(() => {
+                const waited = waitedSeconds(order, now);
+                const tone =
+                  waited >= URGENT_AFTER
+                    ? "bg-danger-soft text-danger"
+                    : waited >= WARN_AFTER
+                      ? "bg-warn-soft text-warn"
+                      : "bg-canvas text-muted";
+                return (
+                  <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${tone}`}>
+                    <Clock size={12} />
+                    Waiting {mmss(waited)}
+                  </p>
+                );
+              })()}
               <p className="mt-1 text-sm text-body-text">{order.itemSummary}</p>
 
               <div className="mt-4 flex gap-2">

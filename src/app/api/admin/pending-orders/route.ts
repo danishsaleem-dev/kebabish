@@ -1,5 +1,5 @@
 import { after, NextResponse } from "next/server";
-import { expireStaleOrders } from "@/lib/orders";
+import { escalateUnacceptedOrders, expireStaleOrders } from "@/lib/orders";
 import { auth } from "@/lib/auth";
 import { listPendingOrders } from "@/lib/admin/orders-data";
 import { formatMoney } from "@/lib/admin/units";
@@ -22,6 +22,7 @@ export async function GET() {
   // The kitchen screen polls this all evening — a convenient heartbeat for
   // releasing abandoned checkouts (there is no scheduled job).
   after(() => expireStaleOrders());
+  after(() => escalateUnacceptedOrders());
 
   const pending = await listPendingOrders();
 
@@ -32,6 +33,7 @@ export async function GET() {
       customerName: o.customerName,
       town: o.town,
       placedAt: o.placedAt,
+      paidAt: o.paidAt,
       total: formatMoney(o.total),
       itemSummary: o.lines.map((l) => `${l.quantity}× ${l.baseName}`).join(", "),
     })),

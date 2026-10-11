@@ -119,6 +119,28 @@ export async function cancelPayment(id: string): Promise<boolean> {
   }
 }
 
+/**
+ * Refund (part of) a paid payment back to the customer. Mollie sends it to
+ * the account the customer paid from; it can take a few working days to
+ * arrive. Throws if Mollie refuses (already refunded, amount too high,
+ * payment not refundable) so the caller can tell the owner rather than
+ * assuming the money moved.
+ */
+export async function createRefund(input: {
+  paymentId: string;
+  amountCents: number;
+  description: string;
+}): Promise<{ id: string; status: string }> {
+  const body = await request(`/payments/${encodeURIComponent(input.paymentId)}/refunds`, {
+    method: "POST",
+    body: JSON.stringify({
+      amount: { currency: "EUR", value: amountFromCents(input.amountCents) },
+      description: input.description,
+    }),
+  });
+  return { id: body.id, status: body.status };
+}
+
 /** Mollie's statuses -> the ones stored on an order. */
 export function toPaymentStatus(status: MolliePaymentStatus) {
   switch (status) {

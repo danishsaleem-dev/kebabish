@@ -107,11 +107,16 @@ function percentDelta(total: number, prevTotal: number): number {
  * customer closed the tab on Mollie, the payment failed or expired).
  * Those are still worth seeing in the Orders list, but they aren't sales —
  * counting them inflated revenue and order totals. Only a paid order is
- * real; a paid one that was later cancelled stays in, so the cancellation
- * rate still means something.
+ * real; a paid one that was later cancelled or refunded stays in the counts,
+ * so the cancellation rate still means something, but not in revenue.
  */
 export function realOrders(orders: AdminOrder[]): AdminOrder[] {
-  return orders.filter((o) => o.paymentStatus === "paid");
+  return orders.filter((o) => o.paymentStatus === "paid" || o.paymentStatus === "refunded");
+}
+
+/** Counts towards revenue and sales: paid, not cancelled, not handed back. */
+function isSale(o: AdminOrder): boolean {
+  return o.paymentStatus === "paid" && o.status !== "cancelled";
 }
 
 /** Chart series keyed by the two dashboard dropdowns. */
@@ -146,7 +151,7 @@ export function getOrderAnalytics(
 
 export function getRevenueProfile(allOrders: AdminOrder[], period: Period) {
   const orders = realOrders(allOrders);
-  const revenue = (o: AdminOrder) => (o.status === "cancelled" ? 0 : o.total);
+  const revenue = (o: AdminOrder) => (isSale(o) ? o.total : 0);
 
   const buckets = bucketsEnding(period, new Date());
   const points = sumInBuckets(orders, buckets, revenue);
@@ -219,7 +224,7 @@ export function getOrderPerformance(allOrders: AdminOrder[]) {
     { label: "Orders Completed", value: pct(["delivered"]), tone: "success" as const },
     {
       label: "In Progress",
-      value: pct(["new", "preparing", "on_the_way"]),
+      value: pct(["new", "preparing", "ready", "on_the_way"]),
       tone: "warn" as const,
     },
     { label: "Orders Cancelled", value: pct(["cancelled"]), tone: "danger" as const },
@@ -232,7 +237,7 @@ export function getRevenueByMonth(allOrders: AdminOrder[]) {
   const orders = realOrders(allOrders);
   const buckets = bucketsEnding("monthly", new Date());
   const revenue = sumInBuckets(orders, buckets, (o) =>
-    o.status === "cancelled" ? 0 : o.total
+    isSale(o) ? o.total : 0
   );
   const counts = sumInBuckets(orders, buckets, () => 1);
 
@@ -258,7 +263,7 @@ export function getSalesByCategory(
   const revenueByLabel = new Map<string, number>();
 
   for (const order of orders) {
-    if (order.status === "cancelled") continue;
+    if (!isSale(order)) continue;
     for (const line of order.lines) {
       const label = categoryByDish.get(line.slug) ?? "Other";
       const lineRevenue = line.unitPrice * line.quantity;
@@ -282,7 +287,7 @@ export function getTopDishes(allOrders: AdminOrder[]) {
   const byDish = new Map<string, { orders: number; revenue: number }>();
 
   for (const order of orders) {
-    if (order.status === "cancelled") continue;
+    if (!isSale(order)) continue;
     for (const line of order.lines) {
       const entry = byDish.get(line.baseName) ?? { orders: 0, revenue: 0 };
       entry.orders += line.quantity;
@@ -306,7 +311,7 @@ export function getOrdersByTown(allOrders: AdminOrder[]) {
   const orders = realOrders(allOrders);
   const counts = new Map<string, number>();
   for (const order of orders) {
-    if (order.fulfilment !== "delivery" || order.status === "cancelled") continue;
+    if (order.fulfilment !== "delivery" || !isSale(order)) continue;
     counts.set(order.town, (counts.get(order.town) ?? 0) + 1);
   }
   return [...counts.entries()]
@@ -320,7 +325,7 @@ export function getOrdersByHour(allOrders: AdminOrder[]) {
   const orders = realOrders(allOrders);
   const counts = new Map<number, number>();
   for (const order of orders) {
-    if (order.status === "cancelled") continue;
+    if (!isSale(order)) continue;
     const hour = new Date(order.placedAt).getHours();
     counts.set(hour, (counts.get(hour) ?? 0) + 1);
   }
@@ -339,7 +344,7 @@ export function getOrdersByHour(allOrders: AdminOrder[]) {
  */
 export function getChannelSplit(allOrders: AdminOrder[]) {
   const orders = realOrders(allOrders);
-  const real = orders.filter((o) => o.status !== "cancelled");
+  const real = orders.filter(isSale);
   const wa = real.filter((o) => o.channel === "whatsapp").length;
   const total = real.length;
 

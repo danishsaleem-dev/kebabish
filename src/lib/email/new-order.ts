@@ -150,3 +150,48 @@ export async function sendNewOrderEmail(order: OrderSummary): Promise<void> {
     console.error("[email] Failed to send new-order email:", error);
   }
 }
+
+/**
+ * Sent once when a paid order has sat unaccepted for too long — the kitchen
+ * screen is closed, nobody is watching it, or nobody noticed the beeping.
+ * Goes to the same address as the new-order alert, but is loud about it:
+ * the customer has already paid and is waiting.
+ */
+export async function sendUnacceptedOrderEmail(
+  order: OrderSummary,
+  waitedMinutes: number
+): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.ORDER_NOTIFICATION_EMAIL || siteConfig.contact.email;
+  if (!apiKey) {
+    console.warn("[email] RESEND_API_KEY not set — skipping unaccepted-order email.");
+    return;
+  }
+
+  const adminUrl = `https://${new URL(siteConfig.website).hostname.replace(/^www\./, "")}/admin/orders`;
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
+      to,
+      subject: `URGENT: order ${order.reference} not accepted after ${waitedMinutes} min`,
+      html: `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;color:#1a1713;">
+        <h2 style="color:#b42318;margin:0 0 8px;">Order ${escapeHtml(order.reference)} is waiting</h2>
+        <p style="font-size:15px;line-height:1.5;margin:0 0 12px;">
+          ${escapeHtml(order.customerName)} paid ${money(order.totalCents)} and nobody has accepted
+          or declined the order for ${waitedMinutes} minutes.
+        </p>
+        <p style="font-size:14px;margin:0 0 16px;">Open the admin and accept or decline it now.</p>
+        <p><a href="${adminUrl}" style="background:#a95026;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:bold;">Open orders</a></p>
+      </body></html>`,
+    });
+    if (error) {
+      console.error(
+        `[email] Resend rejected the unaccepted-order email for ${order.reference}:`,
+        `${error.name}: ${error.message}`
+      );
+    }
+  } catch (error) {
+    console.error("[email] Failed to send unaccepted-order email:", error);
+  }
+}

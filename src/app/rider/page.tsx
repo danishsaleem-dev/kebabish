@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { LogOut, MapPin, Phone } from "lucide-react";
+import { Clock, LogOut, MapPin, MessageCircle, Navigation, Phone, StickyNote, User } from "lucide-react";
+import { mapsDirectionsHref, telHref, whatsappDigits } from "@/lib/phone";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
 import { listOrdersForRider } from "@/lib/admin/orders-data";
@@ -97,6 +98,10 @@ export default async function RiderPage() {
                       <p className="font-display text-sm font-semibold text-heading">
                         {order.reference}
                       </p>
+                      <p className="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-heading">
+                        <User size={13} className="shrink-0 text-faint" />
+                        {order.customerName}
+                      </p>
                       <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
                         <Phone size={12} className="shrink-0" />
                         {order.phone}
@@ -110,13 +115,69 @@ export default async function RiderPage() {
                     </div>
                   </div>
 
+                  {order.deliveryDate && order.deliverySlotStart && (
+                    <div className="flex items-start gap-2 border-t border-hairline px-5 py-4 text-sm text-body-text">
+                      <Clock size={15} className="mt-0.5 shrink-0 text-faint" />
+                      <span>
+                        <span className="font-semibold text-heading">
+                          {new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString("en-GB", {
+                            weekday: "short",
+                            day: "numeric",
+                            month: "short",
+                          })}
+                          , {order.deliverySlotStart}–{order.deliverySlotEnd}
+                        </span>
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-start gap-2 border-t border-hairline px-5 py-4 text-sm text-body-text">
                     <MapPin size={15} className="mt-0.5 shrink-0 text-faint" />
                     {order.address}
                   </div>
 
+                  {order.note && (
+                    <div className="flex items-start gap-2 border-t border-hairline bg-warn-soft/40 px-5 py-4 text-sm text-body-text">
+                      <StickyNote size={15} className="mt-0.5 shrink-0 text-warn" />
+                      <span>
+                        <span className="block text-xs font-semibold uppercase tracking-wide text-warn">
+                          Delivery note
+                        </span>
+                        {order.note}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-2 border-t border-hairline p-4">
+                    <a
+                      href={telHref(order.phone)}
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-hairline px-3 py-2.5 text-sm font-semibold text-heading transition-colors hover:bg-canvas"
+                    >
+                      <Phone size={14} />
+                      Call
+                    </a>
+                    <a
+                      href={`https://wa.me/${whatsappDigits(order.phone)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-hairline px-3 py-2.5 text-sm font-semibold text-heading transition-colors hover:bg-canvas"
+                    >
+                      <MessageCircle size={14} />
+                      WhatsApp
+                    </a>
+                    <a
+                      href={mapsDirectionsHref(order.address)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-hairline px-3 py-2.5 text-sm font-semibold text-heading transition-colors hover:bg-canvas"
+                    >
+                      <Navigation size={14} />
+                      Navigate
+                    </a>
+                  </div>
+
                   <div className="flex justify-end border-t border-hairline p-4">
-                    <OrderStatusControl orderId={order.id} status={order.status} />
+                    <OrderStatusControl orderId={order.id} status={order.status} riderView />
                   </div>
                 </Card>
               ))}

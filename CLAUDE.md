@@ -821,9 +821,41 @@ out of it and aren't obvious from the code:
 - Customer-facing and printed times are formatted in `Europe/Amsterdam` — a
   server in UTC (Vercel) otherwise prints them two hours off.
 
-Not done yet from the spec (needs a migration or a decision): status emails
-(preparing/out for delivery/delivered), Mollie refunds,
-`accepted_at`/kitchen escalation, `is_test` order flag.
+**Priority 2, batch 1 (kitchen, rider, order communication, refunds)** —
+needs `0010_kitchen_and_order_lifecycle.sql` run *before* deploying (the order
+queries read its columns):
+
+- **Statuses:** `ready` ("Ready for delivery") sits between preparing and on
+  the way and is *optional* — `ALLOWED_NEXT` lets preparing go straight to
+  on_the_way, with a "Skip to…" button. Riders may only move an order into
+  `on_the_way`/`delivered`. `accepted_at` is set when the kitchen accepts.
+- **Kitchen popup** shows a live "Waiting m:ss" per order: amber at 3 min, red
+  with an urgent banner at 5. At 5 min `escalateUnacceptedOrders()` emails the
+  kitchen once (`escalated_at` is the once-only claim). It runs lazily from the
+  admin poll **and** from `/api/cron/housekeeping`, which needs something to
+  call it every minute (Vercel Cron on a plan that allows it, or a free pinger)
+  with `Authorization: Bearer $CRON_SECRET` — without that, nobody-has-admin-
+  open is not covered. Same endpoint also runs the stale-checkout sweep.
+- **Kitchen ticket:** `/admin/orders/[id]/ticket` (a route handler, so it
+  checks the role by hand) — slot, items, extras, customer note; no prices or
+  address.
+- **Customer emails** (`email/order-status.ts`): accepted, on the way,
+  delivered, cancelled, refunded, in the language stored on the order
+  (`orders.locale`). "Ready" sends none. The order page now shows a progress
+  tracker and refreshes itself (`AutoRefresh`) — it used to *say* it refreshed
+  without doing so.
+- **Refunds:** `refundOrder()` — full refunds only, through Mollie; the
+  conditional update to `refunded` is the lock against double refunds, and it
+  reverts to `paid` if Mollie refuses. Declining a *paid* order refunds it
+  automatically; the order page has a manual Refund button (owner/staff).
+  `syncPaymentStatus` never flips `refunded` back to `paid`. Reports exclude
+  refunded/cancelled orders from revenue but keep them in the counts.
+  Partial refunds and credit notes are not built.
+- **Rider screen** now shows the customer name, delivery slot, note, and
+  Call / WhatsApp / Navigate buttons (`lib/phone.ts`). Still no order total —
+  deliberate.
+
+Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, bilingual dish fields, featured/sort/portion, password reset, marketing opt-in, saved addresses, promo-code extras, slot settings.
 
 ### Allergens are user-extendable
 

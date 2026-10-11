@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { getOrderSummaryById, refundOrder } from "@/lib/orders";
+import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { auth } from "@/lib/auth";
 import { updateOrderStatus, assignRider, cancelOrder } from "@/lib/admin/orders-data";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/admin/order-types";
@@ -99,13 +102,52 @@ export async function declineOrderAction(orderId: string): Promise<SimpleActionR
     return { ok: false, message: "Sign in again to do that." };
   }
 
+  let result;
   try {
-    await cancelOrder(orderId, { role });
+    result = await cancelOrder(orderId, { role });
   } catch (error) {
     return { ok: false, message: (error as Error).message };
   }
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
-  return { ok: true };
+  if (result.refundError) {
+    // The order is cancelled either way — say plainly that the money is not
+    // back with the customer yet, instead of a green tick.
+    return {
+      ok: true,
+      message: `Cancelled, but the refund failed: ${result.refundError} Refund it from the order page or in Mollie.`,
+    };
+  }
+  return {
+    ok: true,
+    message: result.refundedCents > 0 ? "Cancelled and refunded in full." : undefined,
+  };
+}
+
+/**
+ * Manual full refund from the order page — for after the fact (a wrong or
+ * unsatisfactory order) rather than a decline, which refunds by itself.
+ * Owner/staff only: it moves money.
+ */
+export async function refundOrderAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const session = await auth();
+  const role = session?.user.role;
+  if (role !== "owner" && role !== "staff") {
+    return { ok: false, message: "Only the owner or staff can refund an order." };
+  }
+
+  const orderId = String(formData.get("orderId") ?? "");
+  const result = await refundOrder(orderId);
+  if (!result.ok) return { ok: false, message: result.message };
+
+  const order = await getOrderSummaryById(orderId);
+  if (order) after(() => sendOrderStatusEmail(order, "refunded", result.refundedCents));
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  return { ok: true, message: "Refunded in full." };
 }

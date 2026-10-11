@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   Bike,
+  ChefHat,
   Clock,
   Globe,
   Mail,
@@ -19,6 +20,8 @@ import OrderStatusControl from "@/components/admin/OrderStatusControl";
 import AssignRiderControl from "@/components/admin/AssignRiderControl";
 import OrderInvoiceHeader from "@/components/admin/OrderInvoiceHeader";
 import PrintButton from "@/components/admin/ui/PrintButton";
+import RefundControl from "@/components/admin/RefundControl";
+import { auth } from "@/lib/auth";
 import { formatMoney } from "@/lib/admin/units";
 import { getSettings } from "@/lib/admin/store";
 import { getInvoiceNumber } from "@/lib/orders";
@@ -40,7 +43,7 @@ export async function generateMetadata({
 }
 
 /** Timeline stages an order moves through, in order. */
-const STAGES = ["new", "preparing", "on_the_way", "delivered"] as const;
+const STAGES = ["new", "preparing", "ready", "on_the_way", "delivered"] as const;
 
 export default async function OrderDetailPage({
   params,
@@ -50,6 +53,8 @@ export default async function OrderDetailPage({
   const { id } = await params;
   const order = await getOrder(id);
   if (!order) notFound();
+  const session = await auth();
+  const canRefund = session?.user.role === "owner" || session?.user.role === "staff";
   const settings = await getSettings();
   const vatRate = settings.vatRatePercent ?? null;
   const invoiceNumber = await getInvoiceNumber(order.reference);
@@ -78,7 +83,18 @@ export default async function OrderDetailPage({
             <ArrowLeft size={16} />
             Back to orders
           </Link>
-          <PrintButton label="Print invoice" />
+          <div className="flex flex-wrap items-center gap-2">
+            <a
+              href={`/admin/orders/${order.id}/ticket`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-hairline px-4 py-2.5 text-sm font-semibold text-body-text transition-colors hover:bg-canvas print:hidden"
+            >
+              <ChefHat size={15} />
+              Kitchen ticket
+            </a>
+            <PrintButton label="Print invoice" />
+          </div>
         </div>
 
         <OrderInvoiceHeader
@@ -155,6 +171,17 @@ timeZone: "Europe/Amsterdam",
           {!cancelled && (
             <div className="mt-5 flex justify-end print:hidden">
               <OrderStatusControl orderId={order.id} status={order.status} />
+            </div>
+          )}
+
+          {order.paymentStatus === "refunded" && (
+            <p className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm font-medium text-body-text print:hidden">
+              Refunded {formatMoney(order.refunded)} to the customer.
+            </p>
+          )}
+          {canRefund && order.paymentStatus === "paid" && (
+            <div className="mt-5 flex justify-end">
+              <RefundControl orderId={order.id} amount={formatMoney(order.total)} />
             </div>
           )}
         </Card>

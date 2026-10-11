@@ -10,6 +10,7 @@
 export type OrderStatus =
   | "new"
   | "preparing"
+  | "ready"
   | "on_the_way"
   | "delivered"
   | "cancelled";
@@ -60,6 +61,12 @@ export interface AdminOrder {
   assignedRiderName: string | null;
   /** Set once the status actually reaches "delivered" — null until then. */
   deliveredAt: string | null;
+  /** When the payment landed — what the kitchen's "waiting for a decision" clock runs from. */
+  paidAt: string | null;
+  /** When the kitchen accepted it (new -> preparing). */
+  acceptedAt: string | null;
+  /** Money handed back through Mollie, in euros. */
+  refunded: number;
   /** The slot the customer picked at checkout — "YYYY-MM-DD" + "HH:MM". */
   deliveryDate: string | null;
   deliverySlotStart: string | null;
@@ -73,18 +80,34 @@ export interface AdminOrder {
  */
 export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   new: "preparing",
-  preparing: "on_the_way",
+  preparing: "ready",
+  ready: "on_the_way",
   on_the_way: "delivered",
   delivered: null,
   cancelled: null,
 };
 
 /**
- * What a rider is allowed to move an order through themselves — starts
- * once it's ready to leave the kitchen. "new -> preparing" is a kitchen
- * decision, not a delivery one, so riders don't get that transition.
+ * Every transition that's legal from a status; `NEXT_STATUS` above is just
+ * the first (the primary button). "Ready for delivery" is optional — the
+ * food is done and waiting for the rider — so a kitchen that doesn't want
+ * the extra tap can go straight from preparing to on the way.
  */
-export const RIDER_STATUSES: OrderStatus[] = ["preparing", "on_the_way", "delivered"];
+export const ALLOWED_NEXT: Record<OrderStatus, OrderStatus[]> = {
+  new: ["preparing"],
+  preparing: ["ready", "on_the_way"],
+  ready: ["on_the_way"],
+  on_the_way: ["delivered"],
+  delivered: [],
+  cancelled: [],
+};
+
+/**
+ * What a rider is allowed to move an order into themselves — picking it up
+ * and handing it over. Accepting and preparing are kitchen decisions, so
+ * riders don't get those transitions.
+ */
+export const RIDER_STATUSES: OrderStatus[] = ["on_the_way", "delivered"];
 
 export interface AdminCustomer {
   id: string;
@@ -116,6 +139,7 @@ export interface AdminCustomer {
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: "New",
   preparing: "Preparing",
+  ready: "Ready for delivery",
   on_the_way: "On the way",
   delivered: "Delivered",
   cancelled: "Cancelled",

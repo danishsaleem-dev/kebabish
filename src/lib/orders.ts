@@ -5,9 +5,9 @@ import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
 import { isSellablePrice, toCents } from "@/lib/money";
 import type { MolliePaymentStatus } from "@/lib/mollie";
-import { cancelPayment, getPayment, toPaymentStatus } from "@/lib/mollie";
+import { cancelPayment, createRefund, getPayment, toPaymentStatus } from "@/lib/mollie";
 import type { StoredPromoCode } from "@/lib/admin/store/types";
-import { sendNewOrderEmail } from "@/lib/email/new-order";
+import { sendNewOrderEmail, sendUnacceptedOrderEmail } from "@/lib/email/new-order";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 
@@ -241,6 +241,8 @@ export interface CreateOrderInput {
   deliveryDate: string;
   deliverySlotStart: string;
   deliverySlotEnd: string;
+  /** The site language the customer ordered in. */
+  locale: string;
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -264,6 +266,7 @@ export async function createOrder(input: CreateOrderInput) {
         customer_email: input.customerEmail,
         customer_phone: input.customerPhone,
         fulfilment: "delivery",
+        locale: input.locale === "en" ? "en" : "nl",
         address_street: input.addressStreet,
         address_postcode: input.addressPostcode,
         address_city: input.addressCity,
@@ -344,6 +347,10 @@ export async function syncPaymentStatus(
   if (fetchError) throw new Error(fetchError.message);
   const wasAlreadyPaid = before?.payment_status === "paid";
   const wasAlreadyTerminal = TERMINAL_FAILURE.has(before?.payment_status ?? "");
+
+  // A refunded order stays refunded: Mollie keeps reporting the underlying
+  // payment as "paid" (it was), and a later webhook must not flip it back.
+  if (before?.payment_status === "refunded") return "refunded" as const;
 
   // Nothing changed — the return page polls this every few seconds, and a
   // write here would keep refreshing `updated_at`, which the stale-order
@@ -464,6 +471,72 @@ export async function expireStaleOrders(): Promise<void> {
   }
 }
 
+/* ---------------------------------------------------------------- refunds */
+
+export type RefundResult =
+  | { ok: true; refundedCents: number }
+  | { ok: false; message: string };
+
+/**
+ * Give a paid order's money back in full, through Mollie.
+ *
+ * The conditional update to "refunded" comes first and is the lock: two
+ * staff clicking at once, or a decline racing a manual refund, can't both
+ * get past it and send the customer two refunds. If Mollie then refuses,
+ * the status goes back to "paid" so the owner can try again or handle it in
+ * Mollie's dashboard — it never claims money moved when it didn't.
+ *
+ * Full refunds only. Partial refunds (and a credit-note document to go with
+ * them) are not built; refund the remainder in Mollie's dashboard for now.
+ */
+export async function refundOrder(orderId: string): Promise<RefundResult> {
+  const supabase = supabaseAdmin();
+
+  const { data: claimed, error } = await supabase
+    .from("orders")
+    .update({ payment_status: "refunded", updated_at: new Date().toISOString() })
+    .eq("id", orderId)
+    .eq("payment_status", "paid")
+    .select("reference, mollie_payment_id, total_cents");
+  if (error) return { ok: false, message: error.message };
+
+  const order = claimed?.[0];
+  if (!order) {
+    return { ok: false, message: "That order hasn't been paid, or it was already refunded." };
+  }
+  if (!order.mollie_payment_id) {
+    await supabase.from("orders").update({ payment_status: "paid" }).eq("id", orderId);
+    return { ok: false, message: "This order has no Mollie payment to refund." };
+  }
+
+  try {
+    await createRefund({
+      paymentId: order.mollie_payment_id,
+      amountCents: order.total_cents,
+      description: `Kebabish ${order.reference}`,
+    });
+  } catch (refundError) {
+    await supabase
+      .from("orders")
+      .update({ payment_status: "paid", updated_at: new Date().toISOString() })
+      .eq("id", orderId);
+    return {
+      ok: false,
+      message: `Mollie couldn't refund it: ${(refundError as Error).message}`,
+    };
+  }
+
+  await supabase
+    .from("orders")
+    .update({
+      refunded_cents: order.total_cents,
+      refunded_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  return { ok: true, refundedCents: order.total_cents };
+}
+
 /* ------------------------------------------------------- invoice numbers */
 
 /**
@@ -493,6 +566,53 @@ export async function getInvoiceNumber(reference: string): Promise<string | null
   } catch (error) {
     console.error("[orders] could not read invoice number:", error);
     return null;
+  }
+}
+
+/* ------------------------------------------------------ unaccepted orders */
+
+/** After this long unaccepted, the kitchen screen turns urgent and an email goes out. */
+export const ESCALATE_AFTER_MINUTES = 5;
+
+let lastEscalationAt = 0;
+
+/**
+ * Email the kitchen once about a paid order nobody has accepted or declined.
+ *
+ * Claiming the row (setting `escalated_at` only where it is still null) is
+ * what makes it once-only even if several requests run this at the same
+ * moment. Like the stale-checkout sweep it is called from places that run
+ * anyway (the admin poll) *and* from the housekeeping endpoint, which an
+ * external once-a-minute caller can hit — the admin poll alone can't cover
+ * the case that matters most, which is nobody having the admin open.
+ */
+export async function escalateUnacceptedOrders(): Promise<void> {
+  if (Date.now() - lastEscalationAt < 30_000) return;
+  lastEscalationAt = Date.now();
+
+  try {
+    const cutoff = new Date(Date.now() - ESCALATE_AFTER_MINUTES * 60_000).toISOString();
+    const { data, error } = await supabaseAdmin()
+      .from("orders")
+      .update({ escalated_at: new Date().toISOString() })
+      .eq("status", "new")
+      .eq("payment_status", "paid")
+      .is("escalated_at", null)
+      .lt("paid_at", cutoff)
+      .select("id, paid_at");
+    if (error) throw new Error(error.message);
+
+    for (const row of data ?? []) {
+      const order = await getOrderSummaryById(row.id);
+      if (!order) continue;
+      const waited = Math.max(
+        ESCALATE_AFTER_MINUTES,
+        Math.round((Date.now() - Date.parse(row.paid_at)) / 60_000)
+      );
+      await sendUnacceptedOrderEmail(order, waited);
+    }
+  } catch (error) {
+    console.error("[orders] escalation check failed:", error);
   }
 }
 
@@ -575,6 +695,9 @@ export interface ReceiptLine {
 }
 
 export interface OrderSummary {
+  id: string;
+  /** The language they ordered in — what later emails are written in. */
+  locale: string;
   reference: string;
   status: string;
   paymentStatus: string;
@@ -601,7 +724,7 @@ export interface OrderSummary {
 }
 
 const ORDER_SELECT =
-  "reference, status, payment_status, total_cents, mollie_payment_id, fulfilment, " +
+  "id, locale, reference, status, payment_status, total_cents, mollie_payment_id, fulfilment, " +
   "created_at, customer_id, customer_name, customer_email, customer_phone, " +
   "address_street, address_postcode, address_city, notes, subtotal_cents, " +
   "discount_cents, promo_code, delivery_fee_cents, " +
@@ -609,6 +732,8 @@ const ORDER_SELECT =
   "order_items(name, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 interface OrderRow {
+  id: string;
+  locale: string | null;
   reference: string;
   status: string;
   payment_status: string;
@@ -645,6 +770,8 @@ interface OrderRow {
 
 function mapOrderRow(row: OrderRow): OrderSummary {
   return {
+    id: row.id,
+    locale: row.locale ?? "nl",
     reference: row.reference,
     status: row.status,
     paymentStatus: row.payment_status,
@@ -676,6 +803,18 @@ function mapOrderRow(row: OrderRow): OrderSummary {
       lineTotalCents: l.line_total_cents,
     })),
   };
+}
+
+export async function getOrderSummaryById(id: string): Promise<OrderSummary | null> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return mapOrderRow(data as unknown as OrderRow);
 }
 
 export async function getOrderByReference(

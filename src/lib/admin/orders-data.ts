@@ -10,7 +10,10 @@ import type {
   CustomerStatus,
   OrderStatus,
 } from "@/lib/admin/order-types";
-import { NEXT_STATUS, RIDER_STATUSES } from "@/lib/admin/order-types";
+import { ALLOWED_NEXT, RIDER_STATUSES } from "@/lib/admin/order-types";
+import { after } from "next/server";
+import { getOrderSummaryById, refundOrder } from "@/lib/orders";
+import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 
 /**
@@ -57,6 +60,9 @@ interface OrderRow {
   total_cents: number;
   created_at: string;
   delivered_at: string | null;
+  paid_at: string | null;
+  accepted_at: string | null;
+  refunded_cents: number;
   delivery_date: string | null;
   delivery_slot_start: string | null;
   delivery_slot_end: string | null;
@@ -118,6 +124,9 @@ function mapOrder(row: OrderRow): AdminOrder {
     assignedRiderId: row.assigned_rider_id,
     assignedRiderName: row.assigned_rider?.name ?? null,
     deliveredAt: row.delivered_at,
+    paidAt: row.paid_at,
+    acceptedAt: row.accepted_at,
+    refunded: fromCents(row.refunded_cents ?? 0),
     deliveryDate: row.delivery_date,
     deliverySlotStart: row.delivery_slot_start,
     deliverySlotEnd: row.delivery_slot_end,
@@ -125,7 +134,7 @@ function mapOrder(row: OrderRow): AdminOrder {
 }
 
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
@@ -171,9 +180,9 @@ export async function listOrdersForRider(riderId: string): Promise<AdminOrder[]>
  * in from the client (same rule as `priceCart()`) — this re-derives what's
  * actually allowed from the current row and the actor's role:
  *
- * - Owner/staff can advance any order along `NEXT_STATUS`, from any status.
+ * - Owner/staff/manager can advance any order along `ALLOWED_NEXT`.
  * - A rider can only move an order that's assigned to them, and only
- *   through `RIDER_STATUSES` (kitchen owns "new -> preparing").
+ *   into `RIDER_STATUSES` (kitchen owns accepting and preparing).
  *
  * Anything else — wrong actor, wrong order, wrong transition — throws
  * rather than silently no-opping, so a bug here fails loudly.
@@ -193,8 +202,7 @@ export async function updateOrderStatus(
   if (!row) throw new Error("Order not found.");
 
   const currentStatus = row.status as OrderStatus;
-  const allowed = NEXT_STATUS[currentStatus];
-  if (allowed !== nextStatus) {
+  if (!ALLOWED_NEXT[currentStatus].includes(nextStatus)) {
     throw new Error(`Can't move an order from "${currentStatus}" to "${nextStatus}".`);
   }
 
@@ -212,10 +220,19 @@ export async function updateOrderStatus(
     .update({
       status: nextStatus,
       ...(nextStatus === "delivered" ? { delivered_at: new Date().toISOString() } : {}),
+      ...(nextStatus === "preparing" ? { accepted_at: new Date().toISOString() } : {}),
     })
     .eq("id", orderId);
 
   if (error) throw new Error(error.message);
+
+  // Tell the customer. "Ready for delivery" is an internal step, so it
+  // doesn't get an email. after() keeps the send alive on Vercel without
+  // holding up the click.
+  if (nextStatus === "preparing" || nextStatus === "on_the_way" || nextStatus === "delivered") {
+    const order = await getOrderSummaryById(orderId);
+    if (order) after(() => sendOrderStatusEmail(order, nextStatus));
+  }
 }
 
 /**
@@ -224,17 +241,24 @@ export async function updateOrderStatus(
  * `NEXT_STATUS`'s linear chain (cancelling isn't "the next stage"), so it
  * gets its own function rather than being squeezed into `updateOrderStatus`.
  */
+export interface CancelResult {
+  /** Cents sent back to the customer (0 when the order was never paid). */
+  refundedCents: number;
+  /** Set when the order was cancelled but the refund could not be made. */
+  refundError?: string;
+}
+
 export async function cancelOrder(
   orderId: string,
   actor: { role: "owner" | "staff" | "manager" }
-): Promise<void> {
+): Promise<CancelResult> {
   if (actor.role !== "owner" && actor.role !== "staff" && actor.role !== "manager") {
     throw new Error("Only staff can cancel an order.");
   }
 
   const { data: row, error: fetchError } = await supabaseAdmin()
     .from("orders")
-    .select("status, delivery_date, delivery_slot_start")
+    .select("status, payment_status, delivery_date, delivery_slot_start")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -254,6 +278,23 @@ export async function cancelOrder(
   // Give the seat back — a cancelled order shouldn't go on shrinking that
   // slot's real capacity for everyone else.
   await releaseDeliverySlot(row.delivery_date, row.delivery_slot_start);
+
+  // The customer already paid for something we're not going to make — the
+  // money goes back automatically rather than leaving a cancelled order
+  // sitting on a payment nobody remembers to refund.
+  const result: CancelResult = { refundedCents: 0 };
+  if (row.payment_status === "paid") {
+    const refund = await refundOrder(orderId);
+    if (refund.ok) result.refundedCents = refund.refundedCents;
+    else result.refundError = refund.message;
+  }
+
+  const order = await getOrderSummaryById(orderId);
+  if (order) {
+    const refunded = result.refundedCents;
+    after(() => sendOrderStatusEmail(order, "cancelled", refunded));
+  }
+  return result;
 }
 
 /**

@@ -13,6 +13,7 @@ import { siteConfig } from "@/lib/site-config";
 import { auth } from "@/lib/auth";
 import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
 import ClearCartOnPaid from "@/components/cart/ClearCartOnPaid";
+import AutoRefresh from "@/components/cart/AutoRefresh";
 import ReceiptPrintButton from "@/components/cart/ReceiptPrintButton";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +64,9 @@ export default async function CheckoutCompletePage({
     }
   }
 
-  const paid = paymentStatus === "paid";
+  // A refunded order was paid — it must not fall into the "still waiting" state.
+  const refunded = paymentStatus === "refunded";
+  const paid = paymentStatus === "paid" || refunded;
   const invoiceNumber = paid ? await getInvoiceNumber(order.reference) : null;
   const failed = ["failed", "expired", "canceled"].includes(paymentStatus);
 
@@ -102,6 +105,12 @@ export default async function CheckoutCompletePage({
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-5 py-20 text-center sm:px-6 sm:py-28">
       {paid && <ClearCartOnPaid />}
+      {/* Still waiting on the bank: look again every few seconds. Once paid,
+          follow the order through the kitchen at a gentler pace. */}
+      {!paid && !failed && <AutoRefresh intervalMs={4000} />}
+      {paid && !["delivered", "cancelled"].includes(order.status) && (
+        <AutoRefresh intervalMs={30000} />
+      )}
 
       <span
         className={`print:hidden flex h-16 w-16 items-center justify-center rounded-full ${
@@ -127,11 +136,17 @@ export default async function CheckoutCompletePage({
 
       <p className="print:hidden mt-4 text-base text-ink/70">
         {paid
-          ? t("completePaid")
+          ? order.status === "cancelled"
+            ? t("trackCancelled")
+            : t("completePaid")
           : failed
             ? t("completeFailed")
             : t("completePending")}
       </p>
+
+      {paid && order.status !== "cancelled" && (
+        <OrderProgress status={order.status} refunded={refunded} t={t} />
+      )}
 
       {paid && (
         <div className="mt-6">
@@ -335,5 +350,49 @@ export default async function CheckoutCompletePage({
         {t("backToMenu")}
       </Link>
     </div>
+  );
+}
+
+/** The customer-facing "where is my order" tracker. */
+function OrderProgress({
+  status,
+  refunded,
+  t,
+}: {
+  status: string;
+  refunded: boolean;
+  t: (key: string) => string;
+}) {
+  // "ready" is the kitchen's own optional step — to the customer it is
+  // still "being prepared".
+  const steps = [
+    { key: "new", label: t("trackReceived") },
+    { key: "preparing", label: t("trackPreparing") },
+    { key: "on_the_way", label: t("trackOnTheWay") },
+    { key: "delivered", label: t("trackDelivered") },
+  ];
+  const position = status === "ready" ? 1 : Math.max(steps.findIndex((s) => s.key === status), 0);
+
+  return (
+    <>
+    {refunded && (
+      <p className="print:hidden mt-6 rounded-2xl bg-cream-300 px-5 py-3 text-sm font-medium text-charcoal-600">
+        {t("trackRefunded")}
+      </p>
+    )}
+    <ol className="print:hidden mt-8 flex w-full max-w-md items-start gap-2" aria-label={t("trackTitle")}>
+      {steps.map((step, i) => {
+        const done = i <= position;
+        return (
+          <li key={step.key} className="flex-1 text-center">
+            <div className={`h-1.5 rounded-full ${done ? "bg-ember-600" : "bg-charcoal-600/12"}`} />
+            <p className={`mt-2 text-xs ${done ? "font-semibold text-charcoal-600" : "text-ink/45"}`}>
+              {step.label}
+            </p>
+          </li>
+        );
+      })}
+    </ol>
+    </>
   );
 }
