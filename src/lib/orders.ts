@@ -749,7 +749,8 @@ export async function getInvoiceNumber(reference: string): Promise<string | null
       .maybeSingle();
     if (error || !data) return null;
     if (data.invoice_number) return data.invoice_number as string;
-    if (data.payment_status !== "paid") return null;
+    // Paid — or paid and since refunded: the invoice was due when it was paid.
+    if (data.payment_status !== "paid" && data.payment_status !== "refunded") return null;
 
     const { data: assigned, error: rpcError } = await supabaseAdmin().rpc(
       "assign_invoice_number",

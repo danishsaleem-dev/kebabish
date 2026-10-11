@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import BrandLogo from "@/components/shared/BrandLogo";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { CheckCircle2, Clock, MapPin, UserPlus, LogIn, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, FileText, MapPin, UserPlus, LogIn, XCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getInvoiceNumber, getOrderByReference, localizeLineNames, syncPaymentStatus } from "@/lib/orders";
 import { getPayment } from "@/lib/mollie";
@@ -150,7 +150,14 @@ export default async function CheckoutCompletePage({
       )}
 
       {paid && order.status !== "cancelled" && (
-        <div className="mt-6">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <a
+            href={`/api/invoice?ref=${encodeURIComponent(order.reference)}&t=${token ?? ""}&download=1`}
+            className="print:hidden inline-flex items-center gap-2 rounded-full bg-ember-600 px-6 py-3 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+          >
+            <FileText size={16} aria-hidden="true" />
+            {t("invoiceDownload")}
+          </a>
           <ReceiptPrintButton label={t("receiptDownload")} />
         </div>
       )}

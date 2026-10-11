@@ -5,6 +5,7 @@ import {
   Bike,
   ChefHat,
   CreditCard,
+  FileText,
   Clock,
   Globe,
   Mail,
@@ -100,6 +101,15 @@ export default async function OrderDetailPage({
               <ChefHat size={15} />
               Kitchen ticket
             </a>
+            {order.paymentStatus === "paid" || order.paymentStatus === "refunded" ? (
+              <a
+                href={`/admin/orders/${order.id}/invoice?download=1`}
+                className="inline-flex items-center gap-2 rounded-lg border border-hairline px-4 py-2.5 text-sm font-semibold text-body-text transition-colors hover:bg-canvas print:hidden"
+              >
+                <FileText size={15} />
+                Invoice PDF
+              </a>
+            ) : null}
             <PrintButton label="Print invoice" />
           </div>
         </div>

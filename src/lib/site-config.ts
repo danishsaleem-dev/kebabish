@@ -40,6 +40,12 @@ export const siteConfig = {
     secondaryEmail: "farhanahmadqilash@gmail.com",
   },
 
+  // Printed in the footer of every invoice (the bank details Danish supplied).
+  bank: {
+    iban: "NL93 BUNQ 2211 1510 27",
+    bic: "BUNQNL2A",
+  },
+
   website: "https://www.kebabish.nl",
 
   socials: {

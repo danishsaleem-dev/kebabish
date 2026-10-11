@@ -5,6 +5,8 @@ import { fromCents, vatIncludedCents } from "@/lib/money";
 import { getPublicSettings } from "@/lib/admin/store";
 import { orderAccessToken } from "@/lib/order-token";
 import { getInvoiceNumber, localizeLineNames, type OrderSummary } from "@/lib/orders";
+import { loadInvoiceData } from "@/lib/invoice/data";
+import { buildInvoicePdf } from "@/lib/invoice/pdf";
 
 /**
  * The customer's copy of a paid order. Sent from the same single place as
@@ -224,10 +226,26 @@ export async function sendOrderConfirmationEmail(
     const settings = await getPublicSettings();
     const invoiceNumber = await getInvoiceNumber(order.reference);
     const localized = { ...order, lines: await localizeLineNames(order.lines, lang) };
+    // The invoice rides along as a PDF — the "durable medium" copy. If making
+    // it fails for any reason the confirmation still goes out without it; the
+    // customer can download it from their order page.
+    let attachments: { filename: string; content: Buffer }[] = [];
+    try {
+      const invoice = await loadInvoiceData(order.reference);
+      if (invoice) {
+        attachments = [
+          { filename: `${invoice.invoiceNumber}.pdf`, content: Buffer.from(await buildInvoicePdf(invoice)) },
+        ];
+      }
+    } catch (invoiceError) {
+      console.error("[email] could not attach the invoice PDF:", invoiceError);
+    }
+
     const resend = new Resend(apiKey);
     const { error } = await resend.emails.send({
       from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
       to: order.customerEmail,
+      attachments,
       subject: COPY[lang].subject(order.reference),
       html: html(
         localized,

@@ -153,6 +153,13 @@ export interface StoredSettings {
   vatRatePercent?: number | null;
   /** Dutch BTW-id of the business, e.g. NL123456789B01. Shown on invoices and in the footer once set. */
   vatNumber?: string;
+  /**
+   * Print the registered company name (Marfah Enterprise) next to "Kebabish"
+   * on invoices. Off by default — the public site only names it on Privacy and
+   * Terms — but a Dutch invoice may need the supplier's legal name, so this is
+   * a switch for the owner/accountant rather than a decision made in code.
+   */
+  showLegalNameOnInvoice?: boolean;
 }
 
 export interface StoredIngredient {

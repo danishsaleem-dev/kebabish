@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Clock, LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-react";
+import { Clock, FileText, LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-react";
+import { orderAccessToken } from "@/lib/order-token";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
 import { listCustomerOrders } from "@/lib/orders";
@@ -21,7 +22,12 @@ export default async function DashboardPage() {
   // redirect lands, so a null session can't crash the page instead.
   if (!session?.user) redirect("/login");
   const user = session.user;
-  const orders = await listCustomerOrders(user.id);
+  // Checkouts that were started and never paid (failed, expired, cancelled at
+  // the bank) aren't orders as far as the customer is concerned — hide them
+  // here. Staff still see them in the admin, for troubleshooting.
+  const orders = (await listCustomerOrders(user.id)).filter(
+    (o) => !["failed", "expired", "canceled"].includes(o.paymentStatus)
+  );
   const profile = await getCustomerProfile(user.id);
 
   return (
@@ -132,7 +138,16 @@ timeZone: "Europe/Amsterdam",
                         })}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                      {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (
+                        <a
+                          href={`/api/invoice?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}&download=1`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs font-semibold text-heading transition-colors hover:bg-canvas"
+                        >
+                          <FileText size={13} />
+                          Invoice (PDF)
+                        </a>
+                      )}
                       <OrderStatusPill status={order.status as OrderStatus} />
                       <p className="font-display text-sm font-semibold text-heading">
                         {formatEuro(fromCents(order.totalCents))}

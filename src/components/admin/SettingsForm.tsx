@@ -365,6 +365,17 @@ export default function SettingsForm({
             />
           </Field>
         </div>
+        <div className="mt-4">
+          <Checkbox
+            name="showLegalNameOnInvoice"
+            label="Show the company name (Marfah Enterprise) on invoices"
+            defaultChecked={settings.showLegalNameOnInvoice ?? false}
+          />
+          <p className="mt-1.5 text-xs text-muted">
+            Invoices are issued as &ldquo;Kebabish&rdquo; with the KVK number and BTW-id. Ask your
+            accountant whether they must also carry the registered company name — if so, tick this.
+          </p>
+        </div>
       </Card>
 
       <div className="flex items-center gap-3">

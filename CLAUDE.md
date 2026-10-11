@@ -1009,6 +1009,36 @@ English-only. Root SPF lists only Hostinger; Resend authenticates by DKIM + its
 own return-path subdomain, so mail from info@ works, but anything sent from
 Google Workspace as info@ would fail SPF (DMARC is `p=none`).
 
+### Invoice PDF
+
+`buildInvoicePdf()` (`src/lib/invoice/pdf.ts`) draws a one-or-more-page A4 PDF
+with pdf-lib — pure JS, nothing read from disk at runtime (the logo is embedded
+in `invoice/logo.ts`, regenerate with `scripts/generate-invoice-logo.mjs`; a
+function on Vercel can't reliably read `/public`). `loadInvoiceData(reference)`
+gathers the data and returns null for an order that was never paid, so there is
+one source for all three places the PDF appears:
+
+- **Customer download** — `/api/invoice?ref=&t=` (the same HMAC token as the order
+  page; wrong/missing token and unknown reference are the same plain 404), linked
+  from the order page and from each paid order on `/dashboard`.
+- **Email attachment** on the confirmation email (best effort: if the PDF can't be
+  made the email still goes out without it).
+- **Admin copy** — `/admin/orders/[id]/invoice` (role-checked by hand, it's a
+  route handler), so an order entered by phone with no email can still have its
+  invoice sent over WhatsApp.
+
+Contents: invoice number (INV-yyyy-nnnnnn) and order number kept separate,
+invoice date = payment date, supply date = delivery date, seller KVK + BTW-id,
+customer name/address, lines with extras and notes, subtotal/discount/delivery/
+total, a VAT breakdown (base / rate / amount, from the VAT rate in Settings),
+payment method and date, refund line if refunded, IBAN/BIC in the footer
+(`siteConfig.bank`). It prints "Kebabish" only; the registered company name
+(Marfah Enterprise) is added when **Settings → Tax & invoices → "Show the company
+name on invoices"** is ticked (off by default; ask the accountant). Built-in
+Helvetica covers Dutch/English; a character outside it is transliterated or shown
+as "?" rather than crashing. **No credit-note document yet** — a refunded invoice
+carries a "Refunded" line only; credit notes arrive with partial refunds.
+
 ### Cart stays honest against the live menu
 
 A dish can sell out, be hidden, or have its extras changed after someone put it
