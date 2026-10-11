@@ -33,7 +33,16 @@ const promoSchema = z
     active: z.coerce.boolean(),
     minOrder: z.coerce.number().min(0).nullable(),
     expiresAt: z.string().nullable(),
+    startsAt: z.string().nullable(),
+    maxRedemptions: z.coerce.number().int().min(1, "At least 1.").nullable(),
     singleUsePerCustomer: z.coerce.boolean(),
+    firstOrderOnly: z.coerce.boolean(),
+    onlyCategoryIds: z.array(z.string()),
+    onlyItemSlugs: z.array(z.string()),
+  })
+  .refine((v) => !v.startsAt || !v.expiresAt || v.startsAt <= v.expiresAt, {
+    message: "The start date can't be after the end date.",
+    path: ["startsAt"],
   })
   .refine((v) => v.type !== "percentage" || v.value <= 100, {
     message: "A percentage discount can't exceed 100%.",
@@ -52,6 +61,8 @@ function fieldErrors(error: z.ZodError): Record<string, string> {
 function readPromoForm(formData: FormData) {
   const minOrderRaw = String(formData.get("minOrder") ?? "").trim();
   const expiresAtRaw = String(formData.get("expiresAt") ?? "").trim();
+  const startsAtRaw = String(formData.get("startsAt") ?? "").trim();
+  const maxRaw = String(formData.get("maxRedemptions") ?? "").trim();
 
   return promoSchema.safeParse({
     code: formData.get("code"),
@@ -60,7 +71,12 @@ function readPromoForm(formData: FormData) {
     active: formData.get("active") === "on",
     minOrder: minOrderRaw === "" ? null : minOrderRaw,
     expiresAt: expiresAtRaw === "" ? null : expiresAtRaw,
+    startsAt: startsAtRaw === "" ? null : startsAtRaw,
+    maxRedemptions: maxRaw === "" ? null : maxRaw,
     singleUsePerCustomer: formData.get("singleUsePerCustomer") === "on",
+    firstOrderOnly: formData.get("firstOrderOnly") === "on",
+    onlyCategoryIds: formData.getAll("onlyCategoryIds").map(String).filter(Boolean),
+    onlyItemSlugs: formData.getAll("onlyItemSlugs").map(String).filter(Boolean),
   });
 }
 

@@ -113,7 +113,7 @@ export default function CheckoutForm({
     const code = promoInput.trim();
     if (!code) return;
     startPromoTransition(async () => {
-      const result = await checkPromoCodeAction(code, toCents(subtotal));
+      const result = await checkPromoCodeAction(code, cartPayload);
       if (result.ok && result.code && result.discountCents != null) {
         setPromo({ code: result.code, discountCents: result.discountCents });
         setPromoError(null);

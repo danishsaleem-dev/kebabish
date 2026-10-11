@@ -87,9 +87,17 @@ export interface PromoState {
  */
 export async function checkPromoCodeAction(
   code: string,
-  subtotalCents: number
+  /** The cart as the checkout form submits it (slugs, quantities, extras) — priced here, not trusted. */
+  cartPayload: string
 ): Promise<PromoState> {
-  const result = await validatePromoCode(code, subtotalCents);
+  let cart;
+  try {
+    cart = await priceCart(JSON.parse(cartPayload));
+  } catch {
+    // An unpriceable cart can't be discounted; checkout will say why.
+    return { ok: false, error: "notApplicable" };
+  }
+  const result = await validatePromoCode(code, cart);
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, code: result.code, discountCents: result.discountCents };
 }
@@ -226,11 +234,7 @@ export async function checkoutAction(
   let promoCode: string | null = null;
   let discountCents = 0;
   if (submittedPromo) {
-    const promo = await validatePromoCode(
-      submittedPromo,
-      cart.subtotalCents,
-      details.email
-    );
+    const promo = await validatePromoCode(submittedPromo, cart, details.email);
     if (!promo.ok) {
       await releaseSlot();
       return { ok: false, error: "promoInvalid" };

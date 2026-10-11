@@ -282,6 +282,10 @@
     "promoExpired": "Deze code is verlopen.",
     "promoBelowMinimum": "Je bestelling is nog niet hoog genoeg voor deze code.",
     "promoAlreadyUsed": "Deze code heb je al eens gebruikt.",
+    "promoNotStarted": "Deze code is nog niet geldig.",
+    "promoUsedUp": "Deze code is op — het maximale aantal keren is bereikt.",
+    "promoNotFirstOrder": "Deze code is alleen voor je eerste bestelling.",
+    "promoNotApplicable": "Deze code geldt niet voor de gerechten in je winkelwagen.",
     "promoInvalid": "Deze kortingscode is niet (meer) geldig. Verwijder de code en probeer het opnieuw."
   },
   "footer": {

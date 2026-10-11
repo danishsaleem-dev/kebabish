@@ -4,15 +4,24 @@ import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import DeleteButton from "@/components/admin/ui/DeleteButton";
 import { deletePromoCodeAction } from "@/app/admin/(dashboard)/marketing/promotions/actions";
-import { listPromoCodes } from "@/lib/admin/store";
+import { listPromoCodes, listCategories, listItems } from "@/lib/admin/store";
+import { promoRedemptionCounts } from "@/lib/orders";
+import { amsterdamNow } from "@/lib/delivery-slots";
 import { formatMoney } from "@/lib/admin/units";
 
 export const metadata = { title: "Promo codes" };
 export const dynamic = "force-dynamic";
 
 export default async function PromoCodesPage() {
-  const promoCodes = await listPromoCodes();
-  const today = new Date().toISOString().slice(0, 10);
+  const [promoCodes, categories, items, usage] = await Promise.all([
+    listPromoCodes(),
+    listCategories(),
+    listItems(),
+    promoRedemptionCounts().catch(() => new Map<string, number>()),
+  ]);
+  const today = amsterdamNow().dateKey;
+  const categoryName = new Map(categories.map((c) => [c.id, c.label]));
+  const itemName = new Map(items.map((i) => [i.slug, i.name]));
 
   return (
     <AdminShell title="Promo codes">
@@ -68,8 +77,25 @@ export default async function PromoCodesPage() {
                           : `${formatMoney(promo.value)} off`}
                         {promo.minOrder != null &&
                           ` · min. ${formatMoney(promo.minOrder)}`}
+                        {promo.startsAt && ` · from ${promo.startsAt}`}
                         {promo.expiresAt && ` · expires ${promo.expiresAt}`}
                         {promo.singleUsePerCustomer && " · one use per customer"}
+                        {promo.firstOrderOnly && " · first order only"}
+                      </p>
+                      {((promo.onlyCategoryIds?.length ?? 0) > 0 ||
+                        (promo.onlyItemSlugs?.length ?? 0) > 0) && (
+                        <p className="mt-0.5 text-xs text-muted">
+                          Only on:{" "}
+                          {[
+                            ...(promo.onlyCategoryIds ?? []).map((id) => categoryName.get(id) ?? id),
+                            ...(promo.onlyItemSlugs ?? []).map((s) => itemName.get(s) ?? s),
+                          ].join(", ")}
+                        </p>
+                      )}
+                      <p className="mt-0.5 text-xs font-medium text-body-text">
+                        Used {usage.get(promo.code) ?? 0}
+                        {promo.maxRedemptions != null ? ` of ${promo.maxRedemptions}` : ""} time
+                        {(usage.get(promo.code) ?? 0) === 1 && promo.maxRedemptions == null ? "" : "s"}
                       </p>
                     </div>
 

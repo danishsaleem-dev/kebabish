@@ -11,14 +11,18 @@ import {
   FormError,
 } from "@/components/admin/ui/Form";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
-import type { StoredPromoCode } from "@/lib/admin/store/types";
+import type { StoredCategory, StoredItem, StoredPromoCode } from "@/lib/admin/store/types";
 
 export default function PromoCodeForm({
   promo,
   action,
   submitLabel,
+  categories,
+  items,
 }: {
   promo?: StoredPromoCode;
+  categories: StoredCategory[];
+  items: StoredItem[];
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   submitLabel: string;
 }) {
@@ -114,6 +118,19 @@ export default function PromoCodeForm({
             </Field>
 
             <Field
+              label="Starts on"
+              hint="Leave empty to start straight away."
+              error={state.errors?.startsAt}
+            >
+              <Input
+                type="date"
+                name="startsAt"
+                defaultValue={promo?.startsAt ?? ""}
+                invalid={Boolean(state.errors?.startsAt)}
+              />
+            </Field>
+
+            <Field
               label="Expires on"
               hint="Leave empty for no expiry."
               error={state.errors?.expiresAt}
@@ -123,6 +140,21 @@ export default function PromoCodeForm({
                 name="expiresAt"
                 defaultValue={promo?.expiresAt ?? ""}
                 invalid={Boolean(state.errors?.expiresAt)}
+              />
+            </Field>
+
+            <Field
+              label="Total uses allowed"
+              hint="Across all customers. Leave empty for unlimited."
+              error={state.errors?.maxRedemptions}
+            >
+              <Input
+                type="number"
+                name="maxRedemptions"
+                min={1}
+                step={1}
+                defaultValue={promo?.maxRedemptions ?? ""}
+                invalid={Boolean(state.errors?.maxRedemptions)}
               />
             </Field>
           </div>
@@ -138,6 +170,48 @@ export default function PromoCodeForm({
               label="One use per customer"
               defaultChecked={promo?.singleUsePerCustomer ?? false}
             />
+            <Checkbox
+              name="firstOrderOnly"
+              label="First order only"
+              defaultChecked={promo?.firstOrderOnly ?? false}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Applies to"
+          subtitle="Leave everything unticked and the discount applies to the whole order. Tick categories or dishes and it applies only to those items in the basket."
+        />
+        <div className="mt-4 space-y-5">
+          <div>
+            <p className="mb-2 text-sm font-medium text-heading">Categories</p>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {categories.map((c) => (
+                <Checkbox
+                  key={c.id}
+                  name="onlyCategoryIds"
+                  value={c.id}
+                  label={c.label}
+                  defaultChecked={promo?.onlyCategoryIds?.includes(c.id)}
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="mb-2 text-sm font-medium text-heading">Dishes</p>
+            <div className="grid max-h-64 gap-2 overflow-y-auto sm:grid-cols-2">
+              {items.map((i) => (
+                <Checkbox
+                  key={i.slug}
+                  name="onlyItemSlugs"
+                  value={i.slug}
+                  label={i.name}
+                  defaultChecked={promo?.onlyItemSlugs?.includes(i.slug)}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </Card>

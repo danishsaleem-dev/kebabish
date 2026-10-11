@@ -10,6 +10,7 @@ import type { StoredPromoCode } from "@/lib/admin/store/types";
 import { sendNewOrderEmail, sendUnacceptedOrderEmail } from "@/lib/email/new-order";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
+import { amsterdamNow } from "@/lib/delivery-slots";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -145,56 +146,133 @@ export function isDeliverableTown(town: string): boolean {
   return siteConfig.deliveryAreaTowns.some((t) => normalise(t.name) === target);
 }
 
-export type PromoError = "notFound" | "expired" | "belowMinimum" | "alreadyUsed";
+export type PromoError =
+  | "notFound"
+  | "expired"
+  | "notStarted"
+  | "belowMinimum"
+  | "alreadyUsed"
+  | "usedUp"
+  | "notFirstOrder"
+  | "notApplicable";
 
 export type PromoValidation =
   | { ok: true; code: string; discountCents: number }
   | { ok: false; error: PromoError };
 
+/** The slice of a priced cart a promo code needs to look at. */
+export interface PromoCart {
+  subtotalCents: number;
+  lines: { slug: string; lineTotalCents: number }[];
+}
+
 /**
- * Validate a promo code against the server-priced subtotal.
+ * Validate a promo code against the server-priced cart.
  *
  * Called twice: once from the checkout page (no `customerEmail` yet, so the
- * single-use check is skipped) as a live preview while typing, and again
+ * per-customer checks are skipped) as a live preview while typing, and again
  * inside `checkoutAction` with the real email, which is the only check that
  * actually gates payment — never trust the client's own "applied" state for
  * money, same as `priceCart`.
+ *
+ * The discount is worked out on the *qualifying* lines when the code is
+ * restricted to certain dishes or categories, so "20% off kebabs" never
+ * discounts the drinks in the same basket.
  */
 export async function validatePromoCode(
   rawCode: string,
-  subtotalCents: number,
+  cart: PromoCart,
   customerEmail?: string
 ): Promise<PromoValidation> {
-  const { promoCodes } = await readStore();
+  const store = await readStore();
   const code = rawCode.trim().toUpperCase();
-  const promo = (promoCodes ?? []).find((p) => p.code === code);
+  const promo = (store.promoCodes ?? []).find((p) => p.code === code);
 
   if (!promo || !promo.active) return { ok: false, error: "notFound" };
 
-  if (promo.expiresAt) {
-    const today = new Date().toISOString().slice(0, 10);
-    if (promo.expiresAt < today) return { ok: false, error: "expired" };
-  }
+  // Amsterdam's calendar day, like everything else the kitchen runs on — not
+  // UTC's, which would flip a code an hour (or two) early or late.
+  const today = amsterdamNow().dateKey;
+  if (promo.startsAt && promo.startsAt > today) return { ok: false, error: "notStarted" };
+  if (promo.expiresAt && promo.expiresAt < today) return { ok: false, error: "expired" };
 
-  if (promo.minOrder != null && subtotalCents < toCents(promo.minOrder)) {
+  if (promo.minOrder != null && cart.subtotalCents < toCents(promo.minOrder)) {
     return { ok: false, error: "belowMinimum" };
   }
 
-  if (promo.singleUsePerCustomer && customerEmail) {
-    const used = await promoAlreadyUsedBy(promo.code, customerEmail);
-    if (used) return { ok: false, error: "alreadyUsed" };
+  // Which lines the discount applies to.
+  const onlyItems = new Set(promo.onlyItemSlugs ?? []);
+  const onlyCategories = new Set(promo.onlyCategoryIds ?? []);
+  const restricted = onlyItems.size > 0 || onlyCategories.size > 0;
+  let eligibleCents = cart.subtotalCents;
+  if (restricted) {
+    const categoryOf = new Map(store.items.map((i) => [i.slug, i.categoryId]));
+    eligibleCents = cart.lines
+      .filter(
+        (l) =>
+          onlyItems.has(l.slug) || onlyCategories.has(categoryOf.get(l.slug) ?? "")
+      )
+      .reduce((sum, l) => sum + l.lineTotalCents, 0);
+    if (eligibleCents === 0) return { ok: false, error: "notApplicable" };
   }
 
-  const discountCents = discountFor(promo, subtotalCents);
-  return { ok: true, code: promo.code, discountCents };
+  if (promo.maxRedemptions != null) {
+    const used = (await promoRedemptionCounts()).get(promo.code) ?? 0;
+    if (used >= promo.maxRedemptions) return { ok: false, error: "usedUp" };
+  }
+
+  if (customerEmail) {
+    if (promo.singleUsePerCustomer && (await promoAlreadyUsedBy(promo.code, customerEmail))) {
+      return { ok: false, error: "alreadyUsed" };
+    }
+    if (promo.firstOrderOnly && (await hasPaidOrder(customerEmail))) {
+      return { ok: false, error: "notFirstOrder" };
+    }
+  }
+
+  return { ok: true, code: promo.code, discountCents: discountFor(promo, eligibleCents) };
 }
 
-function discountFor(promo: StoredPromoCode, subtotalCents: number): number {
+function discountFor(promo: StoredPromoCode, eligibleCents: number): number {
   const raw =
     promo.type === "percentage"
-      ? Math.round((subtotalCents * promo.value) / 100)
+      ? Math.round((eligibleCents * promo.value) / 100)
       : toCents(promo.value);
-  return Math.min(Math.max(raw, 0), subtotalCents);
+  return Math.min(Math.max(raw, 0), eligibleCents);
+}
+
+/**
+ * How many orders are using each code right now: paid ones, plus checkouts
+ * still waiting to be paid (so the last redemption can't be handed to two
+ * people mid-payment). An abandoned checkout stops counting as soon as it
+ * expires. Not a `head: true` count — see `promoAlreadyUsedBy`.
+ */
+export async function promoRedemptionCounts(): Promise<Map<string, number>> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select("promo_code")
+    .not("promo_code", "is", null)
+    .in("payment_status", ["paid", "open"]);
+  if (error) throw new Error(error.message);
+
+  const counts = new Map<string, number>();
+  for (const row of data ?? []) {
+    const code = row.promo_code as string;
+    counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return counts;
+}
+
+/** Has this email ever completed a paid order? (For "first order only" codes.) */
+async function hasPaidOrder(customerEmail: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select("id")
+    .ilike("customer_email", customerEmail)
+    .eq("payment_status", "paid")
+    .limit(1);
+  if (error) throw new Error(error.message);
+  return (data?.length ?? 0) > 0;
 }
 
 /**

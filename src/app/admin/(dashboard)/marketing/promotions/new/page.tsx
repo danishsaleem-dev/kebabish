@@ -2,11 +2,13 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import PromoCodeForm from "@/components/admin/PromoCodeForm";
+import { listCategories, listItems } from "@/lib/admin/store";
 import { createPromoCodeAction } from "@/app/admin/(dashboard)/marketing/promotions/actions";
 
 export const metadata = { title: "Add promo code" };
 
-export default function NewPromoCodePage() {
+export default async function NewPromoCodePage() {
+  const [categories, items] = await Promise.all([listCategories(), listItems()]);
   return (
     <AdminShell title="Add promo code">
       <div className="mx-auto max-w-3xl space-y-4 sm:space-y-6">
@@ -18,7 +20,12 @@ export default function NewPromoCodePage() {
           Back to promo codes
         </Link>
 
-        <PromoCodeForm action={createPromoCodeAction} submitLabel="Create code" />
+        <PromoCodeForm
+          action={createPromoCodeAction}
+          submitLabel="Create code"
+          categories={categories}
+          items={items}
+        />
       </div>
     </AdminShell>
   );

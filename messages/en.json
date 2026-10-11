@@ -282,6 +282,10 @@
     "promoExpired": "That code has expired.",
     "promoBelowMinimum": "Your order isn't quite big enough for this code yet.",
     "promoAlreadyUsed": "You've already used this code before.",
+    "promoNotStarted": "This code isn't valid yet.",
+    "promoUsedUp": "This code has been used up.",
+    "promoNotFirstOrder": "This code is for your first order only.",
+    "promoNotApplicable": "This code doesn't apply to the dishes in your cart.",
     "promoInvalid": "This promo code is no longer valid. Remove it and try again."
   },
   "footer": {

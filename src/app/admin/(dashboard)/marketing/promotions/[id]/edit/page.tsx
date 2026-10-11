@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import PromoCodeForm from "@/components/admin/PromoCodeForm";
 import { updatePromoCodeAction } from "@/app/admin/(dashboard)/marketing/promotions/actions";
-import { getPromoCode } from "@/lib/admin/store";
+import { getPromoCode, listCategories, listItems } from "@/lib/admin/store";
 
 export const metadata = { title: "Edit promo code" };
 export const dynamic = "force-dynamic";
@@ -17,6 +17,7 @@ export default async function EditPromoCodePage({
   const { id } = await params;
   const promo = await getPromoCode(id);
   if (!promo) notFound();
+  const [categories, items] = await Promise.all([listCategories(), listItems()]);
 
   return (
     <AdminShell title="Edit promo code">
@@ -33,6 +34,8 @@ export default async function EditPromoCodePage({
           promo={promo}
           action={updatePromoCodeAction}
           submitLabel="Save code"
+          categories={categories}
+          items={items}
         />
       </div>
     </AdminShell>

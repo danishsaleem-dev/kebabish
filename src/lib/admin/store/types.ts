@@ -195,6 +195,23 @@ export interface StoredPromoCode {
   expiresAt: string | null;
   /** Once true, a customer email can redeem this code on at most one paid order. */
   singleUsePerCustomer: boolean;
+  /** ISO date (yyyy-mm-dd); the code doesn't work before it. Absent/null = from now. */
+  startsAt?: string | null;
+  /**
+   * The most orders that may use this code in total, across everyone.
+   * Absent/null = unlimited. Counted from paid orders plus checkouts still
+   * waiting to be paid, so a code can't be oversold by people mid-payment.
+   */
+  maxRedemptions?: number | null;
+  /** Only for a customer who has never completed a paid order. */
+  firstOrderOnly?: boolean;
+  /**
+   * Limit the discount to these dishes and categories. A line qualifies if it
+   * matches either list; both empty/absent = the whole order qualifies.
+   * The discount is then worked out on the qualifying lines only.
+   */
+  onlyCategoryIds?: string[];
+  onlyItemSlugs?: string[];
   createdAt: string;
 }
 
