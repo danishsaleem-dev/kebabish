@@ -1078,7 +1078,7 @@ by `src/lib/hero-posters.ts` (**its own module, deliberately**: `hero-video.ts` 
 filesystem, so a Client Component cannot import from it):
 
 - `hero-poster.jpg` — 848x478, from `hero-web.mp4` (the grill shot).
-- `hero-poster-mobile.jpg` — 478x850, from `hero-mobile.mp4` (the kitchen shot).
+- `hero-poster-mobile.jpg` — 720x1280, from `hero-mobile.mp4` (the grill shot).
 
 The command is in that file's comment; re-run it whenever the footage changes, since nothing
 regenerates these automatically. The hero's base layer is a `<picture>` with a `media`
@@ -1093,9 +1093,16 @@ exactly how the about page kept showing a still after the homepage moved to vide
 reduced-motion rules as `StoryVideo`). It carries the page's only `<h1>` — it replaced the
 plain centred intro rather than being added above it, so there is still exactly one.
 
-Note for whoever supplies footage next: **both clips are only ~848x478 and ~478x850**, which
-is low for a full-screen background — it is visibly soft on a large display, and no poster
-can fix that. Higher-resolution source files are the only remedy.
+**Footage must be H.264, not HEVC.** The mobile clip was swapped for `hero-mobile-1.mp4`,
+which arrived as HEVC Main 10 (10-bit) 1080x1920 at 8 Mbps — Chrome and Firefox often cannot
+decode that, so phones would have shown only the poster. It was transcoded to H.264 8-bit
+720x1280 (`-crf 24 -movflags +faststart`, audio dropped, ~2.5 MB), same size as the clip it
+replaced but sharper. Do the same for any future file:
+
+    ffmpeg -i in.mp4 -an -vf "scale=720:-2,format=yuv420p" -c:v libx264 -profile:v high       -crf 24 -preset slow -movflags +faststart -r 30 out.mp4
+
+The widescreen clip (`hero-web.mp4`, 848x478) is still low-resolution and visibly soft on a
+large display; a higher-resolution source is the only remedy for that one.
 
 ### Error page and launch badge
 
