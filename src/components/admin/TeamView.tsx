@@ -116,6 +116,7 @@ function UserRow({
             <option value="staff">Staff</option>
             <option value="manager">Manager</option>
             <option value="rider">Rider</option>
+            <option value="kitchen">Kitchen</option>
             <option value="owner">Owner</option>
           </select>
         </form>
@@ -197,6 +198,7 @@ function AddStaffCard() {
             <option value="staff">Staff</option>
             <option value="manager">Manager</option>
             <option value="rider">Rider</option>
+            <option value="kitchen">Kitchen</option>
             <option value="owner">Owner</option>
           </Select>
         </Field>

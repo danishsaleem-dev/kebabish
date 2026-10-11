@@ -97,5 +97,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 export function homeForRole(role: Role): string {
   if (role === "customer") return "/dashboard";
   if (role === "rider") return "/rider";
+  if (role === "kitchen") return "/kitchen";
   return "/admin";
 }

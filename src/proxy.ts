@@ -62,6 +62,6 @@ export const config = {
   // dashboard, the rider dashboard, static files and Next internals — all
   // locale-independent.
   matcher: [
-    "/((?!api|admin|login|signup|forgot-password|reset-password|dashboard|rider|_next|_vercel|.*\\..*).*)",
+    "/((?!api|admin|login|signup|forgot-password|reset-password|dashboard|rider|kitchen|_next|_vercel|.*\\..*).*)",
   ],
 };

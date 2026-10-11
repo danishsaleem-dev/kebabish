@@ -2,7 +2,7 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
-export type AdminRole = "owner" | "staff" | "rider" | "manager";
+export type AdminRole = "owner" | "staff" | "rider" | "manager" | "kitchen";
 
 export interface AdminUser {
   id: string;

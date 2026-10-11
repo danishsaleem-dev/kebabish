@@ -27,7 +27,7 @@ export async function GET(
 ) {
   const session = await auth();
   const role = session?.user.role;
-  if (role !== "owner" && role !== "staff" && role !== "manager") {
+  if (role !== "owner" && role !== "staff" && role !== "manager" && role !== "kitchen") {
     return new Response("Not authorised", { status: 401 });
   }
 

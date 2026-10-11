@@ -198,7 +198,7 @@ export async function listOrdersForRider(riderId: string): Promise<AdminOrder[]>
 export async function updateOrderStatus(
   orderId: string,
   nextStatus: OrderStatus,
-  actor: { id: string; role: "owner" | "staff" | "manager" | "rider" }
+  actor: { id: string; role: "owner" | "staff" | "manager" | "rider" | "kitchen" }
 ): Promise<void> {
   const { data: row, error: fetchError } = await supabaseAdmin()
     .from("orders")
@@ -212,6 +212,12 @@ export async function updateOrderStatus(
   const currentStatus = row.status as OrderStatus;
   if (!ALLOWED_NEXT[currentStatus].includes(nextStatus)) {
     throw new Error(`Can't move an order from "${currentStatus}" to "${nextStatus}".`);
+  }
+
+  // The kitchen accepts an order and marks it ready — nothing further. Handing
+  // it to a rider, delivering it, cancelling or refunding it are not its job.
+  if (actor.role === "kitchen" && nextStatus !== "preparing" && nextStatus !== "ready") {
+    throw new Error("The kitchen can only accept an order or mark it ready.");
   }
 
   if (actor.role === "rider") {
@@ -328,6 +334,26 @@ export async function listPendingOrders(): Promise<AdminOrder[]> {
     .select(ORDER_SELECT)
     .eq("status", "new")
     .eq("payment_status", "paid")
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((row) => mapOrder(row as unknown as OrderRow));
+}
+
+/**
+ * What the kitchen board shows: orders someone has to cook right now. A paid
+ * order nobody has accepted yet; and anything already accepted (preparing or
+ * ready for the rider) — including an order staff entered by phone that is
+ * still to be paid in cash. A checkout that was started and never paid is not
+ * an order yet and never appears.
+ */
+export async function listKitchenOrders(): Promise<AdminOrder[]> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .or(
+      "and(status.eq.new,payment_status.eq.paid),and(status.in.(preparing,ready),payment_status.in.(paid,open))"
+    )
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(error.message);

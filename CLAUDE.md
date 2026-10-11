@@ -1185,6 +1185,39 @@ Two things worth knowing about the maths:
   doesn't match how the ingredient is purchased (e.g. millilitres against
   a per-kilo price). Don't "fix" this by inventing densities.
 
+### Kitchen role and the live orders board
+
+A fifth role, `kitchen`, for the screen on the kitchen wall. It lands on
+`/kitchen` (`homeForRole`), a top-level segment like `/rider` — own
+`<html>/<body>`, excluded from the next-intl matcher in `src/proxy.ts`. It is
+**optional**: owner/staff/manager can open `/kitchen` too, so a kitchen login
+only exists to give the cooks *less* access, not because the board needs it.
+
+Least privilege is enforced in three independent places, none of which trusts
+the others:
+- `kitchen/layout.tsx` allow-lists kitchen/owner/staff/manager; the admin
+  layout already allow-lists owner/staff/manager, so a kitchen user who types
+  `/admin` is bounced back to `/kitchen`.
+- `GET /api/kitchen/orders` returns only what cooks need: order number, first
+  name, slot, lines (qty + name), the customer note, payment state. **No phone,
+  address, totals or email.** Its poll doubles as the heartbeat for
+  `expireStaleOrders` / `escalateUnacceptedOrders`, like the admin popup.
+- `updateOrderStatus` throws for a kitchen actor unless the target is
+  `preparing` or `ready` — so the server action is safe even called directly.
+  The kitchen cannot hand to a rider, deliver, decline or refund.
+
+`listKitchenOrders()` = paid-and-unaccepted orders, plus anything accepted
+(preparing/ready, paid or still-to-pay phone orders). Unpaid checkouts never
+show. Board: waiting-to-accept first (longest wait on top; amber at 3 min, red
+at 5), then preparing by earliest slot, then ready. A repeating two-tone beep
+(synthesised, no audio file) sounds while anything is unaccepted; browsers
+block audio until a tap, hence the "turn on sound" banner. The customer note
+is shown in a box marked "check for allergies". Print link reuses the
+existing `/admin/orders/[id]/ticket` route, which allows kitchen.
+
+**Migration `0015_kitchen_role.sql` must be run before creating a kitchen user**
+(it widens `admin_users_role_check`).
+
 ## What's already built (functionally working, committed to git)
 
 - Bilingual routing/middleware, full site chrome (`Header`, `Footer`,

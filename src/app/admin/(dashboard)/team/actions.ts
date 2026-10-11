@@ -26,7 +26,7 @@ const addStaffSchema = z.object({
   name: z.string().trim().min(2, "Give them a name."),
   email: z.string().trim().email("That doesn't look like an email address."),
   password: z.string().min(8, "Password needs to be at least 8 characters."),
-  role: z.enum(["owner", "staff", "rider", "manager"]),
+  role: z.enum(["owner", "staff", "rider", "manager", "kitchen"]),
 });
 
 export async function addStaffAction(
@@ -109,7 +109,7 @@ export async function changeRoleAction(
   const id = String(formData.get("id") ?? "");
   const rawRole = formData.get("role");
   const role: AdminRole =
-    rawRole === "owner" || rawRole === "rider" || rawRole === "manager"
+    rawRole === "owner" || rawRole === "rider" || rawRole === "manager" || rawRole === "kitchen"
       ? rawRole
       : "staff";
 
