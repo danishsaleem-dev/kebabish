@@ -52,7 +52,6 @@
     "storyStat3Label": "Menu categories",
     "storyImageAlt1": "Marinated chicken roasting in the tandoor over open flames",
     "storyImageAlt2": "Fresh Pakistani herbs and spices",
-    "popularNote": "Prices on request — message us for the current price list.",
     "deliveryTownsLabel": "We deliver to",
     "storyVideoLabel": "Footage from the Kebabish kitchen",
     "categoriesEyebrow": "Our menu",
@@ -274,7 +273,7 @@
     "required": "Required",
     "priceOnRequestNote": "This dish doesn't have an online price yet — message us on WhatsApp and we'll sort it.",
     "soldOutNote": "This dish is sold out right now.",
-    "closedNote": "We're closed at the moment, so online ordering is paused.",
+    "closedNote": "We are not taking online orders at the moment.",
     "total": "Total"
   },
   "checkout": {
@@ -666,11 +665,11 @@
     "viewMenu": "View menu",
     "deliveryOnly": "Delivery only",
     "readMore": "Read more",
-    "closedNow": "Closed now"
+    "closedNow": "Orders paused"
   },
   "status": {
-    "closedTitle": "We're closed right now",
-    "closedDefault": "Please check back during our opening hours.",
+    "closedTitle": "Online ordering is paused",
+    "closedDefault": "Please check back soon.",
     "menuUnavailable": "Currently unavailable",
     "hoursTitle": "Opening hours",
     "closedLabel": "Closed",

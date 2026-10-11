@@ -52,7 +52,6 @@
     "storyStat3Label": "Menucategorieën",
     "storyImageAlt1": "Gemarineerde kip die in de tandoor boven de vlammen gaart",
     "storyImageAlt2": "Verse Pakistaanse kruiden en specerijen",
-    "popularNote": "Prijzen op aanvraag — stuur ons een appje voor de actuele prijslijst.",
     "deliveryTownsLabel": "Wij bezorgen onder andere in",
     "storyVideoLabel": "Beelden uit de keuken van Kebabish",
     "categoriesEyebrow": "Ons menu",
@@ -274,7 +273,7 @@
     "required": "Verplicht",
     "priceOnRequestNote": "Dit gerecht heeft nog geen onlineprijs — stuur ons een appje, dan regelen we het.",
     "soldOutNote": "Dit gerecht is op dit moment uitverkocht.",
-    "closedNote": "We zijn nu gesloten, online bestellen staat even uit.",
+    "closedNote": "We nemen op dit moment geen online bestellingen aan.",
     "total": "Totaal"
   },
   "checkout": {
@@ -666,11 +665,11 @@
     "viewMenu": "Bekijk menu",
     "deliveryOnly": "Alleen bezorgen",
     "readMore": "Lees meer",
-    "closedNow": "Nu gesloten"
+    "closedNow": "Bestellen gepauzeerd"
   },
   "status": {
-    "closedTitle": "We zijn nu gesloten",
-    "closedDefault": "Kom later terug tijdens onze openingstijden.",
+    "closedTitle": "Online bestellen is gepauzeerd",
+    "closedDefault": "Kom later nog even terug.",
     "menuUnavailable": "Nu niet beschikbaar",
     "hoursTitle": "Openingstijden",
     "closedLabel": "Gesloten",

@@ -9,8 +9,10 @@ const TIME_ZONE = "Europe/Amsterdam";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export interface StoreStatus {
-  /** True only when the owner has ordering switched on AND it's within today's hours. */
+  /** Whether ordering is available: the owner's "Taking orders" switch. Hours don't matter (slots can be booked ahead). */
   isOpen: boolean;
+  /** Kitchen is operating right now: ordering on AND within today's hours. Informational only (contact page). */
+  openNow: boolean;
   acceptingOrders: boolean;
   orderNotice: string;
   today: StoredSettings["hours"][number];
@@ -48,7 +50,10 @@ export function getStoreStatus(settings: StoredSettings): StoreStatus {
     minutes < toMinutes(today.closes);
 
   return {
-    isOpen: settings.acceptingOrders && withinHours,
+    // Ordering is never blocked by opening hours — customers book a delivery
+    // slot at checkout — so only the owner's "Taking orders" switch gates it.
+    isOpen: settings.acceptingOrders,
+    openNow: settings.acceptingOrders && withinHours,
     acceptingOrders: settings.acceptingOrders,
     orderNotice: settings.orderNotice,
     today,

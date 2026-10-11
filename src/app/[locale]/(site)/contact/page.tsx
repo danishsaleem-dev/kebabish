@@ -120,14 +120,14 @@ export default async function ContactPage({
                   <div className="mt-3 flex items-center gap-2 text-sm font-semibold">
                     <span
                       className={`h-2 w-2 shrink-0 rounded-full ${
-                        status.isOpen ? "bg-green-600" : "bg-charcoal-500"
+                        status.openNow ? "bg-green-600" : "bg-charcoal-500"
                       }`}
                       aria-hidden="true"
                     />
                     <span
-                      className={status.isOpen ? "text-green-700" : "text-charcoal-500"}
+                      className={status.openNow ? "text-green-700" : "text-charcoal-500"}
                     >
-                      {status.isOpen ? tStatus("openNowLabel") : tStatus("closedNowLabel")}
+                      {status.openNow ? tStatus("openNowLabel") : tStatus("closedNowLabel")}
                     </span>
                   </div>
 

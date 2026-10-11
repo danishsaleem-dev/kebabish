@@ -30,9 +30,6 @@ export default async function Popular({
             <MaskedWords text={t("home.popularTitle")} />
           </h2>
 
-          <p data-reveal className="mt-4 text-base text-ink/65">
-            {t("home.popularNote")}
-          </p>
         </div>
 
         <div
