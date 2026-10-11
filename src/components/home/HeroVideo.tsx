@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
 
 /**
  * Picks and mounts exactly one video source client-side, instead of
@@ -51,7 +52,7 @@ export default function HeroVideo({
       loop
       playsInline
       preload="auto"
-      poster="/images/hero-poster.jpg"
+      poster={variant === "web" ? HERO_POSTER_WEB : HERO_POSTER_MOBILE}
       className="absolute inset-0 h-full w-full object-cover"
     >
       <source

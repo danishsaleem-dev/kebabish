@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Flame, Leaf, Clock, Smartphone, MessageCircle, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -7,6 +6,10 @@ import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import { menu } from "@/lib/menu-data";
 import { localeAlternates } from "@/lib/seo";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
+import StoryFrame from "@/components/shared/StoryFrame";
+import VideoBanner from "@/components/shared/VideoBanner";
+import { getHeroVideoAvailability } from "@/lib/hero-video";
+import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
 import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
@@ -38,6 +41,16 @@ export default async function AboutPage({
 
   const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
 
+  // The banner is wide, so the widescreen clip suits it; the vertical one is
+  // the fallback when that file is missing. Checked at build time, and the
+  // banner falls back to its still if neither exists.
+  const { web, mobile } = getHeroVideoAvailability();
+  const bannerVideo = web
+    ? "/video/hero-web.mp4"
+    : mobile
+      ? "/video/hero-mobile.mp4"
+      : null;
+
   const stats = [
     { value: `${siteConfig.deliveryRadiusKm} km`, label: t("statsLabel1") },
     { value: "100%", label: t("statsLabel2") },
@@ -66,56 +79,70 @@ export default async function AboutPage({
       <Motion />
       <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/about" }]} />
 
-      {/* ---- intro ---------------------------------------------------- */}
-      <div className="mx-auto max-w-6xl px-5 pt-16 sm:px-6 sm:pt-24">
-        <div className="mx-auto max-w-2xl text-center">
-          <p
-            data-reveal
-            className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-ember-600"
-          >
-            {t("title")}
-          </p>
-          <h1
-            data-reveal-mask
-            className="mt-3 text-balance font-display text-4xl font-semibold leading-tight text-charcoal-600 sm:text-5xl"
-          >
-            <MaskedWords text={t("intro")} />
-          </h1>
+      {/* ---- banner ---------------------------------------------------- */}
+      {/* Carries the page's only <h1>. Same treatment as the homepage hero:
+          the footage is not dimmed by a full-bleed wash — only the top band
+          (for the fixed header), a bottom fade into the cream page, and a
+          bloom behind the words — and the type earns its contrast with
+          `type-on-media`. */}
+      <section className="relative isolate flex min-h-[58svh] items-end overflow-hidden bg-charcoal-950 sm:min-h-[62svh]">
+        <div className="absolute inset-0">
+          <picture>
+            <source media="(min-width: 640px)" srcSet={HERO_POSTER_WEB} />
+            <img
+              src={HERO_POSTER_MOBILE}
+              alt=""
+              fetchPriority="high"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          </picture>
+          {bannerVideo && (
+            <VideoBanner
+              src={bannerVideo}
+              poster={HERO_POSTER_WEB}
+              label={t("bannerVideoLabel")}
+            />
+          )}
         </div>
-      </div>
+
+        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-charcoal-950/70 to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(60%_50%_at_30%_85%,rgba(10,8,6,0.6),transparent_72%)]" />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-cream-200 to-transparent" />
+        <div className="grain absolute inset-0" />
+
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-5 pb-16 pt-28 sm:px-6 sm:pb-20 sm:pt-32">
+          <div className="max-w-3xl">
+            <p
+              data-reveal
+              className="type-on-media inline-flex items-center gap-3 font-display text-xs font-semibold uppercase tracking-[0.2em] text-cream-100"
+            >
+              <span aria-hidden="true" className="h-px w-8 bg-ember-500" />
+              {t("title")}
+            </p>
+            <h1
+              data-reveal-mask
+              className="type-on-media-strong mt-5 text-balance font-display text-4xl font-semibold leading-[1.08] text-cream-50 sm:text-5xl lg:text-6xl"
+            >
+              <MaskedWords text={t("intro")} />
+            </h1>
+            <p
+              data-reveal
+              className="type-on-media mt-5 max-w-xl text-pretty text-base leading-relaxed text-cream-100/95 sm:text-lg"
+            >
+              {t("bannerText")}
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* ---- story ------------------------------------------------------ */}
       <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
         <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-          <div className="relative order-2 lg:order-1">
-            <div
-              data-reveal="scale"
-              className="relative aspect-4/5 overflow-hidden rounded-[1.75rem] bg-charcoal-800 sm:aspect-3/4"
-            >
-              <Image
-                src="/images/story/tandoor.jpg"
-                alt={tHome("storyImageAlt1")}
-                fill
-                sizes="(min-width: 1024px) 45vw, 90vw"
-                data-parallax="0.06"
-                className="scale-110 object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal-950/45 to-transparent" />
-            </div>
-            <div
-              data-reveal="scale"
-              data-reveal-delay="0.12"
-              className="absolute -bottom-8 -right-4 hidden aspect-square w-40 overflow-hidden rounded-2xl border-[6px] border-cream-200 bg-charcoal-800 shadow-xl shadow-charcoal-950/10 sm:block sm:w-48 lg:-right-8"
-            >
-              <Image
-                src="/images/story/spices.jpg"
-                alt={tHome("storyImageAlt2")}
-                fill
-                sizes="200px"
-                className="object-cover"
-              />
-            </div>
-          </div>
+          <StoryFrame
+            videoLabel={tHome("storyVideoLabel")}
+            posterAlt={tHome("storyImageAlt1")}
+            detailAlt={tHome("storyImageAlt2")}
+          />
 
           <div className="order-1 lg:order-2">
             <SectionEyebrow>{t("storyEyebrow")}</SectionEyebrow>

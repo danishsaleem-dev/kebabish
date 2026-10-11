@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { ArrowDown, MessageCircle, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -6,6 +5,7 @@ import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import BrandLogo from "@/components/shared/BrandLogo";
 import HeroVideo from "@/components/home/HeroVideo";
+import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
 
 export default async function Hero({
   locale,
@@ -32,15 +32,23 @@ export default async function Hero({
       {/* Inset past the edges so the parallax drift never exposes a seam. */}
       <div data-hero-media className="absolute -inset-y-[10%] inset-x-0">
         {/* Always the base layer — what a no-JS/slow-JS visitor sees, and
-            what shows through until HeroVideo below picks a variant. */}
-        <Image
-          src="/images/hero-poster.jpg"
-          alt=""
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-        />
+            what shows through until HeroVideo below picks a variant. Two
+            stills, not one: they are frames of the two different clips, and
+            the vertical one keeps a phone from getting a 16:9 frame blown up
+            and cropped. Only the matching one is fetched — `hidden` on a
+            <source> inside <picture> would still download, so the choice is
+            made by the media attribute, which the browser resolves before it
+            requests anything. Plain <img>, since next/image has no art
+            direction; these are already small, hand-sized files. */}
+        <picture>
+          <source media="(min-width: 640px)" srcSet={HERO_POSTER_WEB} />
+          <img
+            src={HERO_POSTER_MOBILE}
+            alt=""
+            fetchPriority="high"
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        </picture>
         {hasVideo && <HeroVideo web={web} mobile={mobile} />}
       </div>
 

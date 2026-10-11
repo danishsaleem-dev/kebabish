@@ -1069,6 +1069,34 @@ Danish asked for a round of visual work. What it changed, and the decisions insi
   divided list, with a free-delivery progress bar (only when there is a fee to lose), the total
   on the checkout button, and three reassurance lines.
 
+### Hero/story posters and the about-page banner
+
+**The poster stills are frames of the clips.** `hero-poster.jpg` was a 1600x2133 portrait
+photo of the *old* footage, shown full-bleed behind the current video — unrelated picture,
+wrong shape. There are now two, cut straight out of the two clips with ffmpeg and pointed at
+by `src/lib/hero-posters.ts` (**its own module, deliberately**: `hero-video.ts` reads the
+filesystem, so a Client Component cannot import from it):
+
+- `hero-poster.jpg` — 848x478, from `hero-web.mp4` (the grill shot).
+- `hero-poster-mobile.jpg` — 478x850, from `hero-mobile.mp4` (the kitchen shot).
+
+The command is in that file's comment; re-run it whenever the footage changes, since nothing
+regenerates these automatically. The hero's base layer is a `<picture>` with a `media`
+source, not `next/image` — art direction needs two different files, and `hidden` on a second
+`<Image>` would still download it. `HeroVideo` picks its own `poster` per variant.
+
+**Both story sections share one component.** `src/components/shared/StoryFrame.tsx` is the
+portrait video frame used by the homepage *and* `/about` — it was duplicated markup, which is
+exactly how the about page kept showing a still after the homepage moved to video.
+
+**`/about` opens with a video banner** (`shared/VideoBanner.tsx`, same lazy/save-data/
+reduced-motion rules as `StoryVideo`). It carries the page's only `<h1>` — it replaced the
+plain centred intro rather than being added above it, so there is still exactly one.
+
+Note for whoever supplies footage next: **both clips are only ~848x478 and ~478x850**, which
+is low for a full-screen background — it is visibly soft on a large display, and no poster
+can fix that. Higher-resolution source files are the only remedy.
+
 ### Error page and launch badge
 
 `[locale]/error.tsx` says "Online bestellen is tijdelijk niet beschikbaar. Bestel gerust via
