@@ -50,9 +50,11 @@ export default function PostcodeField({
   initial?: ResolvedAddress;
 }) {
   const [value, setValue] = useState(initial?.postcode ?? "");
-  // Set when the postcode was put there by us (a saved address, or a pick),
-  // not typed — so the suggestion lookup below doesn't pop the list open.
-  const skipLookup = useRef(Boolean(initial));
+  // The postcode we put there ourselves (a saved address, or a pick) rather
+  // than the customer typing it — so the suggestion lookup below doesn't pop
+  // the list open for it. Compared by value instead of a one-shot flag
+  // because React's dev Strict Mode runs effects twice on mount.
+  const programmatic = useRef<string | null>(initial?.postcode ?? null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -75,10 +77,8 @@ export default function PostcodeField({
   }, []);
 
   useEffect(() => {
-    if (skipLookup.current) {
-      skipLookup.current = false;
-      return;
-    }
+    if (programmatic.current === value) return;
+    programmatic.current = null;
     // A Dutch postcode is 4 digits + 2 letters — not worth querying before
     // there's enough to narrow it down to a specific neighbourhood.
     if (value.replace(/\s/g, "").length < 4) {
@@ -115,7 +115,7 @@ export default function PostcodeField({
       const doc = data?.response?.docs?.[0] as LookupDoc | undefined;
       if (!doc?.postcode) return;
 
-      skipLookup.current = true;
+      programmatic.current = doc.postcode;
       setValue(doc.postcode);
       onResolved({
         street: doc.straatnaam ?? "",
