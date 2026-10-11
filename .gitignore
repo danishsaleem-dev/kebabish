@@ -45,3 +45,7 @@ next-env.d.ts
 # admin media uploads (local dev only)
 /public/uploads/*
 !/public/uploads/.gitkeep
+
+# database backups (Settings -> Backup) hold customers' personal data — never commit
+kebabish-backup-*.json
+*.backup.json

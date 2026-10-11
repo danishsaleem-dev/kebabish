@@ -84,6 +84,7 @@ const OTHERS: NavItem[] = [
     children: [
       { label: "General", href: "/admin/settings" },
       { label: "Delivery slots", href: "/admin/settings/delivery-slots" },
+      { label: "Backup", href: "/admin/settings/backup" },
     ],
   },
 ];
@@ -97,7 +98,19 @@ const OTHERS: NavItem[] = [
  * further than the nav does.
  */
 function navForRole(role: SessionUser["role"] | undefined) {
-  if (role !== "manager") return { main: MAIN, others: OTHERS };
+  if (role !== "manager") {
+    // Backup is owner-only (the file holds every customer's personal data), so
+    // staff don't even see the link; the page and the download refuse them anyway.
+    const others =
+      role === "owner"
+        ? OTHERS
+        : OTHERS.map((item) =>
+            item.href === "/admin/settings"
+              ? { ...item, children: item.children?.filter((c) => c.href !== "/admin/settings/backup") }
+              : item
+          );
+    return { main: MAIN, others };
+  }
 
   const main = MAIN.filter((item) =>
     ["/admin", "/admin/orders", "/admin/menu", "/admin/customers"].includes(

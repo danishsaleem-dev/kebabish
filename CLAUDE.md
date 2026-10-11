@@ -482,6 +482,55 @@ JPEG rather than generated at request time, specifically so it never
 depends on font availability on whatever machine ends up building the
 site.
 
+### Backups (free-plan substitute)
+
+The Supabase project is on the **free plan, which has no backups at all**, while orders and
+invoices must be kept for seven years. So there is a manual export: **Settings → Backup**
+(`/admin/settings/backup`, **owner only**) downloads one JSON file of everything; the owner does
+it weekly. It is a stopgap, not point-in-time recovery — up to a week of orders could be lost, and
+the page says so and recommends **Supabase Pro (~$25/month, daily backups)** once orders flow, keeping
+this export as a second copy outside Supabase.
+
+- **`src/lib/backup/export.ts`** — `BACKUP_TABLES` lists all 12 tables **in dependency order** (a
+  row is restored after the rows it points at) with each table's primary key. The file carries
+  each table's `pk`, `omit` and `restoreDefaults` inside it, so the restore script is generic and an
+  old file stays restorable if this list later changes. **Add any new table to `BACKUP_TABLES`** when
+  you write a migration — nothing else will remind you.
+- **Deliberately excluded:** **password hashes** (`customers`, `admin_users`) are dropped
+  server-side and never serialised — a backup file gets copied to laptops and drives, and a leaked
+  one must not be a bag of crackable credentials. Cost: after a restore everyone uses "forgot
+  password". Also excluded: the **uploaded photos/videos** (Supabase Storage; the records and URLs
+  are in the file, the bytes are not — keep the originals) and all secrets (env vars, never in the DB).
+  The file *does* hold names, addresses, phone numbers and emails, i.e. GDPR personal data: the page
+  says so, the download is `Cache-Control: no-store`, and `kebabish-backup-*.json` is git-ignored.
+- **Access:** page = `requireRole(["owner"])`; download = a route handler, so the role is checked
+  by hand (401 for everyone else, including staff — they have no need for a copy of every customer
+  they can take off the premises). The sidebar link is hidden from non-owners.
+- **The weekly nudge:** the download records `settings.lastBackupAt` / `lastBackupRows` (written by
+  the download itself, never the settings form, so saving settings can't wipe them). The owner's
+  dashboard shows a one-line banner when the last backup is **more than 7 days old — but only once
+  there is a paid order** (before launch there is nothing to lose, and an always-on banner is one people
+  learn to ignore). The page itself shows green/amber status.
+- **Restore: `node scripts/restore-backup.mjs <file> [--apply] [--only=a,b] [--allow-nonempty]`.**
+  Dry run by default; it prints the target project, the rows in the file vs the target, and writes
+  nothing. First run every migration in `supabase/migrations/` in the target (it restores rows, not
+  tables). It **refuses to touch a non-empty database** without `--allow-nonempty`, because a restore
+  is an upsert and would put the backup's older values over newer ones — prefer a new empty project.
+- **How omitted password columns are handled, and a bug the test caught:** rows are first inserted
+  with an unusable placeholder (`!restored-reset-your-password`) using `ignoreDuplicates`, so an
+  existing row — and its real hash — is never touched. The "bring columns up to date" step for those
+  tables is a per-row **UPDATE, not an upsert**: Postgres checks a NOT NULL column on the *proposed*
+  row before it looks for the existing one, so an upsert that omits the hash fails even for rows that
+  exist (the first version of the script did exactly that).
+- **Verified (Oct 2026) against the live database:** a full export → restore → re-export of all 12
+  tables is byte-for-byte identical (the only difference is the last-backup stamp the export itself
+  writes); a deleted customer + order + line item came back field-for-field (accented text, JSON
+  options, the customer link, the original timestamp) with the placeholder password; the real
+  password hashes were fingerprinted before and after and did not change; a non-empty target and a
+  junk file are both refused; no hash, key or secret appears anywhere in the file.
+- **Not built:** automatic scheduled backups (the plan is a human downloading weekly), encryption of
+  the file, and backing up the Storage files.
+
 ### Customer feedback (migration `0018_feedback.sql`)
 
 A public form at **`/feedback`** (both locales), a table, an admin screen, and prompts in the

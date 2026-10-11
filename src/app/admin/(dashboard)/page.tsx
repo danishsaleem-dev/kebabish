@@ -1,14 +1,29 @@
 import AdminShell from "@/components/admin/AdminShell";
 import DashboardView from "@/components/admin/DashboardView";
 import { listCustomers, listOrders } from "@/lib/admin/orders-data";
+import { auth } from "@/lib/auth";
+import { getSettings } from "@/lib/admin/store";
+import BackupReminder from "@/components/admin/BackupReminder";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const [orders, customers] = await Promise.all([listOrders(), listCustomers()]);
+  const [orders, customers, session, settings] = await Promise.all([
+    listOrders(),
+    listCustomers(),
+    auth(),
+    getSettings(),
+  ]);
 
   return (
     <AdminShell title="Dashboard">
+      {/* Only the owner can download a backup, so only the owner is nagged. */}
+      {session?.user?.role === "owner" && (
+        <BackupReminder
+          lastBackupAt={settings.lastBackupAt}
+          hasPaidOrders={orders.some((o) => o.paymentStatus === "paid")}
+        />
+      )}
       <DashboardView
         orders={orders}
         customerJoinDates={customers.map((c) => c.joinedAt)}

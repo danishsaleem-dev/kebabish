@@ -185,6 +185,13 @@ export interface StoredSettings {
    * to assume). Google-hosted addresses only — see feedback/review-url.ts.
    */
   googleReviewUrl?: string;
+  /**
+   * When the owner last downloaded a backup (Settings -> Backup), and how many
+   * rows it held. Written by the download itself, never by the settings form —
+   * so saving settings can't wipe it. Drives the "backup overdue" reminder.
+   */
+  lastBackupAt?: string;
+  lastBackupRows?: number;
 }
 
 export interface StoredIngredient {
