@@ -30,6 +30,9 @@ export default function SettingsForm({
 
   // Held in state so toggling "Closed" can grey out the time inputs live.
   const [hours, setHours] = useState(settings.hours);
+  // The placeholders in each day's override boxes follow the defaults being typed.
+  const [defaultSlotMinutes, setDefaultSlotMinutes] = useState(settings.slotMinutes ?? 45);
+  const [defaultSlotCapacity, setDefaultSlotCapacity] = useState(settings.slotCapacity ?? 10);
   const { toast } = useToast();
 
   const lastRef = useRef<FormState | null>(null);
@@ -75,7 +78,12 @@ export default function SettingsForm({
           />
         </div>
 
-        <ul className="divide-y divide-hairline border-t border-hairline">
+        <p className="border-t border-hairline px-5 pt-3 text-xs text-muted sm:px-6">
+          Each day can have its own slot length and orders-per-slot. Leave those two boxes
+          empty to use the defaults in &ldquo;Delivery slots&rdquo; below.
+        </p>
+
+        <ul className="divide-y divide-hairline">
           {hours.map((entry, i) => (
             <li
               key={entry.day}
@@ -149,9 +157,106 @@ export default function SettingsForm({
                   className="h-10 rounded-lg border border-hairline bg-panel px-3 text-sm text-heading focus:border-ember-500 focus:outline-none"
                 />
               </div>
+
+              {/* Optional per-day overrides. Not `disabled` when closed — a
+                  disabled field drops out of FormData and would shift every
+                  later day's value by one position (see actions.ts). */}
+              <div className={`flex items-center gap-2 ${entry.closed ? "opacity-40" : ""}`}>
+                <input
+                  type="number"
+                  name="hourSlotMinutes"
+                  min={30}
+                  max={120}
+                  step={5}
+                  defaultValue={entry.slotMinutes ?? ""}
+                  readOnly={entry.closed}
+                  tabIndex={entry.closed ? -1 : 0}
+                  placeholder={String(defaultSlotMinutes)}
+                  aria-label={`${DAY_NAMES[entry.day]} slot length in minutes`}
+                  title="Slot length (min) — empty uses the default"
+                  className="h-10 w-20 rounded-lg border border-hairline bg-panel px-2 text-sm text-heading placeholder:text-faint focus:border-ember-500 focus:outline-none"
+                />
+                <span className="text-xs text-muted">min</span>
+                <input
+                  type="number"
+                  name="hourSlotCapacity"
+                  min={1}
+                  max={100}
+                  step={1}
+                  defaultValue={entry.slotCapacity ?? ""}
+                  readOnly={entry.closed}
+                  tabIndex={entry.closed ? -1 : 0}
+                  placeholder={String(defaultSlotCapacity)}
+                  aria-label={`${DAY_NAMES[entry.day]} orders per slot`}
+                  title="Orders per slot — empty uses the default"
+                  className="h-10 w-20 rounded-lg border border-hairline bg-panel px-2 text-sm text-heading placeholder:text-faint focus:border-ember-500 focus:outline-none"
+                />
+                <span className="text-xs text-muted">orders</span>
+              </div>
             </li>
           ))}
         </ul>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Delivery slots"
+          subtitle="How the day is cut into delivery windows, and how many orders each can take."
+        />
+        <div className="mt-5 grid gap-4 sm:grid-cols-3">
+          <Field
+            label="Slot length (minutes)"
+            hint="30–120, steps of 5. A slot stops taking orders 15 minutes before it ends, so the kitchen has time."
+            error={e.slotMinutes}
+          >
+            <Input
+              name="slotMinutes"
+              type="number"
+              min="30"
+              max="120"
+              step="5"
+              defaultValue={settings.slotMinutes ?? 45}
+              onChange={(ev) => setDefaultSlotMinutes(Number(ev.target.value) || 45)}
+              invalid={Boolean(e.slotMinutes)}
+            />
+          </Field>
+          <Field
+            label="Orders per slot"
+            hint="The default for every slot. Change one day above, or one slot on the Delivery slots page."
+            error={e.slotCapacity}
+          >
+            <Input
+              name="slotCapacity"
+              type="number"
+              min="1"
+              max="100"
+              defaultValue={settings.slotCapacity ?? 10}
+              onChange={(ev) => setDefaultSlotCapacity(Number(ev.target.value) || 10)}
+              invalid={Boolean(e.slotCapacity)}
+            />
+          </Field>
+          <Field
+            label="Book ahead (days)"
+            hint="How far ahead customers can pick a day, counting today. Up to 30."
+            error={e.bookingWindowDays}
+          >
+            <Input
+              name="bookingWindowDays"
+              type="number"
+              min="1"
+              max="30"
+              defaultValue={settings.bookingWindowDays ?? 7}
+              invalid={Boolean(e.bookingWindowDays)}
+            />
+          </Field>
+        </div>
+        <p className="mt-4 rounded-xl bg-canvas p-3 text-xs leading-relaxed text-muted">
+          Changing the slot length changes the slot <em>times</em> from then on. Orders already
+          booked keep the time they were given, but they are counted against the old time, so
+          the new slots start from zero for those days. Capacity limits you set on individual
+          slots on the Delivery slots page belong to a specific start time and stop applying if
+          that time no longer exists. Change this on a quiet day.
+        </p>
       </Card>
 
       <Card>

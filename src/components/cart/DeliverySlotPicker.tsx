@@ -32,17 +32,19 @@ function dateFromKey(dateKey: string): Date {
 
 export default function DeliverySlotPicker({
   hours,
+  windowDays,
   value,
   onChange,
 }: {
   hours: StoredSettings["hours"];
+  windowDays: number;
   value: DeliverySlotValue | null;
   onChange: (slot: DeliverySlotValue) => void;
 }) {
   const t = useTranslations("checkout");
   const locale = useLocale();
 
-  const days = useMemo(() => upcomingBookableDays(hours), [hours]);
+  const days = useMemo(() => upcomingBookableDays(hours, windowDays), [hours, windowDays]);
   const [selectedDate, setSelectedDate] = useState(days[0]?.dateKey ?? "");
   const [slots, setSlots] = useState<SlotAvailability[]>([]);
   const [loading, setLoading] = useState(true);

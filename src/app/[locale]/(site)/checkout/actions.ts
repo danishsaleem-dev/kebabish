@@ -31,9 +31,10 @@ import { toCents } from "@/lib/money";
 import {
   generateDaySlots,
   isPastCutoff,
+  effectiveHours,
+  bookingWindowDays,
   amsterdamNow,
   weekdayForDateKey,
-  BOOKING_WINDOW_DAYS,
 } from "@/lib/delivery-slots";
 import { reserveDeliverySlot, releaseDeliverySlot } from "@/lib/delivery-slots-data";
 
@@ -180,17 +181,17 @@ export async function checkoutAction(
       Date.parse(`${now.dateKey}T00:00:00Z`)) /
       86_400_000
   );
-  if (daysAhead >= BOOKING_WINDOW_DAYS) {
+  if (daysAhead >= bookingWindowDays(store.settings)) {
     return { ok: false, error: "slotUnavailable" };
   }
 
-  const day = store.settings.hours.find((h) => h.day === weekday);
+  const day = effectiveHours(store.settings).find((h) => h.day === weekday);
   const validSlot = day
     ? generateDaySlots(day).some(
         (s) => s.start === details.deliverySlotStart && s.end === details.deliverySlotEnd
       )
     : false;
-  if (!validSlot || isPastCutoff(details.deliveryDate, details.deliverySlotStart, now)) {
+  if (!validSlot || isPastCutoff(details.deliveryDate, details.deliverySlotStart, now, day?.slotMinutes)) {
     return { ok: false, error: "slotUnavailable" };
   }
 
@@ -380,14 +381,14 @@ export async function retryPaymentAction(formData: FormData): Promise<void> {
 
   const now = amsterdamNow();
   const weekday = weekdayForDateKey(order.deliveryDate);
-  const day = store.settings.hours.find((h) => h.day === weekday);
+  const day = effectiveHours(store.settings).find((h) => h.day === weekday);
   const stillValid =
     order.deliveryDate >= now.dateKey &&
     !!day &&
     generateDaySlots(day).some(
       (s) => s.start === order.deliverySlotStart && s.end === order.deliverySlotEnd
     ) &&
-    !isPastCutoff(order.deliveryDate, order.deliverySlotStart, now);
+    !isPastCutoff(order.deliveryDate, order.deliverySlotStart, now, day.slotMinutes);
   if (!stillValid) return giveUp("slotUnavailable");
 
   if (!(await reserveDeliverySlot(order.deliveryDate, weekday, order.deliverySlotStart))) {

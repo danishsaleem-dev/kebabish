@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { bookingWindowDays, effectiveHours } from "@/lib/delivery-slots";
 import type { ComponentProps } from "react";
 import { auth } from "@/lib/auth";
 import { getCustomerProfile } from "@/lib/customers/accounts";
@@ -67,7 +68,8 @@ export default async function CheckoutPage({
           freeDeliveryOver={settings.freeDeliveryOver}
           minimumOrder={settings.minimumOrder}
           deliveryTowns={siteConfig.deliveryAreaTowns.map((t) => t.name)}
-          hours={settings.hours}
+          hours={effectiveHours(settings)}
+          bookingWindowDays={bookingWindowDays(settings)}
           account={account}
         />
       </div>

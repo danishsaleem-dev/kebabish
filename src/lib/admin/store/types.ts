@@ -126,7 +126,17 @@ export interface StoredSettings {
     closed: boolean;
     opens: string;
     closes: string;
+    /** Length of a delivery slot on this weekday. Absent = the default below. */
+    slotMinutes?: number;
+    /** How many orders one slot takes on this weekday. Absent = the default below. */
+    slotCapacity?: number;
   }[];
+  /** Default delivery-slot length in minutes (30-120). Absent = 45. */
+  slotMinutes?: number;
+  /** Default orders per slot. Absent = 10. A specific slot's own limit still wins. */
+  slotCapacity?: number;
+  /** How many days ahead a customer can book, counting today. Absent = 7. */
+  bookingWindowDays?: number;
   deliveryRadiusKm: number;
   deliveryFee: number;
   freeDeliveryOver: number | null;

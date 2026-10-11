@@ -31,6 +31,7 @@ export default function CheckoutForm({
   minimumOrder,
   deliveryTowns,
   hours,
+  bookingWindowDays,
   account,
 }: {
   deliveryFee: number;
@@ -38,6 +39,8 @@ export default function CheckoutForm({
   minimumOrder: number;
   deliveryTowns: string[];
   hours: StoredSettings["hours"];
+  /** How many days ahead a delivery slot can be booked. */
+  bookingWindowDays: number;
   /** Present only for a signed-in customer: prefills the form, and unlocks "save my address". */
   account?: {
     name: string;
@@ -272,7 +275,12 @@ export default function CheckoutForm({
           )}
         </section>
 
-        <DeliverySlotPicker hours={hours} value={slot} onChange={setSlot} />
+        <DeliverySlotPicker
+          hours={hours}
+          windowDays={bookingWindowDays}
+          value={slot}
+          onChange={setSlot}
+        />
 
         <section>
           <h2 className="font-display text-lg font-semibold text-charcoal-600">

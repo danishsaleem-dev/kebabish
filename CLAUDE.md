@@ -950,7 +950,33 @@ are compared on Amsterdam's calendar day, not UTC's. No migration.
   cash order. Guests with no email are grouped by phone number in Customers.
   Channel reporting now covers all four sources.
 
-Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, slot settings (duration, capacity, booking window).
+**Slot settings** (`/admin/settings` → "Delivery slots", plus per-day boxes in
+the hours list; migration `0013_slot_default_capacity.sql`):
+
+- **Slot length** (30–120 min, steps of 5; default 45), **orders per slot**
+  (default 10) and **book ahead** (1–30 days; default 7) are settings, not
+  constants. Each weekday can override length and capacity; blank = default.
+  `effectiveHours(settings)` in `delivery-slots.ts` is the one place that
+  resolves them, and everything that slices a day or checks capacity goes through
+  it. Capacity precedence: a limit on one exact weekday+time
+  (`delivery_slot_config`) > the day's override > the shop-wide default.
+- **The 30+15 rule generalises, it doesn't change:** the buffer at the end of a
+  slot stays 15 min (`BUFFER_MINUTES`), the live window is `slotMinutes − 15`,
+  so a 45-min slot still closes at start+30 (checked: 45→10:30, 60→10:45,
+  30→10:15). `isPastCutoff` takes the day's `slotMinutes`.
+- Postgres can't read the JSON settings, so `reserveDeliverySlot` works the
+  default capacity out and **passes it in** (`p_default_max`). 0013 adds that
+  version of `reserve_delivery_slot`; the old 3-arg one is kept and the app falls
+  back to it on `PGRST202`, so deploying before running 0013 keeps working at a
+  limit of 10 (verified) — only the new capacity setting waits for the migration.
+- **Changing slot length is disruptive and the form says so:** bookings are keyed
+  by slot start time, so existing bookings keep their old times and the new
+  slots start counting from zero, and per-slot limits on the Delivery slots page
+  belong to a start time that may no longer exist. Do it on a quiet day.
+- The checkout page passes `effectiveHours` + the window to `DeliverySlotPicker`;
+  the booking window is enforced server-side in `checkoutAction` too.
+
+Not done yet from the spec: partial refunds + credit notes, `is_test` order flag.
 
 ### Allergens are user-extendable
 

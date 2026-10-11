@@ -2,14 +2,15 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getPublicSettings, getSettings } from "@/lib/admin/store";
 import {
+  DEFAULT_SLOT_CAPACITY,
   generateDaySlots,
+  effectiveHours,
   isPastCutoff,
   amsterdamNow,
   type SlotAvailability,
   type SlotStatus,
 } from "@/lib/delivery-slots";
 
-const DEFAULT_MAX_ORDERS = 10;
 
 interface SlotConfigRow {
   slot_start: string;
@@ -33,7 +34,7 @@ export async function getSlotAvailability(
   weekday: number
 ): Promise<SlotAvailability[]> {
   const settings = await getPublicSettings();
-  const day = settings.hours.find((h) => h.day === weekday);
+  const day = effectiveHours(settings).find((h) => h.day === weekday);
   const windows = day ? generateDaySlots(day) : [];
   if (windows.length === 0) return [];
 
@@ -59,12 +60,14 @@ export async function getSlotAvailability(
 
   return windows.map((window) => {
     const config = configByStart.get(window.start);
-    const maxOrders = config?.max_orders ?? DEFAULT_MAX_ORDERS;
+    // A limit set on this exact weekday+time wins; otherwise the day's own
+    // (or the shop-wide) default.
+    const maxOrders = config?.max_orders ?? day!.slotCapacity;
     const enabled = config?.enabled ?? true;
     const bookedCount = bookedByStart.get(window.start) ?? 0;
 
     let status: SlotStatus;
-    if (isPastCutoff(dateKey, window.start, now)) status = "past";
+    if (isPastCutoff(dateKey, window.start, now, day!.slotMinutes)) status = "past";
     else if (!enabled) status = "disabled";
     else if (bookedCount >= maxOrders) status = "full";
     else status = "available";
@@ -86,11 +89,29 @@ export async function reserveDeliverySlot(
   weekday: number,
   slotStart: string
 ): Promise<boolean> {
-  const { data, error } = await supabaseAdmin().rpc("reserve_delivery_slot", {
+  // What a slot with no limit of its own allows on this weekday — the day's
+  // setting, else the shop-wide default. The database function can't read the
+  // settings (they live in the JSON document), so it is told.
+  const day = effectiveHours(await getSettings()).find((h) => h.day === weekday);
+  const defaultMax = day?.slotCapacity ?? DEFAULT_SLOT_CAPACITY;
+
+  const supabase = supabaseAdmin();
+  let { data, error } = await supabase.rpc("reserve_delivery_slot", {
     p_date: dateKey,
     p_weekday: weekday,
     p_slot_start: slotStart,
+    p_default_max: defaultMax,
   });
+
+  // Migration 0013 adds the p_default_max version. Until it has been run, fall
+  // back to the original function (which assumes 10) rather than breaking checkout.
+  if (error && error.code === "PGRST202") {
+    ({ data, error } = await supabase.rpc("reserve_delivery_slot", {
+      p_date: dateKey,
+      p_weekday: weekday,
+      p_slot_start: slotStart,
+    }));
+  }
 
   if (error) throw new Error(error.message);
   return data === true;
@@ -133,7 +154,7 @@ export async function listSlotConfigForDate(
   weekday: number
 ): Promise<AdminSlotRow[]> {
   const settings = await getSettings();
-  const day = settings.hours.find((h) => h.day === weekday);
+  const day = effectiveHours(settings).find((h) => h.day === weekday);
   const windows = day ? generateDaySlots(day) : [];
   if (windows.length === 0) return [];
 
@@ -163,7 +184,7 @@ export async function listSlotConfigForDate(
     const config = configByStart.get(window.start);
     return {
       ...window,
-      maxOrders: config?.max_orders ?? DEFAULT_MAX_ORDERS,
+      maxOrders: config?.max_orders ?? day!.slotCapacity,
       enabled: config?.enabled ?? true,
       bookedCount: bookedByStart.get(window.start) ?? 0,
     };
@@ -176,6 +197,10 @@ export async function upsertSlotConfig(
   slotStart: string,
   patch: { maxOrders?: number; enabled?: boolean }
 ): Promise<void> {
+  // A fresh row starts at the day's default capacity, not a hard-coded 10.
+  const day = effectiveHours(await getSettings()).find((h) => h.day === weekday);
+  const defaultMax = day?.slotCapacity ?? DEFAULT_SLOT_CAPACITY;
+
   const { data: existing } = await supabaseAdmin()
     .from("delivery_slot_config")
     .select("max_orders, enabled")
@@ -189,7 +214,7 @@ export async function upsertSlotConfig(
       {
         weekday,
         slot_start: slotStart,
-        max_orders: patch.maxOrders ?? existing?.max_orders ?? DEFAULT_MAX_ORDERS,
+        max_orders: patch.maxOrders ?? existing?.max_orders ?? defaultMax,
         enabled: patch.enabled ?? existing?.enabled ?? true,
         updated_at: new Date().toISOString(),
       },

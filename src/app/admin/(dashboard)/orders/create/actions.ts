@@ -21,7 +21,7 @@ import { orderAccessToken } from "@/lib/order-token";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
-import { generateDaySlots, amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
+import { effectiveHours, generateDaySlots, amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
 import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
 
 export interface ManualOrderState {
@@ -160,7 +160,7 @@ export async function createManualOrderAction(
       return { ok: false, errors: { deliveryDate: "That date has already passed." } };
     }
     const weekday = weekdayForDateKey(d.deliveryDate);
-    const day = store.settings.hours.find((h) => h.day === weekday);
+    const day = effectiveHours(store.settings).find((h) => h.day === weekday);
     const valid = day ? generateDaySlots(day).some((s) => s.start === start && s.end === end) : false;
     if (!valid) return { ok: false, errors: { slot: "That slot isn't offered on that day." } };
 

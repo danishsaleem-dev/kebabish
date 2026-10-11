@@ -6,20 +6,50 @@ import type { StoredSettings } from "@/lib/admin/store/types";
  * live capacity is `delivery-slots-data.ts` (server-only).
  */
 
-export const SLOT_MINUTES = 45;
+/** Used when the owner hasn't set otherwise. */
+export const DEFAULT_SLOT_MINUTES = 45;
+export const MIN_SLOT_MINUTES = 30;
+export const MAX_SLOT_MINUTES = 120;
+export const DEFAULT_SLOT_CAPACITY = 10;
+export const DEFAULT_BOOKING_WINDOW_DAYS = 7;
+export const MAX_BOOKING_WINDOW_DAYS = 30;
+
 /**
  * The tail of every slot, reserved for the kitchen to cook and the rider
- * to drive — no new order joins a slot once it starts. So a 45-minute
- * slot is really 30 minutes of live ordering + this buffer: 10:00-10:45
- * takes orders until 10:30, 10:45-11:30 until 11:15, 11:30-12:15 until
- * 12:00. The slot is still "running" during the buffer; it just isn't
- * accepting anything new.
+ * to drive — no new order joins a slot once its live window ends. With the
+ * default 45-minute slot that is 30 minutes of live ordering + this buffer:
+ * 10:00-10:45 takes orders until 10:30, 10:45-11:30 until 11:15, 11:30-12:15
+ * until 12:00. The slot is still "running" during the buffer; it just isn't
+ * accepting anything new. The buffer stays 15 minutes whatever the slot
+ * length, so a longer slot simply takes orders for longer.
  */
 export const BUFFER_MINUTES = 15;
-/** How long a slot actually takes orders for, before its buffer begins. */
-export const LIVE_MINUTES = SLOT_MINUTES - BUFFER_MINUTES;
-/** How far ahead a customer can schedule — today plus this many days. */
-export const BOOKING_WINDOW_DAYS = 7;
+
+type DayHours = StoredSettings["hours"][number];
+
+/** A weekday's hours with its slot length and capacity worked out. */
+export type ResolvedDay = DayHours & { slotMinutes: number; slotCapacity: number };
+
+/**
+ * Every weekday's hours with the slot length and per-slot capacity filled in:
+ * the day's own setting, else the shop-wide default, else the built-in one.
+ * Anything that slices a day into slots or checks capacity should go through
+ * this, so there is exactly one place that decides what the numbers are.
+ */
+export function effectiveHours(
+  settings: Pick<StoredSettings, "hours" | "slotMinutes" | "slotCapacity">
+): ResolvedDay[] {
+  return settings.hours.map((h) => ({
+    ...h,
+    slotMinutes: h.slotMinutes ?? settings.slotMinutes ?? DEFAULT_SLOT_MINUTES,
+    slotCapacity: h.slotCapacity ?? settings.slotCapacity ?? DEFAULT_SLOT_CAPACITY,
+  }));
+}
+
+/** How many days ahead a customer may book, counting today. */
+export function bookingWindowDays(settings: Pick<StoredSettings, "bookingWindowDays">): number {
+  return settings.bookingWindowDays ?? DEFAULT_BOOKING_WINDOW_DAYS;
+}
 
 export interface SlotWindow {
   start: string; // "HH:MM"
@@ -46,24 +76,26 @@ function toHHMM(minutes: number): string {
 }
 
 /**
- * Slices a day's opening hours into fixed 45-minute windows. A trailing
- * remainder shorter than a full slot (e.g. 10:00-23:00 is 780 minutes —
- * 17 full slots with 15 minutes left over) is dropped rather than offered
- * as a short slot.
+ * Slices a day's opening hours into fixed-length windows (the day's
+ * `slotMinutes`, 45 if it has none). A trailing remainder shorter than a
+ * full slot (e.g. 10:00-23:00 is 780 minutes — 17 full 45-minute slots with
+ * 15 minutes left over) is dropped rather than offered as a short slot.
  */
 export function generateDaySlots(day: {
   closed: boolean;
   opens: string;
   closes: string;
+  slotMinutes?: number;
 }): SlotWindow[] {
   if (day.closed) return [];
 
+  const length = day.slotMinutes ?? DEFAULT_SLOT_MINUTES;
   const opens = toMinutes(day.opens);
   const closes = toMinutes(day.closes);
   const slots: SlotWindow[] = [];
 
-  for (let start = opens; start + SLOT_MINUTES <= closes; start += SLOT_MINUTES) {
-    slots.push({ start: toHHMM(start), end: toHHMM(start + SLOT_MINUTES) });
+  for (let start = opens; start + length <= closes; start += length) {
+    slots.push({ start: toHHMM(start), end: toHHMM(start + length) });
   }
 
   return slots;
@@ -127,8 +159,8 @@ export interface SlotAvailability extends SlotWindow {
 /**
  * Has this slot's ordering window closed?
  *
- * A slot takes orders right up to `start + LIVE_MINUTES` — 30 minutes
- * into its own 45-minute window — and spends its last 15 minutes as the
+ * A slot takes orders right up to `start + (slotMinutes - BUFFER_MINUTES)` —
+ * 30 minutes into a 45-minute window — and spends its last 15 minutes as the
  * prep/delivery buffer (see BUFFER_MINUTES). So at 10:20 the 10:00-10:45
  * slot is still open; at 10:30 it's closed but 10:45-11:30 is open, and
  * so on down the day. A future date is never past cutoff, a past date
@@ -140,11 +172,14 @@ export interface SlotAvailability extends SlotWindow {
 export function isPastCutoff(
   dateKey: string,
   slotStartHHMM: string,
-  now: AmsterdamNow = amsterdamNow()
+  now: AmsterdamNow = amsterdamNow(),
+  /** The length of that day's slots — the live window is this minus the buffer. */
+  slotMinutes: number = DEFAULT_SLOT_MINUTES
 ): boolean {
   if (dateKey < now.dateKey) return true;
   if (dateKey > now.dateKey) return false;
-  return now.minutes >= toMinutes(slotStartHHMM) + LIVE_MINUTES;
+  const live = Math.max(slotMinutes - BUFFER_MINUTES, 0);
+  return now.minutes >= toMinutes(slotStartHHMM) + live;
 }
 
 /**
@@ -164,12 +199,12 @@ export function nextOccurrenceOfWeekday(
 /** Every hours-configured day within the booking window, for building a date picker. */
 export function upcomingBookableDays(
   hours: StoredSettings["hours"],
-  now: AmsterdamNow = amsterdamNow()
+  windowDays: number = DEFAULT_BOOKING_WINDOW_DAYS
 ): { dateKey: string; weekday: number }[] {
   const byWeekday = new Map(hours.map((h) => [h.day, h]));
   const days: { dateKey: string; weekday: number }[] = [];
 
-  for (let i = 0; i < BOOKING_WINDOW_DAYS; i++) {
+  for (let i = 0; i < windowDays; i++) {
     const { dateKey, weekday } = amsterdamDateAhead(i);
     const day = byWeekday.get(weekday);
     if (day && !day.closed && generateDaySlots(day).length > 0) {
