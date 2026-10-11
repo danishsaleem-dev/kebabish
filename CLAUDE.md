@@ -876,7 +876,23 @@ fields in the JSONB store document, so no migration:
   the same category, driven by the arrows in the admin items table ("Menu
   order" is its default sort and the only one the arrows work in).
 
-Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, password reset, marketing opt-in, saved addresses, promo-code extras, slot settings.
+**Password reset** (`/forgot-password` → emailed link → `/reset-password`) —
+works for staff *and* customers, since they share `/login`; the email address
+decides which table (admin_users first, like sign-in). No migration, no reset
+table: the link carries `type.id.expiry.signature`, an HMAC with
+`ADMIN_SESSION_SECRET` over those parts **plus a fingerprint of the account's
+current password hash**. So it dies the moment the password changes (single-use)
+and after 60 min, and can't be forged. The request form answers identically
+whether or not the address has an account (no enumeration) and is throttled to
+one email per address per minute *per server instance* (in memory — a blunt
+instrument, Resend's limits are the backstop). The email is Dutch + English in
+one message because these pages sit outside the locale routing and nothing
+stores a language for an account. Both routes are in `proxy.ts`'s matcher
+exclusions — add any new top-level auth page there too. Verified end to end,
+including old password rejected, reused / tampered / wrong-account / expired /
+garbage tokens rejected, and expiry against a freshly signed control token.
+
+Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, marketing opt-in, saved addresses, promo-code extras, slot settings.
 
 ### Allergens are user-extendable
 

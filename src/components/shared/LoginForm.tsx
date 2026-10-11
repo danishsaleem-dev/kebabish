@@ -13,9 +13,12 @@ const EMPTY: FormState = { ok: false };
 export default function LoginForm({
   isBootstrap,
   defaultEmail,
+  notice,
 }: {
   isBootstrap: boolean;
   defaultEmail?: string;
+  /** A positive message to show above the form, e.g. after a password reset. */
+  notice?: string;
 }) {
   const [state, formAction] = useActionState(
     isBootstrap ? bootstrapOwnerAction : loginAction,
@@ -55,6 +58,14 @@ export default function LoginForm({
           )}
 
           <form action={formAction} className="space-y-4">
+            {notice && (
+              <p
+                role="status"
+                className="rounded-xl bg-success-soft px-3 py-2.5 text-sm font-medium text-success"
+              >
+                {notice}
+              </p>
+            )}
             <FormError message={!state.ok ? state.message : undefined} />
 
             {isBootstrap && (
@@ -84,6 +95,17 @@ export default function LoginForm({
                 required
               />
             </Field>
+
+            {!isBootstrap && (
+              <p className="-mt-1 text-right text-xs">
+                <Link
+                  href="/forgot-password"
+                  className="font-semibold text-ember-600 hover:underline"
+                >
+                  Forgot your password?
+                </Link>
+              </p>
+            )}
 
             <SubmitButton>
               <LogIn size={15} />

@@ -10,11 +10,11 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string }>;
+  searchParams: Promise<{ email?: string; notice?: string }>;
 }) {
   const session = await auth();
   if (session?.user) redirect(homeForRole(session.user.role));
-  const { email } = await searchParams;
+  const { email, notice } = await searchParams;
 
   let userCount: number;
   try {
@@ -51,5 +51,13 @@ export default async function LoginPage({
     );
   }
 
-  return <LoginForm isBootstrap={userCount === 0} defaultEmail={email} />;
+  return <LoginForm
+      isBootstrap={userCount === 0}
+      defaultEmail={email}
+      notice={
+        notice === "password-reset"
+          ? "Your password has been changed. Sign in with the new one."
+          : undefined
+      }
+    />;
 }
