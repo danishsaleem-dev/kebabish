@@ -316,13 +316,29 @@ export interface CreateOrderInput {
   deliveryFeeCents: number;
   promoCode: string | null;
   discountCents: number;
-  deliveryDate: string;
-  deliverySlotStart: string;
-  deliverySlotEnd: string;
+  /** Null for a manual order booked without a delivery slot. */
+  deliveryDate: string | null;
+  deliverySlotStart: string | null;
+  deliverySlotEnd: string | null;
   /** The site language the customer ordered in. */
   locale: string;
   /** Ticked "email me offers" at checkout — false unless they did. */
   marketingOptIn: boolean;
+  /**
+   * Set only for orders staff enter by hand. A website checkout leaves it out
+   * and gets the defaults: website, paid through Mollie, awaiting payment,
+   * waiting for the kitchen to accept.
+   */
+  manual?: {
+    channel: "website" | "whatsapp" | "phone" | "other";
+    channelNote: string | null;
+    paymentMethod: "mollie" | "cash" | "bank_transfer" | "unpaid";
+    /** Already settled (cash handed over, transfer received) — or still owed. */
+    paid: boolean;
+    /** Staff took the order themselves, so it starts accepted unless it's awaiting an online payment. */
+    accepted: boolean;
+    createdBy: string;
+  };
 }
 
 export async function createOrder(input: CreateOrderInput) {
@@ -360,6 +376,18 @@ export async function createOrder(input: CreateOrderInput) {
         delivery_date: input.deliveryDate,
         delivery_slot_start: input.deliverySlotStart,
         delivery_slot_end: input.deliverySlotEnd,
+        ...(input.manual
+          ? {
+              channel: input.manual.channel,
+              channel_note: input.manual.channelNote,
+              payment_method: input.manual.paymentMethod,
+              payment_status: input.manual.paid ? "paid" : "open",
+              paid_at: input.manual.paid ? new Date().toISOString() : null,
+              status: input.manual.accepted ? "preparing" : "new",
+              accepted_at: input.manual.accepted ? new Date().toISOString() : null,
+              created_by: input.manual.createdBy,
+            }
+          : {}),
       })
       .select("id, reference")
       .single();
@@ -515,6 +543,10 @@ export async function expireStaleOrders(): Promise<void> {
       .from("orders")
       .select("id, mollie_payment_id")
       .eq("payment_status", "open")
+      // Cash / bank-transfer / pay-later orders have no payment provider to
+      // expire them — a person marks those paid. Only an online checkout can
+      // be "abandoned".
+      .eq("payment_method", "mollie")
       .lt("updated_at", cutoff)
       .order("updated_at", { ascending: true })
       .limit(20);
@@ -616,6 +648,38 @@ export async function refundOrder(orderId: string): Promise<RefundResult> {
     .eq("id", orderId);
 
   return { ok: true, refundedCents: order.total_cents };
+}
+
+/* -------------------------------------------------- manual-order payments */
+
+/**
+ * Mark a hand-entered order as paid — the cash was handed over at the door,
+ * or the transfer arrived. Only for orders with no payment provider; an
+ * online (Mollie) order is marked paid by Mollie telling us so, never by a
+ * person. The conditional update is the lock: marking twice does nothing.
+ * Sends the customer their confirmation (with the invoice number) if the
+ * order has an email address.
+ */
+export async function markOrderPaid(orderId: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin()
+    .from("orders")
+    .update({
+      payment_status: "paid",
+      paid_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId)
+    .eq("payment_status", "open")
+    .neq("payment_method", "mollie")
+    .select("id");
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) return false;
+
+  const order = await getOrderSummaryById(orderId);
+  if (order && order.customerEmail) {
+    after(() => sendOrderConfirmationEmail(order, order.locale));
+  }
+  return true;
 }
 
 /* ------------------------------------------------------- invoice numbers */

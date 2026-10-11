@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { getOrderSummaryById, refundOrder } from "@/lib/orders";
+import { getOrderSummaryById, markOrderPaid, refundOrder } from "@/lib/orders";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { auth } from "@/lib/auth";
 import { updateOrderStatus, assignRider, cancelOrder } from "@/lib/admin/orders-data";
@@ -119,6 +119,9 @@ export async function declineOrderAction(orderId: string): Promise<SimpleActionR
       message: `Cancelled, but the refund failed: ${result.refundError} Refund it from the order page or in Mollie.`,
     };
   }
+  if (result.refundNote) {
+    return { ok: true, message: `Cancelled. ${result.refundNote}` };
+  }
   return {
     ok: true,
     message: result.refundedCents > 0 ? "Cancelled and refunded in full." : undefined,
@@ -150,4 +153,36 @@ export async function refundOrderAction(
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
   return { ok: true, message: "Refunded in full." };
+}
+
+/**
+ * "The cash was handed over" / "the transfer arrived" — for orders staff
+ * entered by hand. Online (Mollie) orders can't be marked paid by a person;
+ * `markOrderPaid` refuses them.
+ */
+export async function markOrderPaidAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  const session = await auth();
+  const role = session?.user.role;
+  if (role !== "owner" && role !== "staff" && role !== "manager") {
+    return { ok: false, message: "Sign in again to do that." };
+  }
+
+  const orderId = String(formData.get("orderId") ?? "");
+  let done: boolean;
+  try {
+    done = await markOrderPaid(orderId);
+  } catch (error) {
+    return { ok: false, message: (error as Error).message };
+  }
+  if (!done) {
+    return { ok: false, message: "That order can't be marked paid — it's already paid, or it's an online payment." };
+  }
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  revalidatePath("/rider");
+  return { ok: true, message: "Marked as paid." };
 }

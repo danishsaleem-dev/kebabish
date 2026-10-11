@@ -38,6 +38,7 @@ const MAIN: NavItem[] = [
     icon: ReceiptText,
     children: [
       { label: "All orders", href: "/admin/orders" },
+      { label: "Create order", href: "/admin/orders/create" },
       { label: "New", href: "/admin/orders/new" },
       { label: "Completed", href: "/admin/orders/completed" },
     ],

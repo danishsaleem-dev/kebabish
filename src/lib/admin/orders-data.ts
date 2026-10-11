@@ -52,7 +52,9 @@ interface OrderRow {
   address_postcode: string | null;
   address_city: string | null;
   notes: string | null;
-  channel: "website" | "whatsapp";
+  channel: AdminOrder["channel"];
+  channel_note: string | null;
+  payment_method: AdminOrder["paymentMethod"];
   status: string;
   payment_status: string;
   subtotal_cents: number;
@@ -110,6 +112,8 @@ function mapOrder(row: OrderRow): AdminOrder {
     status: row.status as AdminOrder["status"],
     paymentStatus: row.payment_status as AdminOrder["paymentStatus"],
     channel: row.channel,
+    channelNote: row.channel_note,
+    paymentMethod: row.payment_method ?? "mollie",
     fulfilment,
     town: fulfilment === "delivery" ? (row.address_city ?? "—") : "Pickup",
     address:
@@ -134,7 +138,7 @@ function mapOrder(row: OrderRow): AdminOrder {
 }
 
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, channel_note, payment_method, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
@@ -246,6 +250,8 @@ export interface CancelResult {
   refundedCents: number;
   /** Set when the order was cancelled but the refund could not be made. */
   refundError?: string;
+  /** Set when there was nothing to refund automatically (paid by cash or transfer). */
+  refundNote?: string;
 }
 
 export async function cancelOrder(
@@ -258,7 +264,7 @@ export async function cancelOrder(
 
   const { data: row, error: fetchError } = await supabaseAdmin()
     .from("orders")
-    .select("status, payment_status, delivery_date, delivery_slot_start")
+    .select("status, payment_status, payment_method, delivery_date, delivery_slot_start")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -283,7 +289,10 @@ export async function cancelOrder(
   // money goes back automatically rather than leaving a cancelled order
   // sitting on a payment nobody remembers to refund.
   const result: CancelResult = { refundedCents: 0 };
-  if (row.payment_status === "paid") {
+  if (row.payment_status === "paid" && row.payment_method !== "mollie") {
+    result.refundNote =
+      "It wasn't paid online, so nothing was refunded automatically — give the money back yourself.";
+  } else if (row.payment_status === "paid") {
     const refund = await refundOrder(orderId);
     if (refund.ok) result.refundedCents = refund.refundedCents;
     else result.refundError = refund.message;
@@ -394,11 +403,18 @@ function buildCustomers(
       orderCount: own.length,
       totalSpent,
       favouriteDish,
-      preferredChannel: whatsappCount > own.length / 2 ? "whatsapp" : "website",
+      preferredChannel: topChannel(own),
       status: deriveCustomerStatus(own.length, lastOrder?.placedAt ?? null),
       accountType: "registered",
     };
   });
+}
+
+/** The channel most of someone's orders came through. */
+function topChannel(orders: AdminOrder[]): AdminOrder["channel"] {
+  const counts = new Map<AdminOrder["channel"], number>();
+  for (const o of orders) counts.set(o.channel, (counts.get(o.channel) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "website";
 }
 
 /**
@@ -412,13 +428,16 @@ function buildGuestCustomers(orders: AdminOrder[]): AdminCustomer[] {
   for (const order of orders) {
     if (order.customerId) continue;
     const email = order.customerEmail?.trim().toLowerCase();
-    if (!email) continue;
-    const list = byEmail.get(email) ?? [];
+    // An order staff entered by phone may have no email: group those by
+    // phone number instead, so a regular caller still shows up as one person.
+    const key = email || `tel:${order.phone.replace(/\D/g, "")}`;
+    if (key === "tel:") continue;
+    const list = byEmail.get(key) ?? [];
     list.push(order);
-    byEmail.set(email, list);
+    byEmail.set(key, list);
   }
 
-  return [...byEmail.entries()].map(([email, own]) => {
+  return [...byEmail.entries()].map(([key, own]) => {
     const sorted = [...own].sort(
       (a, b) => Date.parse(b.placedAt) - Date.parse(a.placedAt)
     );
@@ -438,13 +457,11 @@ function buildGuestCustomers(orders: AdminOrder[]): AdminCustomer[] {
     const favouriteDish =
       [...dishCounts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
-    const whatsappCount = sorted.filter((o) => o.channel === "whatsapp").length;
-
     return {
-      id: `guest:${email}`,
+      id: `guest:${key}`,
       name: lastOrder.customerName,
       phone: lastOrder.phone,
-      email,
+      email: key.startsWith("tel:") ? "" : key,
       town: delivered[0]?.town ?? "—",
       address: delivered[0]?.address ?? "—",
       joinedAt: sorted[sorted.length - 1].placedAt,
@@ -452,7 +469,7 @@ function buildGuestCustomers(orders: AdminOrder[]): AdminCustomer[] {
       orderCount: sorted.length,
       totalSpent,
       favouriteDish,
-      preferredChannel: whatsappCount > sorted.length / 2 ? "whatsapp" : "website",
+      preferredChannel: topChannel(sorted),
       status: deriveCustomerStatus(sorted.length, lastOrder.placedAt),
       accountType: "guest",
     };

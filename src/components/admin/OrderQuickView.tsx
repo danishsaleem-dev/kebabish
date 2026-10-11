@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { CHANNEL_LABELS } from "@/lib/admin/order-types";
 import Link from "next/link";
 import {
   ArrowUpRight,
@@ -78,7 +79,8 @@ export default function OrderQuickView({
               ) : (
                 <Globe size={13} className="text-ember-600" />
               )}
-              {order.channel === "whatsapp" ? "WhatsApp" : "Website"}
+              {CHANNEL_LABELS[order.channel]}
+              {order.channelNote ? `: ${order.channelNote}` : ""}
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-xs font-medium text-body-text">
               {order.fulfilment === "delivery" ? (

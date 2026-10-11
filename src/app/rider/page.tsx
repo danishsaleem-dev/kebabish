@@ -110,7 +110,9 @@ export default async function RiderPage() {
                     <div className="flex items-center gap-3">
                       <OrderStatusPill status={order.status} />
                       <span className={`text-xs font-semibold ${PAYMENT_TONE[order.paymentStatus]}`}>
-                        {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+                        {order.paymentMethod === "cash" && order.paymentStatus === "open"
+                          ? "Collect cash"
+                          : PAYMENT_STATUS_LABELS[order.paymentStatus]}
                       </span>
                     </div>
                   </div>

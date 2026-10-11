@@ -1,3 +1,4 @@
+import { CHANNEL_LABELS } from "@/lib/admin/order-types";
 import type {
   AdminOrder,
   Period,
@@ -337,19 +338,24 @@ export function getOrdersByHour(allOrders: AdminOrder[]) {
 }
 
 /**
- * Only orders placed through the on-site checkout land in this table —
- * a WhatsApp order is a chat message, not a database row, so this can
- * only ever report what's actually tracked. It'll read 100% Website until
- * WhatsApp orders get a logging path of their own.
+ * Where orders came from. Website orders arrive through the checkout; the
+ * others (WhatsApp, phone, other) are the ones staff enter by hand under
+ * Orders -> Create order, tagged with their source.
  */
 export function getChannelSplit(allOrders: AdminOrder[]) {
   const orders = realOrders(allOrders);
   const real = orders.filter(isSale);
-  const wa = real.filter((o) => o.channel === "whatsapp").length;
   const total = real.length;
+  const channels: AdminOrder["channel"][] = ["website", "whatsapp", "phone", "other"];
 
-  return [
-    { label: "WhatsApp", value: total ? Math.round((wa / total) * 100) : 0 },
-    { label: "Website", value: total ? 100 - Math.round((wa / total) * 100) : 0 },
-  ];
+  // Only channels that have orders are listed, so a quiet "Other" doesn't
+  // sit in the chart at 0% — except Website, which always anchors it.
+  return channels
+    .map((channel) => ({
+      label: CHANNEL_LABELS[channel],
+      value: total ? Math.round((real.filter((o) => o.channel === channel).length / total) * 100) : 0,
+      channel,
+    }))
+    .filter((c) => c.channel === "website" || c.value > 0)
+    .map(({ label, value }) => ({ label, value }));
 }

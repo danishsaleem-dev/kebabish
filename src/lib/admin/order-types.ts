@@ -15,7 +15,14 @@ export type OrderStatus =
   | "delivered"
   | "cancelled";
 
-export type OrderChannel = "whatsapp" | "website";
+export type OrderChannel = "whatsapp" | "website" | "phone" | "other";
+
+/**
+ * How an order is being paid. "mollie" is every online checkout. The others
+ * are for orders staff enter by hand and have no payment provider behind
+ * them, so a person marks them paid.
+ */
+export type PaymentMethod = "mollie" | "cash" | "bank_transfer" | "unpaid";
 export type Fulfilment = "delivery" | "takeaway";
 export type CustomerStatus = "new" | "active" | "lapsed";
 export type PaymentStatus =
@@ -49,6 +56,9 @@ export interface AdminOrder {
   status: OrderStatus;
   paymentStatus: PaymentStatus;
   channel: OrderChannel;
+  /** Free text for channel "other" (up to 50 characters). */
+  channelNote: string | null;
+  paymentMethod: PaymentMethod;
   fulfilment: Fulfilment;
   town: string;
   address: string;
@@ -164,6 +174,15 @@ export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
 export const CHANNEL_LABELS: Record<OrderChannel, string> = {
   whatsapp: "WhatsApp",
   website: "Website",
+  phone: "Phone",
+  other: "Other",
+};
+
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  mollie: "Online (Mollie)",
+  cash: "Cash on delivery",
+  bank_transfer: "Bank transfer",
+  unpaid: "Pay later",
 };
 
 export type Period = "daily" | "weekly" | "monthly";

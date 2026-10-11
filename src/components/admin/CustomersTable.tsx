@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { CHANNEL_LABELS } from "@/lib/admin/order-types";
 import { useRouter } from "next/navigation";
 import { ChevronsUpDown, Globe, MessageCircle, Search } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
@@ -214,9 +215,7 @@ export default function CustomersTable({
                     ) : (
                       <Globe size={13} className="text-ember-600" />
                     )}
-                    {customer.preferredChannel === "whatsapp"
-                      ? "WhatsApp"
-                      : "Website"}
+                    {CHANNEL_LABELS[customer.preferredChannel]}
                   </span>
                 </td>
                 <td className="px-4 py-4">

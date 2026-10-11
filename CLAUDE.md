@@ -916,7 +916,41 @@ garbage tokens rejected, and expiry against a freshly signed control token.
 - `PostcodeField` takes an `initial` address, and no longer reopens its
   suggestion list after a pick (the lookup is skipped for values we set).
 
-Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, manual (phone/WhatsApp) orders, promo-code extras, slot settings.
+**Promo codes — new options:** start date, total-use limit, first-order-only,
+and "applies to" categories/dishes. `validatePromoCode` now takes the *priced
+cart*, not a subtotal: a restricted code discounts only the qualifying lines
+(and is "not applicable" when none are in the basket), and the checkout preview
+prices the real cart server-side. The total-use limit counts paid orders plus
+checkouts still awaiting payment (`promoRedemptionCounts`), so the last use
+can't be handed to two people mid-payment — but it is a count-then-order
+check, not atomic, so a simultaneous pair could oversell by one. Start/expiry
+are compared on Amsterdam's calendar day, not UTC's. No migration.
+
+**Manual (phone/WhatsApp) orders** (`/admin/orders/create`, migration
+`0012_manual_orders.sql`, run *before* deploying):
+
+- Priced through the same `priceCart` as a website order — the form says what
+  was ordered, never what it costs; a hidden/sold-out/unpriced dish is refused.
+  Staff can waive the delivery fee, skip the minimum, book a slot past the
+  customer cutoff (capacity is still enforced), omit the email, and the town
+  isn't checked against the delivery area.
+- `orders.channel` is now website / whatsapp / phone / other (+ `channel_note`,
+  50 chars, required for "other"); `orders.payment_method` is mollie / cash /
+  bank_transfer / unpaid, and `created_by` records the staff member.
+- **Only an online ("mollie") order can be abandoned**: the stale-checkout
+  sweep filters on `payment_method = 'mollie'`. A cash/transfer/pay-later
+  order has no provider to expire it; a person marks it paid
+  (`markOrderPaid`, "Mark as paid" on the order page), which also emails the
+  receipt if there's an address.
+- Every manual order except the online-link one starts **accepted**
+  (`preparing`) — staff took it, so the kitchen popup shouldn't ask again. The
+  online-link one starts `new` and the popup fires when it's paid.
+- Cancelling a paid cash/transfer order refunds nothing automatically (there's
+  no Mollie payment) and says so; the rider sees "Collect cash" on an unpaid
+  cash order. Guests with no email are grouped by phone number in Customers.
+  Channel reporting now covers all four sources.
+
+Not done yet from the spec: partial refunds + credit notes, `is_test` order flag, slot settings (duration, capacity, booking window).
 
 ### Allergens are user-extendable
 

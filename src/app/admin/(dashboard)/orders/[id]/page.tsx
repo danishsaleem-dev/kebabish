@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Bike,
   ChefHat,
+  CreditCard,
   Clock,
   Globe,
   Mail,
@@ -28,7 +29,13 @@ import { getInvoiceNumber } from "@/lib/orders";
 import { vatIncludedCents, fromCents, toCents } from "@/lib/money";
 import { getOrder, getCustomer, listOrders } from "@/lib/admin/orders-data";
 import { listRiders } from "@/lib/admin/auth-users";
-import { ORDER_STATUS_LABELS } from "@/lib/admin/order-types";
+import {
+  CHANNEL_LABELS,
+  ORDER_STATUS_LABELS,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_STATUS_LABELS,
+} from "@/lib/admin/order-types";
+import MarkPaidControl from "@/components/admin/MarkPaidControl";
 
 export const dynamic = "force-dynamic";
 
@@ -178,6 +185,11 @@ timeZone: "Europe/Amsterdam",
             <p className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm font-medium text-body-text print:hidden">
               Refunded {formatMoney(order.refunded)} to the customer.
             </p>
+          )}
+          {order.paymentMethod !== "mollie" && order.paymentStatus === "open" && order.status !== "cancelled" && (
+            <div className="mt-5 flex justify-end">
+              <MarkPaidControl orderId={order.id} amount={formatMoney(order.total)} />
+            </div>
           )}
           {canRefund && order.paymentStatus === "paid" && (
             <div className="mt-5 flex justify-end">
@@ -332,8 +344,12 @@ timeZone: "Europe/Amsterdam",
                   ) : (
                     <Globe size={15} className="shrink-0 text-ember-600" />
                   )}
-                  Ordered via{" "}
-                  {order.channel === "whatsapp" ? "WhatsApp" : "the website"}
+                  Ordered via {CHANNEL_LABELS[order.channel]}
+                  {order.channelNote ? ` (${order.channelNote})` : ""}
+                </li>
+                <li className="flex items-center gap-2 text-body-text">
+                  <CreditCard size={15} className="shrink-0 text-faint" />
+                  {PAYMENT_METHOD_LABELS[order.paymentMethod]} · {PAYMENT_STATUS_LABELS[order.paymentStatus]}
                 </li>
                 {order.fulfilment === "delivery" && (
                   <li className="flex items-start gap-2 text-body-text">

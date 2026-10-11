@@ -110,7 +110,9 @@ export default function NewOrderAlert() {
     setOrders((prev) => prev.filter((o) => o.id !== orderId));
     toast(
       result.message ?? (action === "accept" ? "Order accepted." : "Order declined."),
-      result.message?.includes("refund failed") ? "error" : "success"
+      result.message?.includes("refund failed") || result.message?.includes("give the money back")
+        ? "error"
+        : "success"
     );
   }
 
