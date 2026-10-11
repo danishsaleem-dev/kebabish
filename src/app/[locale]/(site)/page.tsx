@@ -54,7 +54,7 @@ export default async function HomePage({
       <Motion />
       <HomeSchema locale={locale} />
 
-      <Hero locale={locale} heroVideo={getHeroVideoAvailability()} isOpen={isOpen} showBadge={settings.showLaunchBadge ?? true} />
+      <Hero locale={locale} heroVideo={getHeroVideoAvailability()} showBadge={settings.showLaunchBadge ?? true} />
       <Marquee items={marqueeItems} />
       <Story locale={locale} />
       <Categories locale={locale} />

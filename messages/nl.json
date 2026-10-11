@@ -12,7 +12,6 @@
     "subtitle": "Kebabish — De Smaak van Thuis",
     "description": "Verse, huisgemaakte Pakistaanse gerechten — bezorgd binnen 10 km van Hoogkarspel.",
     "ctaOrder": "Bekijk menu & bestel",
-    "ctaWhatsapp": "Bestel via WhatsApp",
     "badge": "Alleen bezorgen — geen dine-in",
     "scrollCue": "Scroll"
   },
@@ -361,6 +360,7 @@
     "loginPrompt": "Heb je al een account?",
     "loginCta": "Inloggen",
     "invalidDetails": "Controleer je gegevens hierboven.",
+    "invalidPhone": "Vul een geldig Nederlands telefoonnummer in, bijv. 06 12345678 of +31 6 12345678.",
     "promoCode": "Kortingscode",
     "promoPlaceholder": "Voer een code in",
     "promoApply": "Toepassen",

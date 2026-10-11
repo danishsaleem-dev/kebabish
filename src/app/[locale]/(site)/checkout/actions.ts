@@ -1,5 +1,6 @@
 "use server";
 
+import { normalizeDutchPhone } from "@/lib/phone";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { redirect } from "next/navigation";
@@ -61,7 +62,7 @@ async function requestOrigin(): Promise<string> {
 const checkoutSchema = z.object({
   name: z.string().trim().min(2),
   email: z.string().trim().email(),
-  phone: z.string().trim().min(6),
+  phone: z.string().trim().refine((v) => normalizeDutchPhone(v) !== null),
   street: z.string().trim().min(3),
   postcode: z.string().trim().min(4),
   city: z.string().trim().min(2),
@@ -138,8 +139,15 @@ export async function checkoutAction(
     saveAddress: formData.get("saveAddress") === "on",
   });
 
-  if (!parsed.success) return { ok: false, error: "invalidDetails" };
-  const details = parsed.data;
+  if (!parsed.success) {
+    const badPhone = parsed.error.issues.some((i) => i.path[0] === "phone");
+    return { ok: false, error: badPhone ? "invalidPhone" : "invalidDetails" };
+  }
+  // Stored as E.164 so staff, WhatsApp and tel: links all get one format.
+  const details = {
+    ...parsed.data,
+    phone: normalizeDutchPhone(parsed.data.phone) ?? parsed.data.phone,
+  };
   const locale = String(formData.get("locale") ?? "");
 
   let submitted: SubmittedLine[];

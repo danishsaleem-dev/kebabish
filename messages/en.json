@@ -12,7 +12,6 @@
     "subtitle": "Kebabish — The Taste of Home",
     "description": "Fresh, homemade Pakistani dishes — delivered within 10 km of Hoogkarspel.",
     "ctaOrder": "View menu & order",
-    "ctaWhatsapp": "Order via WhatsApp",
     "badge": "Delivery only — no dine-in",
     "scrollCue": "Scroll"
   },
@@ -361,6 +360,7 @@
     "loginPrompt": "Already have an account?",
     "loginCta": "Sign in",
     "invalidDetails": "Please check the details above.",
+    "invalidPhone": "Please enter a valid Dutch phone number, e.g. 06 12345678 or +31 6 12345678.",
     "promoCode": "Promo code",
     "promoPlaceholder": "Enter a code",
     "promoApply": "Apply",

@@ -7,6 +7,7 @@ import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
 import CartLineNotice from "@/components/cart/CartLineNotice";
+import { normalizeDutchPhone } from "@/lib/phone";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
 import PostcodeField from "@/components/cart/PostcodeField";
 import DeliverySlotPicker, {
@@ -189,7 +190,16 @@ export default function CheckoutForm({
                 type="tel"
                 required
                 autoComplete="tel"
+                inputMode="tel"
+                placeholder="06 12345678"
                 defaultValue={account?.phone}
+                onChange={(e) =>
+                  e.currentTarget.setCustomValidity(
+                    !e.currentTarget.value || normalizeDutchPhone(e.currentTarget.value)
+                      ? ""
+                      : t("invalidPhone")
+                  )
+                }
                 className={inputClass}
               />
             </Field>

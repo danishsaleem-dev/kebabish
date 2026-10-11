@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
-import { ArrowDown, MessageCircle, UtensilsCrossed } from "lucide-react";
+import { ArrowDown, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { siteConfig } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import BrandLogo from "@/components/shared/BrandLogo";
 import HeroVideo from "@/components/home/HeroVideo";
@@ -10,18 +10,15 @@ import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
 export default async function Hero({
   locale,
   heroVideo,
-  isOpen,
   showBadge = true,
 }: {
   locale: string;
   heroVideo: { web: boolean; mobile: boolean };
-  isOpen: boolean;
   showBadge?: boolean;
 }) {
   const { web, mobile } = heroVideo;
   const hasVideo = web || mobile;
   const t = await getTranslations({ locale });
-  const whatsappHref = whatsappOrderLink(t("whatsapp.orderGeneric"));
 
   return (
     <section
@@ -142,28 +139,6 @@ export default async function Hero({
             {t("hero.ctaOrder")}
           </Link>
 
-          {isOpen ? (
-            <a
-              data-hero-cta
-              data-reveal
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-100/35 bg-charcoal-950/40 px-8 py-4 text-sm font-semibold text-cream-50 shadow-[0_10px_30px_-10px_rgba(10,8,6,0.7)] backdrop-blur-md transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-charcoal-950/60 sm:w-auto"
-            >
-              <MessageCircle size={18} />
-              {t("hero.ctaWhatsapp")}
-            </a>
-          ) : (
-            <span
-              data-hero-cta
-              data-reveal
-              className="inline-flex w-full cursor-default items-center justify-center gap-2.5 rounded-full border border-cream-100/20 bg-charcoal-950/35 px-8 py-4 text-sm font-semibold text-cream-100/60 backdrop-blur-md sm:w-auto"
-            >
-              <MessageCircle size={18} />
-              {t("common.closedNow")}
-            </span>
-          )}
         </div>
 
         <p
