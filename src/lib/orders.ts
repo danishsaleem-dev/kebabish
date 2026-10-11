@@ -5,7 +5,7 @@ import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
 import { isSellablePrice, toCents } from "@/lib/money";
 import type { MolliePaymentStatus } from "@/lib/mollie";
-import { cancelPayment, createRefund, getPayment, toPaymentStatus } from "@/lib/mollie";
+import { cancelPayment, getPayment, toPaymentStatus } from "@/lib/mollie";
 import type { StoredPromoCode } from "@/lib/admin/store/types";
 import { sendNewOrderEmail, sendUnacceptedOrderEmail } from "@/lib/email/new-order";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
@@ -633,72 +633,6 @@ export async function expireStaleOrders(): Promise<void> {
   }
 }
 
-/* ---------------------------------------------------------------- refunds */
-
-export type RefundResult =
-  | { ok: true; refundedCents: number }
-  | { ok: false; message: string };
-
-/**
- * Give a paid order's money back in full, through Mollie.
- *
- * The conditional update to "refunded" comes first and is the lock: two
- * staff clicking at once, or a decline racing a manual refund, can't both
- * get past it and send the customer two refunds. If Mollie then refuses,
- * the status goes back to "paid" so the owner can try again or handle it in
- * Mollie's dashboard — it never claims money moved when it didn't.
- *
- * Full refunds only. Partial refunds (and a credit-note document to go with
- * them) are not built; refund the remainder in Mollie's dashboard for now.
- */
-export async function refundOrder(orderId: string): Promise<RefundResult> {
-  const supabase = supabaseAdmin();
-
-  const { data: claimed, error } = await supabase
-    .from("orders")
-    .update({ payment_status: "refunded", updated_at: new Date().toISOString() })
-    .eq("id", orderId)
-    .eq("payment_status", "paid")
-    .select("reference, mollie_payment_id, total_cents");
-  if (error) return { ok: false, message: error.message };
-
-  const order = claimed?.[0];
-  if (!order) {
-    return { ok: false, message: "That order hasn't been paid, or it was already refunded." };
-  }
-  if (!order.mollie_payment_id) {
-    await supabase.from("orders").update({ payment_status: "paid" }).eq("id", orderId);
-    return { ok: false, message: "This order has no Mollie payment to refund." };
-  }
-
-  try {
-    await createRefund({
-      paymentId: order.mollie_payment_id,
-      amountCents: order.total_cents,
-      description: `Kebabish ${order.reference}`,
-    });
-  } catch (refundError) {
-    await supabase
-      .from("orders")
-      .update({ payment_status: "paid", updated_at: new Date().toISOString() })
-      .eq("id", orderId);
-    return {
-      ok: false,
-      message: `Mollie couldn't refund it: ${(refundError as Error).message}`,
-    };
-  }
-
-  await supabase
-    .from("orders")
-    .update({
-      refunded_cents: order.total_cents,
-      refunded_at: new Date().toISOString(),
-    })
-    .eq("id", orderId);
-
-  return { ok: true, refundedCents: order.total_cents };
-}
-
 /* -------------------------------------------------- manual-order payments */
 
 /**
@@ -894,6 +828,8 @@ export interface OrderSummary {
   id: string;
   /** The language they ordered in — what later emails are written in. */
   locale: string;
+  /** Money already sent back to the customer, in cents. */
+  refundedCents: number;
   reference: string;
   status: string;
   paymentStatus: string;
@@ -920,7 +856,7 @@ export interface OrderSummary {
 }
 
 const ORDER_SELECT =
-  "id, locale, reference, status, payment_status, total_cents, mollie_payment_id, fulfilment, " +
+  "id, locale, refunded_cents, reference, status, payment_status, total_cents, mollie_payment_id, fulfilment, " +
   "created_at, customer_id, customer_name, customer_email, customer_phone, " +
   "address_street, address_postcode, address_city, notes, subtotal_cents, " +
   "discount_cents, promo_code, delivery_fee_cents, " +
@@ -930,6 +866,7 @@ const ORDER_SELECT =
 interface OrderRow {
   id: string;
   locale: string | null;
+  refunded_cents: number | null;
   reference: string;
   status: string;
   payment_status: string;
@@ -969,6 +906,7 @@ function mapOrderRow(row: OrderRow): OrderSummary {
   return {
     id: row.id,
     locale: row.locale ?? "nl",
+    refundedCents: row.refunded_cents ?? 0,
     reference: row.reference,
     status: row.status,
     paymentStatus: row.payment_status,

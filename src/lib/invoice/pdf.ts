@@ -59,8 +59,21 @@ export interface InvoiceData {
   vatCents: number | null;
   paymentMethod: "mollie" | "cash" | "bank_transfer" | "unpaid";
   paidAt: Date | null;
-  refundedCents: number;
-  refundedAt: Date | null;
+  /**
+   * Present only when this document is a CREDIT NOTE rather than an invoice.
+   * Everything else is then filled in as the (negative) correction: one line,
+   * a negative total, the VAT inside the refund. The invoice itself never
+   * carries refund information — it stays as it was issued.
+   */
+  creditNote?: {
+    number: string;
+    /** The invoice this corrects. */
+    invoiceNumber: string;
+    /** Shown only when staff chose to give the customer a reason. */
+    reason: string | null;
+    /** Did the money go back through Mollie, or did a person hand it back? */
+    viaMollie: boolean;
+  };
   delivery: {
     /** "YYYY-MM-DD", or null when no slot was booked. */
     date: string | null;
@@ -98,11 +111,19 @@ const COPY = {
     paidBank: "Betaald per bankoverschrijving",
     unpaid: "Nog niet betaald",
     on: "op",
-    refunded: "Terugbetaald",
     kvk: "KVK",
     vatId: "BTW-id",
     iban: "IBAN",
     bic: "BIC",
+    creditTitle: "CREDITNOTA",
+    creditNumber: "Creditnotanummer",
+    creditDate: "Datum",
+    concerningInvoice: "Betreft factuur",
+    creditedTotal: "Totaal gecrediteerd (incl. btw)",
+    refundedOn: "Terugbetaald op",
+    refundedViaMollie: "Teruggestort naar de betaalmethode van de oorspronkelijke betaling.",
+    refundedByUs: "Door ons terugbetaald.",
+    reasonLabel: "Reden",
     deliveryTime: "Bezorgmoment",
     between: "tussen",
     and: "en",
@@ -138,11 +159,19 @@ const COPY = {
     paidBank: "Paid by bank transfer",
     unpaid: "Not yet paid",
     on: "on",
-    refunded: "Refunded",
     kvk: "KVK",
     vatId: "VAT ID",
     iban: "IBAN",
     bic: "BIC",
+    creditTitle: "CREDIT NOTE",
+    creditNumber: "Credit note number",
+    creditDate: "Date",
+    concerningInvoice: "Relates to invoice",
+    creditedTotal: "Total credited (incl. VAT)",
+    refundedOn: "Refunded on",
+    refundedViaMollie: "Refunded to the payment method used for the original payment.",
+    refundedByUs: "Refunded by us directly.",
+    reasonLabel: "Reason",
     deliveryTime: "Delivery time",
     between: "between",
     and: "and",
@@ -163,7 +192,11 @@ const HAIRLINE = rgb(0.85, 0.82, 0.76);
 export async function buildInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   const c = COPY[data.locale];
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`${c.title} ${data.invoiceNumber}`);
+  pdf.setTitle(
+    data.creditNote
+      ? `${c.creditTitle} ${data.creditNote.number}`
+      : `${c.title} ${data.invoiceNumber}`
+  );
   pdf.setAuthor(data.seller.tradeName);
   pdf.setSubject(`${c.orderNumber} ${data.reference}`);
   pdf.setCreator(data.seller.tradeName);
@@ -191,7 +224,8 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   };
 
   const money = (cents: number) =>
-    `€ ${(cents / 100).toFixed(2).replace(".", c.decimal)}`;
+    `${cents < 0 ? "-" : ""}€ ${(Math.abs(cents) / 100).toFixed(2).replace(".", c.decimal)}`;
+  const credit = data.creditNote;
   const date = (d: Date) =>
     new Intl.DateTimeFormat(c.dateLocale, {
       timeZone: "Europe/Amsterdam",
@@ -277,13 +311,20 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   page.drawImage(logo, { x: MARGIN, y: y - logoH, width: logoW, height: logoH });
 
   const rightX = PAGE_W - MARGIN;
-  textRight(c.title, rightX, y - 18, { font: bold, size: 22, color: EMBER });
-  const meta: [string, string][] = [
-    [c.invoiceNumber, data.invoiceNumber],
-    [c.invoiceDate, date(data.invoiceDate)],
-    [c.orderNumber, data.reference],
-  ];
-  if (data.delivery.date) meta.push([c.deliveryDate, dateFromKey(data.delivery.date)]);
+  textRight(credit ? c.creditTitle : c.title, rightX, y - 18, { font: bold, size: 22, color: EMBER });
+  const meta: [string, string][] = credit
+    ? [
+        [c.creditNumber, credit.number],
+        [c.creditDate, date(data.invoiceDate)],
+        [c.concerningInvoice, credit.invoiceNumber],
+        [c.orderNumber, data.reference],
+      ]
+    : [
+        [c.invoiceNumber, data.invoiceNumber],
+        [c.invoiceDate, date(data.invoiceDate)],
+        [c.orderNumber, data.reference],
+      ];
+  if (!credit && data.delivery.date) meta.push([c.deliveryDate, dateFromKey(data.delivery.date)]);
   let my = y - 40;
   for (const [label, value] of meta) {
     textRight(value, rightX, my, { font: bold, size: 9.5 });
@@ -377,14 +418,16 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
     textRight(value, xAmount - 8, y, { font: strong ? bold : regular, size: strong ? 11 : 10 });
     y -= strong ? 18 : 15;
   };
-  totalRow(c.subtotal, money(data.subtotalCents));
-  if (data.discountCents > 0) {
-    totalRow(`${c.discount}${data.promoCode ? ` (${data.promoCode})` : ""}`, `-${money(data.discountCents)}`);
+  if (!credit) {
+    totalRow(c.subtotal, money(data.subtotalCents));
+    if (data.discountCents > 0) {
+      totalRow(`${c.discount}${data.promoCode ? ` (${data.promoCode})` : ""}`, `-${money(data.discountCents)}`);
+    }
+    totalRow(c.delivery, data.deliveryFeeCents === 0 ? c.free : money(data.deliveryFeeCents));
   }
-  totalRow(c.delivery, data.deliveryFeeCents === 0 ? c.free : money(data.deliveryFeeCents));
   rule(y + 8, CHARCOAL);
   y -= 4;
-  totalRow(c.total, money(data.totalCents), true);
+  totalRow(credit ? c.creditedTotal : c.total, money(data.totalCents), true);
 
   // ------------------------------------------------------------ VAT
   y -= 6;
@@ -404,33 +447,37 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
   ensureSpace(110);
   text(c.payment.toUpperCase(), MARGIN, y, { font: bold, size: 8, color: MUTED });
   y -= 14;
-  const when = data.paidAt ? ` ${c.on} ${date(data.paidAt)}` : "";
-  const paymentLabel =
-    data.paidAt == null
-      ? c.unpaid
-      : data.paymentMethod === "cash"
-        ? c.paidCash
-        : data.paymentMethod === "bank_transfer"
-          ? c.paidBank
-          : c.paidOnline;
-  text(`${paymentLabel}${when}`, MARGIN, y);
-  y -= 14;
-  if (data.refundedCents > 0) {
-    text(
-      `${c.refunded}: ${money(data.refundedCents)}${data.refundedAt ? ` ${c.on} ${date(data.refundedAt)}` : ""}`,
-      MARGIN,
-      y,
-      { font: bold, color: EMBER }
-    );
+  if (credit) {
+    text(`${c.refundedOn} ${date(data.invoiceDate)}`, MARGIN, y, { font: bold });
     y -= 14;
-  }
-  if (data.delivery.date && data.delivery.slotStart && data.delivery.slotEnd) {
-    text(
-      `${c.deliveryTime}: ${dateFromKey(data.delivery.date)}, ${c.between} ${data.delivery.slotStart} ${c.and} ${data.delivery.slotEnd}`,
-      MARGIN,
-      y
-    );
+    text(credit.viaMollie ? c.refundedViaMollie : c.refundedByUs, MARGIN, y);
     y -= 14;
+    if (credit.reason) {
+      for (const line of wrap(`${c.reasonLabel}: ${credit.reason}`, regular, 10, PAGE_W - 2 * MARGIN)) {
+        text(line, MARGIN, y);
+        y -= 13;
+      }
+    }
+  } else {
+    const when = data.paidAt ? ` ${c.on} ${date(data.paidAt)}` : "";
+    const paymentLabel =
+      data.paidAt == null
+        ? c.unpaid
+        : data.paymentMethod === "cash"
+          ? c.paidCash
+          : data.paymentMethod === "bank_transfer"
+            ? c.paidBank
+            : c.paidOnline;
+    text(`${paymentLabel}${when}`, MARGIN, y);
+    y -= 14;
+    if (data.delivery.date && data.delivery.slotStart && data.delivery.slotEnd) {
+      text(
+        `${c.deliveryTime}: ${dateFromKey(data.delivery.date)}, ${c.between} ${data.delivery.slotStart} ${c.and} ${data.delivery.slotEnd}`,
+        MARGIN,
+        y
+      );
+      y -= 14;
+    }
   }
 
   // ------------------------------------------------------------ footer on every page
@@ -451,3 +498,6 @@ export async function buildInvoicePdf(data: InvoiceData): Promise<Uint8Array> {
 
   return pdf.save();
 }
+
+/** A credit note is the same document with the credit-note fields filled in. */
+export const buildCreditNotePdf = buildInvoicePdf;

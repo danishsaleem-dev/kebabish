@@ -976,7 +976,7 @@ the hours list; migration `0013_slot_default_capacity.sql`):
 - The checkout page passes `effectiveHours` + the window to `DeliverySlotPicker`;
   the booking window is enforced server-side in `checkoutAction` too.
 
-Not done yet from the spec: partial refunds + credit notes, `is_test` order flag.
+Not done yet from the spec: `is_test` order flag.
 
 ### Launch checklist (state as of the final readiness pass, 11 Oct 2026)
 
@@ -1009,6 +1009,40 @@ English-only. Root SPF lists only Hostinger; Resend authenticates by DKIM + its
 own return-path subdomain, so mail from info@ works, but anything sent from
 Google Workspace as info@ would fail SPF (DMARC is `p=none`).
 
+### Refunds and credit notes (migration `0014_refunds_and_credit_notes.sql`)
+
+Refunds are full **or partial** and each one is a row in `order_refunds` with its
+own credit note number (`CN-2026-000001`, gap-free via `record_refund()`, which
+inserts the row and takes the number in one transaction). `refundOrder()` lives
+in `src/lib/refunds.ts`:
+
+- **The guard is a compare-and-swap on `orders.refunded_cents`**, not a status
+  flag — several refunds can follow each other, and two people clicking at once
+  can't refund the same money twice (the second is told to reload). The order
+  becomes `payment_status = 'refunded'` only when nothing is left.
+- Mollie is called after the claim; if Mollie refuses, the total is wound back.
+  If Mollie succeeds but recording fails (shouldn't), it does *not* wind back —
+  it logs `REFUND MADE BUT NOT RECORDED` and tells the user, because unwinding
+  would make the books lie the other way. It also probes the table first and
+  refuses to touch Mollie at all if migration 0014 isn't there.
+- A cash/transfer order has no Mollie payment: the same form then only
+  *records* that a person handed money back, and still issues the credit note.
+- **The customer may see a reason only if staff typed one** (`reason_customer`);
+  `note_internal` is staff-only and never reaches a PDF, email or customer page.
+- The **VAT inside each refund is frozen** at refund time (`vat_rate`,
+  `vat_cents`), so a credit note doesn't change if the VAT setting does.
+- **The original invoice is never changed** — it carries no refund line any more;
+  corrections live on credit notes (`buildCreditNotePdf`, the same builder with the
+  credit-note fields filled in, negative amounts, "relates to invoice INV-…").
+  Credit notes are one correction line for the amount, not per-dish.
+- Where they appear: admin Refunds panel on the order (history + PDFs + the form,
+  owner/staff only to refund), `/admin/orders/[id]/credit-note?n=`, customer
+  `/api/credit-note?ref=&t=&n=` (token-guarded like the invoice), the customer's
+  order page and `/dashboard`, and attached to the refund email.
+- Declining a paid order refunds what's left automatically (and the customer gets
+  the credit note). Revenue in reports is `total − refunded`; per-dish/category
+  sales stay at original amounts (a partial refund isn't tied to a line).
+
 ### Invoice PDF
 
 `buildInvoicePdf()` (`src/lib/invoice/pdf.ts`) draws a one-or-more-page A4 PDF
@@ -1036,8 +1070,7 @@ payment method and date, refund line if refunded, IBAN/BIC in the footer
 (Marfah Enterprise) is added when **Settings → Tax & invoices → "Show the company
 name on invoices"** is ticked (off by default; ask the accountant). Built-in
 Helvetica covers Dutch/English; a character outside it is transliterated or shown
-as "?" rather than crashing. **No credit-note document yet** — a refunded invoice
-carries a "Refunded" line only; credit notes arrive with partial refunds.
+as "?" rather than crashing. **Refunds are on credit notes**, never on the invoice (see Refunds and credit notes).
 
 ### Cart stays honest against the live menu
 

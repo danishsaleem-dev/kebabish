@@ -127,12 +127,31 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function html(order: OrderSummary, locale: Locale, c: Copy): string {
+export interface OrderStatusEmailExtra {
+  /** Only passed when staff chose to give the customer a reason. */
+  reason?: string;
+  /** The credit note PDF for a refund. */
+  creditNote?: { number: string; pdf: Buffer };
+  /** True when part of the money went back, not all of it. */
+  partial?: boolean;
+}
+
+function html(order: OrderSummary, locale: Locale, c: Copy, extra?: OrderStatusEmailExtra): string {
   const logoUrl = `${siteConfig.website}/logo/Kebabish-light.png`;
   const prefix = locale === "nl" ? "" : "/en";
   const orderUrl = `${siteConfig.website}${prefix}/checkout/complete?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}`;
   const view = locale === "nl" ? "Bekijk je bestelling" : "View your order";
   const hi = locale === "nl" ? `Hoi ${order.customerName},` : `Hi ${order.customerName},`;
+  const reasonLine = extra?.reason
+    ? `<p style="margin:12px 0 0;font-size:14px;line-height:1.6;color:#1a1713;"><strong>${locale === "nl" ? "Reden" : "Reason"}:</strong> ${escapeHtml(extra.reason)}</p>`
+    : "";
+  const creditLine = extra?.creditNote
+    ? `<p style="margin:12px 0 0;font-size:13px;line-height:1.6;color:#6b6459;">${
+        locale === "nl"
+          ? `De creditnota (${escapeHtml(extra.creditNote.number)}) vind je in de bijlage.`
+          : `Your credit note (${escapeHtml(extra.creditNote.number)}) is attached.`
+      }</p>`
+    : "";
 
   return `<!doctype html>
 <html>
@@ -151,6 +170,7 @@ function html(order: OrderSummary, locale: Locale, c: Copy): string {
                 <p style="margin:0;font-size:12px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#a95026;">${escapeHtml(order.reference)}</p>
                 <h1 style="margin:6px 0 0;font-size:22px;color:#1a1713;">${escapeHtml(c.title)}</h1>
                 <p style="margin:14px 0 0;font-size:14px;line-height:1.6;color:#1a1713;">${escapeHtml(hi)}<br/>${escapeHtml(c.body)}</p>
+                ${reasonLine}${creditLine}
               </td>
             </tr>
             <tr>
@@ -176,7 +196,8 @@ export async function sendOrderStatusEmail(
   order: OrderSummary,
   kind: OrderStatusEmailKind,
   /** For cancelled/refunded: how much went back to the customer. */
-  refundedCents = 0
+  refundedCents = 0,
+  extra?: OrderStatusEmailExtra
 ): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -194,7 +215,10 @@ export async function sendOrderStatusEmail(
       from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
       to: order.customerEmail,
       subject: c.subject,
-      html: html(order, locale, c),
+      html: html(order, locale, c, extra),
+      ...(extra?.creditNote
+        ? { attachments: [{ filename: `${extra.creditNote.number}.pdf`, content: extra.creditNote.pdf }] }
+        : {}),
     });
     if (error) {
       console.error(

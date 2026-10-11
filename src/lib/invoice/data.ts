@@ -22,7 +22,7 @@ export async function loadInvoiceData(reference: string): Promise<InvoiceData | 
 
   const { data: extra, error } = await supabaseAdmin()
     .from("orders")
-    .select("payment_status, payment_method, paid_at, refunded_cents, refunded_at")
+    .select("payment_status, payment_method, paid_at")
     .eq("reference", reference)
     .maybeSingle();
   if (error || !extra) return null;
@@ -84,12 +84,74 @@ export async function loadInvoiceData(reference: string): Promise<InvoiceData | 
     vatCents: vatRate != null ? vatIncludedCents(order.totalCents, vatRate) : null,
     paymentMethod: extra.payment_method ?? "mollie",
     paidAt: extra.paid_at ? new Date(extra.paid_at) : null,
-    refundedCents: extra.refunded_cents ?? 0,
-    refundedAt: extra.refunded_at ? new Date(extra.refunded_at) : null,
     delivery: {
       date: order.deliveryDate,
       slotStart: order.deliverySlotStart,
       slotEnd: order.deliverySlotEnd,
+    },
+  };
+}
+
+/**
+ * A credit note for one refund, as the same document structure: a single
+ * negative line, a negative total and the VAT that was inside that refund
+ * (frozen when the refund was made). Null if the refund isn't on that order.
+ * Carries only what the customer may see — never the internal note.
+ */
+export async function loadCreditNoteData(
+  reference: string,
+  creditNoteNumber: string
+): Promise<InvoiceData | null> {
+  const invoice = await loadInvoiceData(reference);
+  if (!invoice) return null;
+
+  const { data: order } = await supabaseAdmin()
+    .from("orders")
+    .select("id, payment_method")
+    .eq("reference", reference)
+    .maybeSingle();
+  if (!order) return null;
+
+  const { data: refund } = await supabaseAdmin()
+    .from("order_refunds")
+    .select("amount_cents, mollie_refund_id, reason_customer, vat_rate, vat_cents, created_at")
+    .eq("order_id", order.id)
+    .eq("credit_note_number", creditNoteNumber)
+    .maybeSingle();
+  if (!refund) return null;
+
+  const amount = refund.amount_cents as number;
+  const description =
+    invoice.locale === "en"
+      ? `Refund for order ${invoice.reference}`
+      : `Terugbetaling voor bestelling ${invoice.reference}`;
+
+  return {
+    ...invoice,
+    invoiceDate: new Date(refund.created_at),
+    lines: [
+      {
+        name: description,
+        quantity: 1,
+        unitCents: -amount,
+        totalCents: -amount,
+        details: [],
+      },
+    ],
+    subtotalCents: -amount,
+    discountCents: 0,
+    promoCode: null,
+    deliveryFeeCents: 0,
+    totalCents: -amount,
+    vatRate: refund.vat_rate != null ? Number(refund.vat_rate) : null,
+    vatCents: refund.vat_cents != null ? -(refund.vat_cents as number) : null,
+    paidAt: null,
+    delivery: { date: null, slotStart: null, slotEnd: null },
+    creditNote: {
+      number: creditNoteNumber,
+      invoiceNumber: invoice.invoiceNumber,
+      reason: refund.reason_customer ?? null,
+      viaMollie: Boolean(refund.mollie_refund_id),
     },
   };
 }

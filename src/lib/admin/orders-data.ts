@@ -12,7 +12,8 @@ import type {
 } from "@/lib/admin/order-types";
 import { ALLOWED_NEXT, RIDER_STATUSES } from "@/lib/admin/order-types";
 import { after } from "next/server";
-import { getOrderSummaryById, refundOrder } from "@/lib/orders";
+import { getOrderSummaryById } from "@/lib/orders";
+import { notifyRefund, refundOrder } from "@/lib/refunds";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 
@@ -259,7 +260,7 @@ export interface CancelResult {
 
 export async function cancelOrder(
   orderId: string,
-  actor: { role: "owner" | "staff" | "manager" }
+  actor: { role: "owner" | "staff" | "manager"; id?: string }
 ): Promise<CancelResult> {
   if (actor.role !== "owner" && actor.role !== "staff" && actor.role !== "manager") {
     throw new Error("Only staff can cancel an order.");
@@ -296,9 +297,15 @@ export async function cancelOrder(
     result.refundNote =
       "It wasn't paid online, so nothing was refunded automatically — give the money back yourself.";
   } else if (row.payment_status === "paid") {
-    const refund = await refundOrder(orderId);
-    if (refund.ok) result.refundedCents = refund.refundedCents;
-    else result.refundError = refund.message;
+    // Whatever is still refundable goes back (some may already have been
+    // refunded in part), and the customer gets a credit note for it.
+    const refund = await refundOrder(orderId, { createdBy: actor.id ?? null });
+    if (refund.ok) {
+      result.refundedCents = refund.refundedCents;
+      await notifyRefund(orderId, refund, "cancelled");
+      return result;
+    }
+    result.refundError = refund.message;
   }
 
   const order = await getOrderSummaryById(orderId);

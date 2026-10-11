@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
-import { getOrderSummaryById, markOrderPaid, refundOrder } from "@/lib/orders";
+import { getOrderSummaryById, markOrderPaid } from "@/lib/orders";
+import { notifyRefund, refundOrder } from "@/lib/refunds";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { auth } from "@/lib/auth";
 import { updateOrderStatus, assignRider, cancelOrder } from "@/lib/admin/orders-data";
@@ -104,7 +105,7 @@ export async function declineOrderAction(orderId: string): Promise<SimpleActionR
 
   let result;
   try {
-    result = await cancelOrder(orderId, { role });
+    result = await cancelOrder(orderId, { role, id: session?.user.id });
   } catch (error) {
     return { ok: false, message: (error as Error).message };
   }
@@ -129,9 +130,10 @@ export async function declineOrderAction(orderId: string): Promise<SimpleActionR
 }
 
 /**
- * Manual full refund from the order page — for after the fact (a wrong or
- * unsatisfactory order) rather than a decline, which refunds by itself.
- * Owner/staff only: it moves money.
+ * Refund some or all of an order's money, from the order page. Owner/staff
+ * only: it moves money. The amount is optional (blank = everything still
+ * refundable). A reason the customer may see and an internal note are both
+ * optional and kept apart — only the first is ever shown to them.
  */
 export async function refundOrderAction(
   _prev: FormState,
@@ -144,15 +146,34 @@ export async function refundOrderAction(
   }
 
   const orderId = String(formData.get("orderId") ?? "");
-  const result = await refundOrder(orderId);
+  const amountRaw = String(formData.get("amount") ?? "").trim().replace(",", ".");
+  let amountCents: number | undefined;
+  if (amountRaw !== "") {
+    const euros = Number(amountRaw);
+    if (!Number.isFinite(euros) || euros <= 0) {
+      return { ok: false, errors: { amount: "Enter an amount greater than zero." } };
+    }
+    amountCents = Math.round(euros * 100);
+  }
+  const reasonCustomer = String(formData.get("reasonCustomer") ?? "").trim().slice(0, 300);
+  const noteInternal = String(formData.get("noteInternal") ?? "").trim().slice(0, 500);
+
+  const result = await refundOrder(orderId, {
+    amountCents,
+    reasonCustomer,
+    noteInternal,
+    createdBy: session?.user.id ?? null,
+  });
   if (!result.ok) return { ok: false, message: result.message };
 
-  const order = await getOrderSummaryById(orderId);
-  if (order) after(() => sendOrderStatusEmail(order, "refunded", result.refundedCents));
+  await notifyRefund(orderId, result, "refunded", reasonCustomer);
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
-  return { ok: true, message: "Refunded in full." };
+  return {
+    ok: true,
+    message: `${result.fullyRefunded ? "Refunded in full" : "Partly refunded"} — credit note ${result.creditNoteNumber}.`,
+  };
 }
 
 /**

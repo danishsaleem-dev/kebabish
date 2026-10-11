@@ -22,7 +22,8 @@ import OrderStatusControl from "@/components/admin/OrderStatusControl";
 import AssignRiderControl from "@/components/admin/AssignRiderControl";
 import OrderInvoiceHeader from "@/components/admin/OrderInvoiceHeader";
 import PrintButton from "@/components/admin/ui/PrintButton";
-import RefundControl from "@/components/admin/RefundControl";
+import RefundPanel from "@/components/admin/RefundPanel";
+import { listRefunds } from "@/lib/refunds";
 import { auth } from "@/lib/auth";
 import { formatMoney } from "@/lib/admin/units";
 import { getSettings } from "@/lib/admin/store";
@@ -66,6 +67,7 @@ export default async function OrderDetailPage({
   const settings = await getSettings();
   const vatRate = settings.vatRatePercent ?? null;
   const invoiceNumber = await getInvoiceNumber(order.reference);
+  const refunds = await listRefunds(order.id);
 
   const [customer, allOrders, riders] = await Promise.all([
     order.customerId ? getCustomer(order.customerId) : Promise.resolve(null),
@@ -191,22 +193,38 @@ timeZone: "Europe/Amsterdam",
             </div>
           )}
 
-          {order.paymentStatus === "refunded" && (
-            <p className="mt-5 rounded-xl bg-canvas px-4 py-3 text-sm font-medium text-body-text print:hidden">
-              Refunded {formatMoney(order.refunded)} to the customer.
-            </p>
-          )}
           {order.paymentMethod !== "mollie" && order.paymentStatus === "open" && order.status !== "cancelled" && (
             <div className="mt-5 flex justify-end">
               <MarkPaidControl orderId={order.id} amount={formatMoney(order.total)} />
             </div>
           )}
-          {canRefund && order.paymentStatus === "paid" && (
-            <div className="mt-5 flex justify-end">
-              <RefundControl orderId={order.id} amount={formatMoney(order.total)} />
-            </div>
-          )}
         </Card>
+
+        {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (
+          <RefundPanel
+            orderId={order.id}
+            totalLabel={formatMoney(order.total)}
+            remainingCents={Math.max(toCents(order.total) - toCents(order.refunded), 0)}
+            remainingLabel={formatMoney(Math.max(order.total - order.refunded, 0))}
+            viaMollie={order.paymentMethod === "mollie"}
+            canRefund={canRefund}
+            rows={refunds.map((r) => ({
+              id: r.id,
+              creditNoteNumber: r.creditNoteNumber,
+              amount: formatMoney(fromCents(r.amountCents)),
+              date: new Date(r.createdAt).toLocaleDateString("en-GB", {
+                timeZone: "Europe/Amsterdam",
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              }),
+              by: r.createdByName,
+              viaMollie: r.molliePaid,
+              reasonCustomer: r.reasonCustomer,
+              noteInternal: r.noteInternal,
+            }))}
+          />
+        )}
 
         <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.4fr_1fr]">
           {/* items */}

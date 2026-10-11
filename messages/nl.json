@@ -239,6 +239,7 @@
     "payNow": "Bestellen & betalen · {amount}",
     "receiptVat": "Waarvan btw ({rate}%)",
     "retryPay": "Opnieuw betalen",
+    "creditNoteLine": "Terugbetaald: {amount} — creditnota",
     "invoiceDownload": "Download factuur (PDF)",
     "receiptInvoiceNumber": "Factuurnummer",
     "trackReceived": "Bestelling ontvangen",

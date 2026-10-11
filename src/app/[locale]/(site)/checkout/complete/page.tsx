@@ -9,6 +9,7 @@ import { getPayment } from "@/lib/mollie";
 import { isValidOrderToken } from "@/lib/order-token";
 import { formatEuro, fromCents, vatIncludedCents } from "@/lib/money";
 import { getPublicSettings } from "@/lib/admin/store";
+import { listCreditNotesForCustomer } from "@/lib/refunds";
 import { siteConfig } from "@/lib/site-config";
 import { auth } from "@/lib/auth";
 import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
@@ -49,6 +50,7 @@ export default async function CheckoutCompletePage({
   const order = await getOrderByReference(ref);
   if (!order) notFound();
   const receiptLines = await localizeLineNames(order.lines, locale);
+  const creditNotes = await listCreditNotesForCustomer(order.id);
   const settings = await getPublicSettings();
   const vatRate = settings.vatRatePercent ?? null;
   const tFooter = await getTranslations({ locale, namespace: "footer" });
@@ -147,6 +149,28 @@ export default async function CheckoutCompletePage({
 
       {paid && order.status !== "cancelled" && (
         <OrderProgress status={order.status} refunded={refunded} t={t} />
+      )}
+
+      {creditNotes.length > 0 && (
+        <ul className="print:hidden mt-6 w-full max-w-md space-y-2 text-sm">
+          {creditNotes.map((n) => (
+            <li
+              key={n.number}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-charcoal-600/12 bg-cream-50 px-4 py-3"
+            >
+              <span className="text-left text-ink/75">
+                {t("creditNoteLine", { amount: formatEuro(fromCents(n.amountCents)) })}
+              </span>
+              <a
+                href={`/api/credit-note?ref=${encodeURIComponent(order.reference)}&t=${token ?? ""}&n=${encodeURIComponent(n.number)}&download=1`}
+                className="inline-flex shrink-0 items-center gap-1.5 font-semibold text-charcoal-600 underline underline-offset-2 hover:text-ember-600"
+              >
+                <FileText size={14} aria-hidden="true" />
+                {n.number}
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
 
       {paid && order.status !== "cancelled" && (

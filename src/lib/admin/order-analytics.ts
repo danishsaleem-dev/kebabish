@@ -115,7 +115,13 @@ export function realOrders(orders: AdminOrder[]): AdminOrder[] {
   return orders.filter((o) => o.paymentStatus === "paid" || o.paymentStatus === "refunded");
 }
 
-/** Counts towards revenue and sales: paid, not cancelled, not handed back. */
+/**
+ * Counts towards revenue and sales: paid, not cancelled, not fully refunded.
+ * A *partly* refunded order still counts, but its revenue is net of what was
+ * handed back (`o.total - o.refunded`). Per-dish and per-category sales are
+ * worked out from order lines, and a partial refund isn't tied to any line, so
+ * those stay at the original amounts.
+ */
 function isSale(o: AdminOrder): boolean {
   return o.paymentStatus === "paid" && o.status !== "cancelled";
 }
@@ -152,7 +158,7 @@ export function getOrderAnalytics(
 
 export function getRevenueProfile(allOrders: AdminOrder[], period: Period) {
   const orders = realOrders(allOrders);
-  const revenue = (o: AdminOrder) => (isSale(o) ? o.total : 0);
+  const revenue = (o: AdminOrder) => (isSale(o) ? o.total - o.refunded : 0);
 
   const buckets = bucketsEnding(period, new Date());
   const points = sumInBuckets(orders, buckets, revenue);
@@ -238,7 +244,7 @@ export function getRevenueByMonth(allOrders: AdminOrder[]) {
   const orders = realOrders(allOrders);
   const buckets = bucketsEnding("monthly", new Date());
   const revenue = sumInBuckets(orders, buckets, (o) =>
-    isSale(o) ? o.total : 0
+    isSale(o) ? o.total - o.refunded : 0
   );
   const counts = sumInBuckets(orders, buckets, () => 1);
 

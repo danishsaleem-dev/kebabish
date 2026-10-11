@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Clock, FileText, LogOut, Mail, MapPin, Phone, ShoppingBag, User } from "lucide-react";
 import { orderAccessToken } from "@/lib/order-token";
+import { listCreditNotesForCustomer } from "@/lib/refunds";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
 import { listCustomerOrders } from "@/lib/orders";
@@ -29,6 +30,13 @@ export default async function DashboardPage() {
     (o) => !["failed", "expired", "canceled"].includes(o.paymentStatus)
   );
   const profile = await getCustomerProfile(user.id);
+  const creditNotesByRef = new Map(
+    await Promise.all(
+      orders
+        .filter((o) => o.refundedCents > 0 || o.paymentStatus === "refunded")
+        .map(async (o) => [o.reference, await listCreditNotesForCustomer(o.id)] as const)
+    )
+  );
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -154,6 +162,21 @@ timeZone: "Europe/Amsterdam",
                       </p>
                     </div>
                   </div>
+
+                  {(creditNotesByRef.get(order.reference) ?? []).length > 0 && (
+                    <div className="flex flex-wrap gap-2 border-b border-hairline px-5 py-3">
+                      {(creditNotesByRef.get(order.reference) ?? []).map((n) => (
+                        <a
+                          key={n.number}
+                          href={`/api/credit-note?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}&n=${encodeURIComponent(n.number)}&download=1`}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs font-semibold text-heading transition-colors hover:bg-canvas"
+                        >
+                          <FileText size={13} />
+                          Credit note {n.number} · {formatEuro(fromCents(n.amountCents))}
+                        </a>
+                      ))}
+                    </div>
+                  )}
 
                   <ul className="divide-y divide-hairline">
                     {order.lines.map((line, i) => (

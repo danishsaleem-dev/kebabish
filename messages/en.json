@@ -239,6 +239,7 @@
     "payNow": "Order & pay · {amount}",
     "receiptVat": "Of which VAT ({rate}%)",
     "retryPay": "Try payment again",
+    "creditNoteLine": "Refunded: {amount} — credit note",
     "invoiceDownload": "Download invoice (PDF)",
     "receiptInvoiceNumber": "Invoice number",
     "trackReceived": "Order received",
