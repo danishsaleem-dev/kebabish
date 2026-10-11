@@ -152,7 +152,7 @@ interactive (hover crosshair + tooltip) and *tween* between states via
 snapping. CSS can't interpolate an SVG path's `d`, which is why the
 underlying values are animated and the path recomputed per frame.
 
-Screens not built yet use `PlaceholderPage` so the nav doesn't 404.
+There are no placeholder screens: Messages, Campaigns, Marketing and Support were empty "coming soon" pages with nothing behind them and were removed (Oct 2026) rather than left in the nav to suggest features that don't exist. Promo codes (`/admin/marketing/promotions`) is the one real marketing screen and is a top-level sidebar link; `/admin/marketing` redirects to it. Build a real screen when there is a real feature, don't add a stub.
 
 ### Auth — NextAuth + Supabase, one /login for both admin and customers
 

@@ -9,13 +9,11 @@ import {
   ChevronDown,
   Images,
   LayoutDashboard,
-  LifeBuoy,
   LogOut,
-  Megaphone,
-  MessageCircle,
   ReceiptText,
   Settings,
   Star,
+  Tag,
   UserCog,
   UtensilsCrossed,
   Users,
@@ -62,21 +60,11 @@ const MAIN: NavItem[] = [
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Feedback", href: "/admin/feedback", icon: Star },
   { label: "Reports", href: "/admin/reports", icon: ChartColumnIncreasing },
-  { label: "Messages", href: "/admin/messages", icon: MessageCircle },
 ];
 
 const OTHERS: NavItem[] = [
-  {
-    label: "Marketing",
-    href: "/admin/marketing",
-    icon: Megaphone,
-    children: [
-      { label: "Promo codes", href: "/admin/marketing/promotions" },
-      { label: "Campaigns", href: "/admin/marketing/campaigns" },
-    ],
-  },
+  { label: "Promo codes", href: "/admin/marketing/promotions", icon: Tag },
   { label: "Team", href: "/admin/team", icon: UserCog },
-  { label: "Support", href: "/admin/support", icon: LifeBuoy },
   {
     label: "Settings",
     href: "/admin/settings",

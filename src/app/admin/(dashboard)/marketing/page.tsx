@@ -1,12 +1,10 @@
-import PlaceholderPage from "@/components/admin/PlaceholderPage";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Marketing" };
-
-export default function Page() {
-  return (
-    <PlaceholderPage
-      title="Marketing"
-      description="Promotions, discount codes and campaigns for the delivery area."
-    />
-  );
+/**
+ * "Marketing" used to be a placeholder page promising campaigns and social
+ * planning, with nothing behind it. The only real thing under it is promo codes,
+ * so this just forwards there — which also keeps an old bookmark working.
+ */
+export default function MarketingPage() {
+  redirect("/admin/marketing/promotions");
 }
