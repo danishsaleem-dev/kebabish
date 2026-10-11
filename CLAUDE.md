@@ -1222,8 +1222,17 @@ wrong shape. There are now two, cut straight out of the two clips with ffmpeg an
 by `src/lib/hero-posters.ts` (**its own module, deliberately**: `hero-video.ts` reads the
 filesystem, so a Client Component cannot import from it):
 
-- `hero-poster.jpg` — 848x478, from `hero-web.mp4` (the grill shot).
-- `hero-poster-mobile.jpg` — 720x1280, from `hero-mobile.mp4` (the grill shot).
+- `hero-poster.jpg` — 1920x1080, **frame 0** of `hero-web.mp4` (flames on black), upscaled with
+  Lanczos + a light unsharp.
+- `hero-poster-mobile.jpg` — 1080x1920, frame 0 of `hero-mobile.mp4`, which is pure black (the clip
+  fades up) — correct, not a missing image.
+- `about-poster.jpg` — 720x1280, frame 0 of `about-video.mp4`, for the story frame.
+
+**A poster must be the clip's own first frame.** They used to be a detailed shot from the end of
+each clip: from an 848x478 source stretched across a full-width hero it looked blocky and blurry,
+and the video then started on something different, so the swap was jarring. No filter can make a
+poster sharper than its footage, but frame 0 (soft flames on black) hides low resolution and is
+seamless. The exact ffmpeg commands are in the comment in `hero-posters.ts`.
 
 The command is in that file's comment; re-run it whenever the footage changes, since nothing
 regenerates these automatically. The hero's base layer is a `<picture>` with a `media`
@@ -1245,10 +1254,10 @@ plain centred intro rather than being added above it, so there is still exactly 
 **Footage must be H.264, not HEVC.** The mobile clip was swapped for `hero-mobile-1.mp4`,
 which arrived as HEVC Main 10 (10-bit) 1080x1920 at 8 Mbps — Chrome and Firefox often cannot
 decode that, so phones would have shown only the poster. It was transcoded to H.264 8-bit
-720x1280 (`-crf 24 -movflags +faststart`, audio dropped, ~2.5 MB), same size as the clip it
-replaced but sharper. Do the same for any future file:
+1080x1920 (`-crf 28 -movflags +faststart`, audio dropped, ~2.8 MB). It was 720x1280 at first, but
+the source really is 1080x1920, so the native-resolution encode is visibly cleaner for ~0.4 MB more. Do the same for any future file:
 
-    ffmpeg -i in.mp4 -an -vf "scale=720:-2,format=yuv420p" -c:v libx264 -profile:v high       -crf 24 -preset slow -movflags +faststart -r 30 out.mp4
+    ffmpeg -i in.mp4 -an -vf "scale=1080:-2:flags=lanczos,format=yuv420p" -c:v libx264 -profile:v high       -crf 28 -preset slow -movflags +faststart -r 30 out.mp4
 
 The widescreen clip (`hero-web.mp4`, 848x478) is still low-resolution and visibly soft on a
 large display; a higher-resolution source is the only remedy for that one.
