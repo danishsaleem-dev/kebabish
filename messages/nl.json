@@ -304,6 +304,17 @@
     "privacy": "Privacybeleid",
     "terms": "Algemene voorwaarden"
   },
+  "errorPage": {
+    "title": "Er ging iets mis",
+    "text": "Sorry, deze pagina kon niet worden geladen. Probeer het opnieuw. Lukt het nog steeds niet? Bel ons, dan helpen we je bestelling direct.",
+    "retry": "Opnieuw proberen"
+  },
+  "notFoundPage": {
+    "title": "Deze pagina bestaat niet",
+    "text": "De pagina die je zoekt is verplaatst of bestaat niet meer. Bekijk gerust ons menu.",
+    "menu": "Naar het menu",
+    "home": "Naar de homepage"
+  },
   "comingSoon": {
     "eyebrow": "Binnenkort open",
     "title": "Onze website is bijna klaar",
@@ -358,7 +369,7 @@
   },
   "privacy": {
     "title": "Privacybeleid",
-    "updated": "Laatst bijgewerkt: 6 september 2026",
+    "updated": "Laatst bijgewerkt: 11 oktober 2026",
     "intro": "Kebabish hecht veel waarde aan de bescherming van jouw persoonsgegevens. In dit privacybeleid leggen we uit welke gegevens we verzamelen, waarom, en welke rechten je hebt.",
     "sections": [
       {
@@ -453,7 +464,7 @@
   },
   "terms": {
     "title": "Algemene Voorwaarden",
-    "updated": "Laatst bijgewerkt: 6 september 2026",
+    "updated": "Laatst bijgewerkt: 11 oktober 2026",
     "intro": "Deze algemene voorwaarden zijn van toepassing op elke bestelling die je bij Kebabish plaatst, via de website of via WhatsApp.",
     "sections": [
       {

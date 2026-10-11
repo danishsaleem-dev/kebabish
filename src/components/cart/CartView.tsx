@@ -147,7 +147,8 @@ export default function CartView({
           <span className="tabular-nums">{formatEuro(subtotal + fee)}</span>
         </div>
 
-        {!qualifiesFree && freeDeliveryOver != null && (
+        {/* No hint when the fee is already zero — there's nothing to save. */}
+        {!qualifiesFree && freeDeliveryOver != null && deliveryFee > 0 && (
           <p className="mt-3 text-sm text-ink/55">
             {t("freeDeliveryHint", {
               missing: formatEuro(freeDeliveryOver - subtotal),

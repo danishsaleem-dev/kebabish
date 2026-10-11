@@ -17,6 +17,9 @@ export async function generateMetadata({
     title: t("title"),
     description: t("intro"),
     alternates: localeAlternates(locale, "/reviews"),
+    // Until real reviews exist this is a "coming soon" page — keep it out of
+    // search results (it's already out of the sitemap and the footer).
+    ...(reviews.length === 0 ? { robots: { index: false, follow: true } } : {}),
   };
 }
 

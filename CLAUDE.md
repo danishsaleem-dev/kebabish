@@ -978,6 +978,37 @@ the hours list; migration `0013_slot_default_capacity.sql`):
 
 Not done yet from the spec: partial refunds + credit notes, `is_test` order flag.
 
+### Launch checklist (state as of the final readiness pass, 11 Oct 2026)
+
+Code is launch-ready; what's left is data and accounts. Before turning the
+gate off (`SITE_COMING_SOON=false` in Vercel, redeploy):
+
+1. **Delete the test data**: the 11 old test orders (3 paid, incl. a €0.01 one,
+   which currently count as revenue), the `maha@marfahenterprise.com` customer if
+   it's a test, and reset the invoice counter (`invoice_counters`) so the first
+   real invoice is `INV-<year>-000001`. Check `WELKOM10`/`WELKOM20` are meant to
+   be live.
+2. **Mollie**: swap to the `live_` key, run one real payment end to end, and
+   confirm in the live profile that the methods named in Terms and in the
+   schema.org `paymentAccepted` (iDEAL, card, Apple Pay, Google Pay, Klarna)
+   are really enabled — Apple Pay needs its domain verified in Mollie.
+3. **Vercel env**: ADMIN_SESSION_SECRET, SUPABASE keys, MOLLIE_API_KEY,
+   RESEND_API_KEY, ORDER_NOTIFICATION_EMAIL (optional), CRON_SECRET,
+   NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY, SITE_COMING_SOON. And
+   something calling `/api/cron/housekeeping` every minute with
+   `Authorization: Bearer $CRON_SECRET`.
+4. **Real settings** in /admin: opening hours (Sunday was 00:00–23:00 while
+   testing), delivery fee / free-delivery threshold, VAT rate and BTW-id (set),
+   allergens on every dish (`shami-kabab` had none), 4 featured dishes.
+5. After launch: submit `https://www.kebabish.nl/sitemap.xml` to Google Search
+   Console; the canonical host is **www** (the apex 308-redirects to it).
+
+Known and accepted: no login/checkout rate limiting, no error monitoring, no 2FA,
+partial refunds/credit notes and marketing *sending* not built, login/signup pages
+English-only. Root SPF lists only Hostinger; Resend authenticates by DKIM + its
+own return-path subdomain, so mail from info@ works, but anything sent from
+Google Workspace as info@ would fail SPF (DMARC is `p=none`).
+
 ### Allergens are user-extendable
 
 `Allergen` is a plain string, not a union. The 14 EU-mandated ones seed the

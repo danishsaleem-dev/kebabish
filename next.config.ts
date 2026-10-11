@@ -13,6 +13,26 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "40mb",
     },
   },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          // Stop browsers guessing a file's type from its contents.
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          // Don't hand the full URL (which can carry an order token) to other sites.
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // Nobody else may frame the site or the admin (clickjacking).
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          // Switch off powerful browser features the site never uses.
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=(), payment=()",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "**.supabase.co" },

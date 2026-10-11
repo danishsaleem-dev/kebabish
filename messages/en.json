@@ -304,6 +304,17 @@
     "privacy": "Privacy Policy",
     "terms": "Terms & Conditions"
   },
+  "errorPage": {
+    "title": "Something went wrong",
+    "text": "Sorry, this page couldn't be loaded. Please try again. Still not working? Call us and we'll take your order directly.",
+    "retry": "Try again"
+  },
+  "notFoundPage": {
+    "title": "This page doesn't exist",
+    "text": "The page you're looking for has moved or no longer exists. Have a look at our menu instead.",
+    "menu": "View the menu",
+    "home": "Back to the homepage"
+  },
   "comingSoon": {
     "eyebrow": "Opening soon",
     "title": "Our website is almost ready",
@@ -358,7 +369,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "updated": "Last updated: 6 September 2026",
+    "updated": "Last updated: 11 October 2026",
     "intro": "Kebabish takes protecting your personal data seriously. This privacy policy explains what data we collect, why, and what rights you have.",
     "sections": [
       {
@@ -453,7 +464,7 @@
   },
   "terms": {
     "title": "Terms & Conditions",
-    "updated": "Last updated: 6 September 2026",
+    "updated": "Last updated: 11 October 2026",
     "intro": "These terms and conditions apply to every order you place with Kebabish, whether through the website or via WhatsApp.",
     "sections": [
       {
