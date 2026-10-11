@@ -152,7 +152,7 @@ export default function RefundPanel({
             <p className="text-xs text-muted">
               {viaMollie
                 ? "Goes back to the account the customer paid from; it can take a few working days."
-                : "This order wasn't paid online, so no money is sent — it records that you returned it."}
+                : "No money is sent from here — this records that you returned it. (If the customer paid through the Mollie payment link, refund them in the Mollie dashboard first.)"}
             </p>
             <SubmitButton>
               <Undo2 size={15} />

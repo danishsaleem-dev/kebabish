@@ -166,6 +166,13 @@ export interface StoredSettings {
    * (settings saved before this existed) counts as on.
    */
   showLaunchBadge?: boolean;
+  /**
+   * A shared Mollie Payment Link (https://payment-links.mollie.com/...). When
+   * set, checkout skips the Mollie API and sends the customer to this link,
+   * with staff confirming each payment by hand — see src/lib/payment-link.ts.
+   * Empty = the normal automatic Mollie checkout.
+   */
+  paymentLinkUrl?: string;
 }
 
 export interface StoredIngredient {

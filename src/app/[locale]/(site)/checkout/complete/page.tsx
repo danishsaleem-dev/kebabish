@@ -11,6 +11,7 @@ import { formatEuro, fromCents, vatIncludedCents } from "@/lib/money";
 import { getPublicSettings } from "@/lib/admin/store";
 import { listCreditNotesForCustomer } from "@/lib/refunds";
 import { siteConfig } from "@/lib/site-config";
+import { validPaymentLinkUrl } from "@/lib/payment-link";
 import { auth } from "@/lib/auth";
 import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
 import ClearCartOnPaid from "@/components/cart/ClearCartOnPaid";
@@ -72,6 +73,9 @@ export default async function CheckoutCompletePage({
   const paid = paymentStatus === "paid" || refunded;
   const invoiceNumber = paid ? await getInvoiceNumber(order.reference) : null;
   const failed = ["failed", "expired", "canceled"].includes(paymentStatus);
+  // Interim payment-link mode: unpaid, and the customer pays on Mollie's page.
+  const linkPending = order.paymentMethod === "payment_link" && !paid && !failed;
+  const paymentLinkUrl = validPaymentLinkUrl(settings.paymentLinkUrl);
 
   // A guest order (no customerId) placed while signed out is the one case
   // where it's worth offering to save the details just submitted — a
@@ -107,10 +111,10 @@ export default async function CheckoutCompletePage({
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-5 py-20 text-center sm:px-6 sm:py-28">
-      {paid && <ClearCartOnPaid />}
+      {(paid || order.paymentMethod === "payment_link") && <ClearCartOnPaid />}
       {/* Still waiting on the bank: look again every few seconds. Once paid,
           follow the order through the kitchen at a gentler pace. */}
-      {!paid && !failed && <AutoRefresh intervalMs={4000} />}
+      {!paid && !failed && <AutoRefresh intervalMs={linkPending ? 10000 : 4000} />}
       {paid && !["delivered", "cancelled"].includes(order.status) && (
         <AutoRefresh intervalMs={30000} />
       )}
@@ -144,8 +148,38 @@ export default async function CheckoutCompletePage({
             : t("completePaid")
           : failed
             ? t("completeFailed")
-            : t("completePending")}
+            : linkPending
+              ? t("payLinkPending")
+              : t("completePending")}
       </p>
+
+      {linkPending && (
+        <div className="print:hidden mt-8 w-full max-w-md rounded-3xl border-2 border-ember-600/30 bg-cream-50 p-6 text-left">
+          <p className="font-display text-lg font-semibold text-charcoal-600">{t("payLinkTitle")}</p>
+          <ol className="mt-3 space-y-2 text-sm text-ink/80">
+            <li>{t("payLinkStep1")}</li>
+            <li>
+              {t("payLinkStepAmount")}{" "}
+              <strong className="tabular-nums">{formatEuro(fromCents(order.totalCents))}</strong>
+            </li>
+            <li>
+              {t("payLinkStepDescription")}{" "}
+              <strong className="select-all">{order.reference}</strong>
+            </li>
+          </ol>
+          {paymentLinkUrl && (
+            <a
+              href={paymentLinkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-ember-600 px-7 py-3.5 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+            >
+              {t("payLinkButton", { amount: formatEuro(fromCents(order.totalCents)) })}
+            </a>
+          )}
+          <p className="mt-4 text-xs text-ink/60">{t("payLinkAfter")}</p>
+        </div>
+      )}
 
       {paid && order.status !== "cancelled" && (
         <OrderProgress status={order.status} refunded={refunded} t={t} />

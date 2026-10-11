@@ -8,6 +8,8 @@ import { routing } from "@/i18n/routing";
 import { auth } from "@/lib/auth";
 import { siteConfig } from "@/lib/site-config";
 import { createPayment } from "@/lib/mollie";
+import { validPaymentLinkUrl } from "@/lib/payment-link";
+import { sendPaymentPendingEmail } from "@/lib/email/new-order";
 import { saveCustomerAddress, setMarketingConsent } from "@/lib/customers/accounts";
 import { isValidOrderToken, orderAccessToken } from "@/lib/order-token";
 import {
@@ -25,6 +27,7 @@ import {
   validatePromoCode,
   type SubmittedLine,
   type PromoError,
+  getOrderSummaryById,
 } from "@/lib/orders";
 import { readStore } from "@/lib/admin/store";
 import { toCents } from "@/lib/money";
@@ -262,7 +265,11 @@ export async function checkoutAction(
   const customerId =
     session?.user?.role === "customer" ? (session.user.id ?? null) : null;
 
+  // Interim mode: pay through the shared Mollie payment link, staff confirm.
+  const paymentLinkUrl = validPaymentLinkUrl(store.settings.paymentLinkUrl);
+
   const order = await createOrder({
+    ...(paymentLinkUrl ? { paymentMethod: "payment_link" as const } : {}),
     customerId,
     customerName: details.name,
     customerEmail: details.email,
@@ -316,6 +323,17 @@ export async function checkoutAction(
   // Default locale is unprefixed; anything else needs its segment or an
   // English customer lands on the Dutch confirmation page.
   const prefix = locale && locale !== routing.defaultLocale ? `/${locale}` : "";
+
+  // Payment-link mode: there is no payment to start. The confirmation page
+  // tells the customer what to type on the link; staff are told an order is
+  // waiting, and confirm it once the money shows up in Mollie.
+  if (paymentLinkUrl) {
+    const summary = await getOrderSummaryById(order.id);
+    if (summary) after(() => sendPaymentPendingEmail(summary));
+    redirect(
+      `${prefix}/checkout/complete?ref=${reference}&t=${orderAccessToken(order.reference)}`
+    );
+  }
 
   let checkoutUrl: string | null = null;
   try {
@@ -411,6 +429,10 @@ export async function retryPaymentAction(formData: FormData): Promise<void> {
   }
   const releaseSlot = () =>
     releaseDeliverySlot(order.deliveryDate!, order.deliverySlotStart!);
+
+  // Payment-link orders have no payment to restart: the seat is held again, and
+  // the page shows the payment instructions again.
+  if (order.paymentMethod === "payment_link") return back();
 
   const base = await requestOrigin();
   const isPublic = base.startsWith("https://");

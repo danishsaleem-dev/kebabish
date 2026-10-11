@@ -80,6 +80,28 @@ export default function SettingsForm({
         </div>
       </Card>
 
+      <Card>
+        <CardHeader
+          title="Payments"
+          subtitle="How customers pay at checkout."
+        />
+        <div className="mt-5">
+          <Field
+            label="Mollie payment link (temporary)"
+            hint="Leave empty for the normal automatic Mollie checkout. If you paste a payment link here, customers are sent to it to pay, and you confirm each payment in Mollie and press “Mark as paid” on the order. Remove it to switch back."
+            error={e.paymentLinkUrl}
+          >
+            <Input
+              name="paymentLinkUrl"
+              type="url"
+              defaultValue={settings.paymentLinkUrl ?? ""}
+              placeholder="https://payment-links.mollie.com/payment/…"
+              invalid={Boolean(e.paymentLinkUrl)}
+            />
+          </Field>
+        </div>
+      </Card>
+
       <Card padded={false}>
         <div className="p-5 sm:p-6">
           <CardHeader

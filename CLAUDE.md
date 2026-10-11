@@ -987,6 +987,31 @@ made before the migration keep their random `#KB-123456` reference — nothing i
 nothing parses the format. Until 0016 is run, `newReference()` falls back to the old random
 format (on `PGRST202`), so deploying first doesn't stop ordering.
 
+### Interim payment mode: the shared Mollie Payment Link (migration `0017_payment_link_method.sql`)
+
+While the full Mollie API integration can't go live, `Settings → Payments → Mollie payment
+link` switches checkout to Danish's open-amount link (`payment-links.mollie.com/...`; only that
+host is accepted, `src/lib/payment-link.ts`). Empty = the normal automatic checkout; the Mollie
+code is untouched, so switching back is just clearing the field. We verified the link **cannot be
+prefilled** (Mollie drops URL parameters) and gives the site **no webhook or return URL**, so:
+
+- Checkout creates the order with `payment_method = 'payment_link'`, status `open`, and slot
+  reserved — no Mollie call — and sends the customer to the confirmation page, which shows the
+  exact amount and order number to type on the link plus a button. Staff get an "awaiting
+  payment — do not cook" email (`sendPaymentPendingEmail`).
+- **Staff confirm payments by hand:** find the payment in Mollie (amount + description = order
+  number), then press *Mark as paid* on the order. Only then does the kitchen get its alert/board
+  entry, the customer their receipt + invoice number (`markOrderPaid`). Nothing reaches the
+  kitchen unpaid (the board and popup need `payment_status = paid`).
+- Unpaid link orders lapse after `PAYMENT_LINK_HOLD_MINUTES` (90): slot released, shown as
+  *expired*, never cancelled — and *Mark as paid* still works on an expired one (it re-takes the
+  slot best-effort), so a late payer isn't lost.
+- Refunds on these orders are "record only" (as for cash): refund in the Mollie dashboard, then
+  record it here to get the credit note.
+- Known weaknesses of this mode: amount/description are typed by the customer (staff must
+  match them), no automatic confirmation, and a manual step per order. Remove it once the API
+  checkout is live.
+
 ### Error page and launch badge
 
 `[locale]/error.tsx` says "Online bestellen is tijdelijk niet beschikbaar. Bestel gerust via

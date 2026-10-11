@@ -22,7 +22,7 @@ export type OrderChannel = "whatsapp" | "website" | "phone" | "other";
  * are for orders staff enter by hand and have no payment provider behind
  * them, so a person marks them paid.
  */
-export type PaymentMethod = "mollie" | "cash" | "bank_transfer" | "unpaid";
+export type PaymentMethod = "mollie" | "cash" | "bank_transfer" | "unpaid" | "payment_link";
 export type Fulfilment = "delivery" | "takeaway";
 export type CustomerStatus = "new" | "active" | "lapsed";
 export type PaymentStatus =
@@ -183,6 +183,7 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "Cash on delivery",
   bank_transfer: "Bank transfer",
   unpaid: "Pay later",
+  payment_link: "Mollie payment link",
 };
 
 export type Period = "daily" | "weekly" | "monthly";

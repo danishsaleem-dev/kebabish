@@ -333,7 +333,7 @@ function Card({
 
       {unpaid && (
         <p className="mt-3 text-xs font-semibold text-muted">
-          Not paid yet ({order.paymentMethod === "cash" ? "cash on delivery" : order.paymentMethod === "bank_transfer" ? "bank transfer" : "pay later"}) — the rider handles payment.
+          Not paid yet ({order.paymentMethod === "cash" ? "cash on delivery" : order.paymentMethod === "bank_transfer" ? "bank transfer" : order.paymentMethod === "payment_link" ? "payment link, not confirmed yet" : "pay later"}) — the rider handles payment.
         </p>
       )}
 

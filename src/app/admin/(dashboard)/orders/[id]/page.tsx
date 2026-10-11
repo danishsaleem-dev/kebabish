@@ -193,11 +193,24 @@ timeZone: "Europe/Amsterdam",
             </div>
           )}
 
-          {order.paymentMethod !== "mollie" && order.paymentStatus === "open" && order.status !== "cancelled" && (
-            <div className="mt-5 flex justify-end">
-              <MarkPaidControl orderId={order.id} amount={formatMoney(order.total)} />
-            </div>
-          )}
+          {order.paymentMethod !== "mollie" &&
+            (order.paymentStatus === "open" ||
+              (order.paymentMethod === "payment_link" && order.paymentStatus === "expired")) &&
+            order.status !== "cancelled" && (
+              <div className="mt-5 flex flex-col items-end gap-2">
+                {order.paymentMethod === "payment_link" && (
+                  <p className="max-w-md text-right text-xs text-muted">
+                    Paid through the Mollie payment link. Look in Mollie for a payment of{" "}
+                    <strong>{formatMoney(order.total)}</strong> with the description{" "}
+                    <strong>{order.reference}</strong>, then mark it paid — the kitchen is alerted and the
+                    customer gets their receipt.
+                    {order.paymentStatus === "expired" &&
+                      " The slot hold has lapsed; marking it paid takes the slot back."}
+                  </p>
+                )}
+                <MarkPaidControl orderId={order.id} amount={formatMoney(order.total)} />
+              </div>
+            )}
         </Card>
 
         {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (

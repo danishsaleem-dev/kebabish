@@ -15,9 +15,9 @@ import type { OrderSummary } from "@/lib/orders";
 
 const money = (cents: number) => `€ ${fromCents(cents).toFixed(2)}`;
 
-function newOrderEmailHtml(order: OrderSummary): string {
+function newOrderEmailHtml(order: OrderSummary, awaitingPayment = false): string {
   const logoUrl = `${siteConfig.website}/logo/Kebabish-light.png`;
-  const orderUrl = `https://${new URL(siteConfig.website).hostname.replace(/^www\./, "")}/admin/orders`;
+  const orderUrl = `https://${new URL(siteConfig.website).hostname.replace(/^www\./, "")}/admin/orders${awaitingPayment ? `/${order.id}` : ""}`;
   const address =
     order.fulfilment === "delivery"
       ? `${order.addressStreet}, ${order.addressPostcode} ${order.addressCity}`
@@ -55,7 +55,7 @@ function newOrderEmailHtml(order: OrderSummary): string {
             <tr>
               <td style="padding:28px 28px 8px;">
                 <p style="margin:0;font-size:12px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#a95026;">
-                  New order — needs a decision
+                  ${awaitingPayment ? "New order — awaiting payment" : "New order — needs a decision"}
                 </p>
                 <h1 style="margin:6px 0 0;font-size:22px;color:#1a1713;">${order.reference}</h1>
                 <p style="margin:4px 0 0;font-size:13px;color:#6b6459;">
@@ -63,6 +63,23 @@ function newOrderEmailHtml(order: OrderSummary): string {
                 </p>
               </td>
             </tr>
+            ${
+              awaitingPayment
+                ? `<tr>
+              <td style="padding:12px 28px 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff4e0;border-radius:10px;">
+                  <tr>
+                    <td style="padding:14px 16px;font-size:13px;color:#1a1713;line-height:1.5;">
+                      <strong>Not paid yet — do not cook this.</strong> The customer is paying through the Mollie payment link.
+                      Look in Mollie for a payment of <strong>${money(order.totalCents)}</strong> with the description <strong>${escapeHtml(order.reference)}</strong>,
+                      then open the order and press <em>Mark as paid</em>. The kitchen is alerted then.
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>`
+                : ""
+            }
             <tr>
               <td style="padding:16px 28px 0;">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -148,6 +165,37 @@ export async function sendNewOrderEmail(order: OrderSummary): Promise<void> {
     }
   } catch (error) {
     console.error("[email] Failed to send new-order email:", error);
+  }
+}
+
+/**
+ * Payment-link mode: an order exists but isn't paid. Tells staff what to look
+ * for in Mollie. The kitchen alert (sendNewOrderEmail) only goes out once
+ * someone marks the order paid.
+ */
+export async function sendPaymentPendingEmail(order: OrderSummary): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const to = process.env.ORDER_NOTIFICATION_EMAIL || siteConfig.contact.email;
+  if (!apiKey) {
+    console.warn("[email] RESEND_API_KEY not set — skipping awaiting-payment email.");
+    return;
+  }
+  try {
+    const resend = new Resend(apiKey);
+    const { error } = await resend.emails.send({
+      from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
+      to,
+      subject: `Awaiting payment ${order.reference} — ${money(order.totalCents)}`,
+      html: newOrderEmailHtml(order, true),
+    });
+    if (error) {
+      console.error(
+        `[email] Resend rejected the awaiting-payment email for ${order.reference}:`,
+        `${error.name}: ${error.message}`
+      );
+    }
+  } catch (error) {
+    console.error("[email] Failed to send awaiting-payment email:", error);
   }
 }
 

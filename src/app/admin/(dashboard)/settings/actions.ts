@@ -1,5 +1,6 @@
 "use server";
 
+import { validPaymentLinkUrl } from "@/lib/payment-link";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
@@ -37,6 +38,13 @@ const settingsSchema = z.object({
     .refine((v) => v === "" || /^NL\d{9}B\d{2}$/.test(v), "Use the Dutch format, e.g. NL123456789B01."),
   showLegalNameOnInvoice: z.boolean(),
   showLaunchBadge: z.boolean(),
+  paymentLinkUrl: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === "" || validPaymentLinkUrl(v) !== null,
+      "That isn't a Mollie payment link — it should start with https://payment-links.mollie.com/"
+    ),
   slotMinutes: z.coerce
     .number()
     .int("Whole minutes only.")
@@ -77,6 +85,7 @@ export async function updateSettingsAction(
     vatNumber: formData.get("vatNumber") ?? "",
     showLegalNameOnInvoice: formData.get("showLegalNameOnInvoice") === "on",
     showLaunchBadge: formData.get("showLaunchBadge") === "on",
+    paymentLinkUrl: formData.get("paymentLinkUrl") ?? "",
     slotMinutes: formData.get("slotMinutes") ?? DEFAULT_SLOT_MINUTES,
     slotCapacity: formData.get("slotCapacity") ?? 10,
     bookingWindowDays: formData.get("bookingWindowDays") ?? 7,

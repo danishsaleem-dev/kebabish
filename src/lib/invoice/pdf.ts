@@ -57,7 +57,7 @@ export interface InvoiceData {
   /** VAT percentage included in the prices, or null if the owner hasn't set one. */
   vatRate: number | null;
   vatCents: number | null;
-  paymentMethod: "mollie" | "cash" | "bank_transfer" | "unpaid";
+  paymentMethod: "mollie" | "cash" | "bank_transfer" | "unpaid" | "payment_link";
   paidAt: Date | null;
   /**
    * Present only when this document is a CREDIT NOTE rather than an invoice.

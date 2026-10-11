@@ -9,8 +9,9 @@ import { cancelPayment, getPayment, toPaymentStatus } from "@/lib/mollie";
 import type { StoredPromoCode } from "@/lib/admin/store/types";
 import { sendNewOrderEmail, sendUnacceptedOrderEmail } from "@/lib/email/new-order";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
-import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
-import { amsterdamNow } from "@/lib/delivery-slots";
+import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
+import { PAYMENT_LINK_HOLD_MINUTES } from "@/lib/payment-link";
+import { amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -392,6 +393,8 @@ export interface CreateOrderInput {
    * and gets the defaults: website, paid through Mollie, awaiting payment,
    * waiting for the kitchen to accept.
    */
+  /** Set when paying through the shared Mollie payment link (see payment-link.ts). */
+  paymentMethod?: "payment_link";
   manual?: {
     channel: "website" | "whatsapp" | "phone" | "other";
     channelNote: string | null;
@@ -439,6 +442,7 @@ export async function createOrder(input: CreateOrderInput) {
         delivery_date: input.deliveryDate,
         delivery_slot_start: input.deliverySlotStart,
         delivery_slot_end: input.deliverySlotEnd,
+        ...(input.paymentMethod ? { payment_method: input.paymentMethod } : {}),
         ...(input.manual
           ? {
               channel: input.manual.channel,
@@ -645,6 +649,45 @@ export async function expireStaleOrders(): Promise<void> {
   } catch (error) {
     console.error("[orders] stale-order sweep failed:", error);
   }
+
+  await expireStalePaymentLinkOrders();
+}
+
+/**
+ * Orders waiting on the shared payment link have no provider to ask, so they
+ * lapse on a plain timer — long enough (PAYMENT_LINK_HOLD_MINUTES) for staff to
+ * spot the payment in Mollie. A lapsed order only gives its slot back and shows
+ * as expired; it is never cancelled, and "Mark as paid" still works on it, so a
+ * customer who paid late is not lost (see markOrderPaid).
+ */
+async function expireStalePaymentLinkOrders(): Promise<void> {
+  try {
+    const cutoff = new Date(Date.now() - PAYMENT_LINK_HOLD_MINUTES * 60_000).toISOString();
+    const { data, error } = await supabaseAdmin()
+      .from("orders")
+      .select("id, delivery_date, delivery_slot_start")
+      .eq("payment_status", "open")
+      .eq("payment_method", "payment_link")
+      .lt("updated_at", cutoff)
+      .limit(20);
+    if (error) throw new Error(error.message);
+
+    for (const row of data ?? []) {
+      // The conditional update is the claim: only the call that flips it
+      // releases the slot, so overlapping sweeps can't give a seat back twice.
+      const { data: flipped } = await supabaseAdmin()
+        .from("orders")
+        .update({ payment_status: "expired", updated_at: new Date().toISOString() })
+        .eq("id", row.id)
+        .eq("payment_status", "open")
+        .select("id");
+      if (flipped && flipped.length > 0) {
+        await releaseDeliverySlot(row.delivery_date, row.delivery_slot_start);
+      }
+    }
+  } catch (error) {
+    console.error("[orders] payment-link sweep failed:", error);
+  }
 }
 
 /* -------------------------------------------------- manual-order payments */
@@ -658,6 +701,15 @@ export async function expireStaleOrders(): Promise<void> {
  * order has an email address.
  */
 export async function markOrderPaid(orderId: string): Promise<boolean> {
+  // A payment-link order that lapsed before staff confirmed it can still be
+  // marked paid — the customer did pay — and it then takes its slot back.
+  const { data: before } = await supabaseAdmin()
+    .from("orders")
+    .select("payment_status, payment_method, delivery_date, delivery_slot_start")
+    .eq("id", orderId)
+    .maybeSingle();
+  const lapsed = before?.payment_method === "payment_link" && before.payment_status === "expired";
+
   const { data, error } = await supabaseAdmin()
     .from("orders")
     .update({
@@ -666,15 +718,33 @@ export async function markOrderPaid(orderId: string): Promise<boolean> {
       updated_at: new Date().toISOString(),
     })
     .eq("id", orderId)
-    .eq("payment_status", "open")
+    .in("payment_status", ["open", "expired"])
     .neq("payment_method", "mollie")
     .select("id");
   if (error) throw new Error(error.message);
   if (!data || data.length === 0) return false;
 
+  if (lapsed && before?.delivery_date && before.delivery_slot_start) {
+    // Best effort: if the slot filled up meanwhile the order still stands — the
+    // money is in — and staff deal with the overlap.
+    try {
+      await reserveDeliverySlot(
+        before.delivery_date,
+        weekdayForDateKey(before.delivery_date),
+        before.delivery_slot_start
+      );
+    } catch (error) {
+      console.error("[orders] could not re-reserve the slot for a late payment:", error);
+    }
+  }
+
   const order = await getOrderSummaryById(orderId);
-  if (order && order.customerEmail) {
-    after(() => sendOrderConfirmationEmail(order, order.locale));
+  if (order) {
+    // An order paid through the link reaches the kitchen only now, so this is
+    // the moment it needs the same alert an online payment sends; hand-entered
+    // (phone / cash) orders were already known to staff.
+    if (order.paymentMethod === "payment_link") after(() => sendNewOrderEmail(order));
+    if (order.customerEmail) after(() => sendOrderConfirmationEmail(order, order.locale));
   }
   return true;
 }
@@ -765,6 +835,7 @@ export interface RetryableOrder {
   id: string;
   paymentStatus: string;
   totalCents: number;
+  paymentMethod: string;
   reference: string;
   deliveryDate: string | null;
   deliverySlotStart: string | null;
@@ -774,7 +845,7 @@ export interface RetryableOrder {
 export async function getOrderForRetry(reference: string): Promise<RetryableOrder | null> {
   const { data, error } = await supabaseAdmin()
     .from("orders")
-    .select("id, reference, payment_status, total_cents, delivery_date, delivery_slot_start, delivery_slot_end")
+    .select("id, reference, payment_status, payment_method, total_cents, delivery_date, delivery_slot_start, delivery_slot_end")
     .eq("reference", reference)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -784,6 +855,7 @@ export async function getOrderForRetry(reference: string): Promise<RetryableOrde
     reference: data.reference,
     paymentStatus: data.payment_status,
     totalCents: data.total_cents,
+    paymentMethod: data.payment_method ?? "mollie",
     deliveryDate: data.delivery_date,
     deliverySlotStart: data.delivery_slot_start,
     deliverySlotEnd: data.delivery_slot_end,
@@ -849,6 +921,7 @@ export interface OrderSummary {
   paymentStatus: string;
   totalCents: number;
   molliePaymentId: string | null;
+  paymentMethod: string;
   fulfilment: "delivery" | "pickup";
   placedAt: string;
   customerId: string | null;
@@ -870,7 +943,7 @@ export interface OrderSummary {
 }
 
 const ORDER_SELECT =
-  "id, locale, refunded_cents, reference, status, payment_status, total_cents, mollie_payment_id, fulfilment, " +
+  "id, locale, refunded_cents, reference, status, payment_status, total_cents, mollie_payment_id, payment_method, fulfilment, " +
   "created_at, customer_id, customer_name, customer_email, customer_phone, " +
   "address_street, address_postcode, address_city, notes, subtotal_cents, " +
   "discount_cents, promo_code, delivery_fee_cents, " +
@@ -886,6 +959,7 @@ interface OrderRow {
   payment_status: string;
   total_cents: number;
   mollie_payment_id: string | null;
+  payment_method: string | null;
   fulfilment: "delivery" | "pickup";
   created_at: string;
   customer_id: string | null;
@@ -926,6 +1000,7 @@ function mapOrderRow(row: OrderRow): OrderSummary {
     paymentStatus: row.payment_status,
     totalCents: row.total_cents,
     molliePaymentId: row.mollie_payment_id,
+    paymentMethod: row.payment_method ?? "mollie",
     fulfilment: row.fulfilment,
     placedAt: row.created_at,
     customerId: row.customer_id,
