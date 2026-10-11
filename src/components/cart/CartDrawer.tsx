@@ -5,13 +5,24 @@ import { useTranslations } from "next-intl";
 import { X, Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
+import CartLineNotice from "@/components/cart/CartLineNotice";
 import { formatEuro } from "@/lib/money";
 
 /** Slide-in order summary. Mounted once, in the site layout. */
 export default function CartDrawer() {
   const t = useTranslations("cart");
-  const { lines, subtotal, count, drawerOpen, closeDrawer, setQuantity, remove } =
-    useCart();
+  const {
+    lines,
+    subtotal,
+    count,
+    drawerOpen,
+    closeDrawer,
+    setQuantity,
+    remove,
+    issues,
+    repriced,
+    blocked,
+  } = useCart();
 
   // Escape closes it, and the page behind shouldn't scroll while it's open.
   useEffect(() => {
@@ -100,6 +111,7 @@ export default function CartDrawer() {
                           “{line.instructions}”
                         </p>
                       )}
+                      <CartLineNotice issue={issues[line.id]} repriced={repriced.includes(line.id)} />
                     </div>
                     <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-charcoal-600">
                       {formatEuro(lineTotal(line))}
@@ -147,6 +159,11 @@ export default function CartDrawer() {
                 <span>{t("subtotal")}</span>
                 <span className="tabular-nums">{formatEuro(subtotal)}</span>
               </div>
+              {blocked && (
+                <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-800">
+                  {t("blockedNotice")}
+                </p>
+              )}
               <div className="mt-4 grid gap-2">
                 <Link
                   href="/cart"

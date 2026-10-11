@@ -160,6 +160,13 @@
     "decrease": "Eén eraf",
     "minimumOrder": "Minimale bestelling is {amount}. Voeg nog {missing} toe om af te rekenen.",
     "freeDeliveryHint": "Nog {missing} en de bezorging is gratis.",
+    "soldOutBadge": "Uitverkocht",
+    "soldOutHint": "Vandaag uitverkocht.",
+    "unavailableBadge": "Niet meer beschikbaar",
+    "optionsChangedBadge": "Opties gewijzigd",
+    "removeToContinue": "Verwijder dit gerecht om verder te gaan.",
+    "priceUpdated": "Prijs bijgewerkt",
+    "blockedNotice": "Een of meer gerechten in je winkelwagen kunnen niet meer besteld worden. Verwijder de gemarkeerde gerechten om verder te gaan met afrekenen — de rest van je bestelling blijft staan.",
     "itemCount": "{count, plural, =0 {Geen items} one {# item} other {# items}}"
   },
   "allergenNames": {
@@ -253,6 +260,8 @@
     "emptyCart": "Je winkelwagen is leeg.",
     "failed": "Er ging iets mis bij het starten van de betaling. Er is niets afgeschreven — probeer het opnieuw.",
     "priceChanged": "Sommige prijzen zijn gewijzigd tijdens het bestellen. Controleer je winkelwagen.",
+    "itemUnavailable": "Eén of meer gerechten in je winkelwagen zijn niet meer beschikbaar. Verwijder ze in je winkelwagen en probeer het opnieuw.",
+    "optionsChanged": "De opties van een gerecht in je winkelwagen zijn gewijzigd. Verwijder dat gerecht en voeg het opnieuw toe.",
     "completeTitle": "Bedankt voor je bestelling",
     "completePaid": "Betaling ontvangen. We gaan ermee aan de slag.",
     "completePending": "We wachten nog op de bevestiging van je betaling. Deze pagina ververst zichzelf.",

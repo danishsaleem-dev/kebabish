@@ -126,6 +126,55 @@ export async function priceCart(
   };
 }
 
+/** What the cart page needs to know about one line, without throwing. */
+export type CartLineStatus =
+  | { status: "ok"; unitPrice: number; optionPrices: Record<string, number> }
+  | { status: "soldOut" | "unavailable" | "optionsChanged" };
+
+/**
+ * Check each cart line against the live menu — the friendly counterpart to
+ * `priceCart`, which throws on the first problem. The cart and checkout pages
+ * use this to tell the customer *which* dish is the trouble (sold out since
+ * they added it, taken off the menu, its extras changed) so they can remove
+ * just that one and keep the rest, instead of meeting a generic error when
+ * they press pay. Never trusted for money: `priceCart` still re-checks all of
+ * it at the moment of payment. For lines that are fine it also returns the
+ * *current* prices so the cart can quietly catch up with a price change.
+ */
+export async function inspectCart(
+  submitted: { slug: string; options: SubmittedOption[] }[]
+): Promise<CartLineStatus[]> {
+  const store = await readStore();
+
+  return submitted.map((line) => {
+    const item = store.items.find((i) => i.slug === line.slug);
+    const category = item && store.categories.find((c) => c.id === item.categoryId);
+    if (!item || !item.visible || !category?.visible || !isSellablePrice(item.price)) {
+      return { status: "unavailable" as const };
+    }
+    if (item.soldOut) return { status: "soldOut" as const };
+
+    const optionPrices: Record<string, number> = {};
+    for (const chosen of line.options) {
+      const group = store.optionGroups?.find((g) => g.id === chosen.groupId);
+      const option = group?.options.find((o) => o.id === chosen.optionId);
+      if (!item.optionGroupIds?.includes(chosen.groupId) || !group || !option) {
+        return { status: "optionsChanged" as const };
+      }
+      optionPrices[`${chosen.groupId}:${chosen.optionId}`] = option.price;
+    }
+    for (const groupId of item.optionGroupIds ?? []) {
+      const group = store.optionGroups?.find((g) => g.id === groupId);
+      if (!group || group.minChoices === 0) continue;
+      if (line.options.filter((o) => o.groupId === groupId).length < group.minChoices) {
+        return { status: "optionsChanged" as const };
+      }
+    }
+
+    return { status: "ok" as const, unitPrice: item.price, optionPrices };
+  });
+}
+
 /** Delivery fee for a subtotal, from the owner's current settings. */
 export async function deliveryFeeCents(subtotalCents: number): Promise<number> {
   const { settings } = await readStore();

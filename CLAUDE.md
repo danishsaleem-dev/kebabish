@@ -1009,6 +1009,22 @@ English-only. Root SPF lists only Hostinger; Resend authenticates by DKIM + its
 own return-path subdomain, so mail from info@ works, but anything sent from
 Google Workspace as info@ would fail SPF (DMARC is `p=none`).
 
+### Cart stays honest against the live menu
+
+A dish can sell out, be hidden, or have its extras changed after someone put it
+in their basket. `CartProvider` therefore asks `/api/cart/check` (public,
+read-only; `inspectCart()` in `orders.ts`) about every line — when the basket's
+contents change, when the tab becomes visible, and every 60 s — and exposes
+`issues` / `repriced` / `blocked`. A flagged line shows "Uitverkocht — Vandaag
+uitverkocht", "Niet meer beschikbaar" or "Opties gewijzigd" (`CartLineNotice`),
+the cart/checkout buttons are disabled with an explanation, and the rest of the
+basket is left alone; the customer removes just the flagged lines. A *price*
+change isn't blocking: the cart quietly catches up and says "Prijs bijgewerkt".
+This is the friendly early warning only — `priceCart` still re-validates
+everything when paying, and `checkoutAction` now says *why* it refused
+(`itemUnavailable` / `optionsChanged` / `priceChanged`) instead of one generic
+message.
+
 ### Allergens are user-extendable
 
 `Allergen` is a plain string, not a union. The 14 EU-mandated ones seed the

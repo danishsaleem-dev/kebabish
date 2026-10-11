@@ -216,6 +216,16 @@ export async function checkoutAction(
   } catch (error) {
     await releaseSlot();
     if (error instanceof CartPricingError) {
+      // Tell them what actually happened: a dish that's gone or sold out, or
+      // one whose extras changed, needs a different action from them than a
+      // price change does.
+      const reason = error.message;
+      if (reason === "soldOut" || reason === "missing" || reason === "unpriced") {
+        return { ok: false, error: "itemUnavailable" };
+      }
+      if (reason === "badOption" || reason === "missingChoice") {
+        return { ok: false, error: "optionsChanged" };
+      }
       return { ok: false, error: "priceChanged" };
     }
     throw error;

@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
+import CartLineNotice from "@/components/cart/CartLineNotice";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
 import PostcodeField from "@/components/cart/PostcodeField";
 import DeliverySlotPicker, {
@@ -59,7 +60,7 @@ export default function CheckoutForm({
   const t = useTranslations("checkout");
   const tCart = useTranslations("cart");
   const locale = useLocale();
-  const { lines, subtotal, ready } = useCart();
+  const { lines, subtotal, ready, issues, repriced, blocked, remove } = useCart();
   const [state, formAction] = useActionState(checkoutAction, EMPTY);
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
@@ -327,6 +328,16 @@ export default function CheckoutForm({
                     {line.options.map((o) => o.optionLabel).join(", ")}
                   </span>
                 )}
+                <CartLineNotice issue={issues[line.id]} repriced={repriced.includes(line.id)} />
+                {issues[line.id] && (
+                  <button
+                    type="button"
+                    onClick={() => remove(line.id)}
+                    className="mt-1.5 block text-xs font-semibold text-red-800 underline underline-offset-2"
+                  >
+                    {tCart("remove")}
+                  </button>
+                )}
               </span>
               <span className="shrink-0 tabular-nums text-charcoal-600">
                 {formatEuro(lineTotal(line))}
@@ -415,6 +426,12 @@ export default function CheckoutForm({
           </p>
         )}
 
+        {blocked && (
+          <p role="alert" className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800">
+            {tCart("blockedNotice")}
+          </p>
+        )}
+
         <div className="mt-5 space-y-3 text-xs leading-relaxed text-ink/60">
           <p>{t("allergenNote")}</p>
           <p>{t("noCoolingOff")}</p>
@@ -453,7 +470,7 @@ export default function CheckoutForm({
           <PayButton
             label={t("payNow", { amount: formatEuro(total) })}
             pendingLabel={t("paying")}
-            disabled={!slot}
+            disabled={!slot || blocked}
           />
         )}
       </aside>

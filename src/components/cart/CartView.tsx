@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
+import CartLineNotice from "@/components/cart/CartLineNotice";
 import { formatEuro } from "@/lib/money";
 
 /**
@@ -21,7 +22,7 @@ export default function CartView({
   minimumOrder: number;
 }) {
   const t = useTranslations("cart");
-  const { lines, subtotal, ready, setQuantity, remove } = useCart();
+  const { lines, subtotal, ready, setQuantity, remove, issues, repriced, blocked } = useCart();
 
   // Until localStorage has been read the cart is empty on both server and
   // client; showing "your cart is empty" in that gap would flash wrongly.
@@ -80,6 +81,7 @@ export default function CartView({
                   “{line.instructions}”
                 </p>
               )}
+              <CartLineNotice issue={issues[line.id]} repriced={repriced.includes(line.id)} />
 
               <div className="mt-3 flex items-center gap-1">
                 <button
@@ -163,6 +165,20 @@ export default function CartView({
               missing: formatEuro(minimumOrder - subtotal),
             })}
           </p>
+        ) : blocked ? (
+          // A dish in the basket can't be ordered any more: no way forward
+          // until it's removed. The rest of the basket stays exactly as it is.
+          <>
+            <p role="alert" className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800">
+              {t("blockedNotice")}
+            </p>
+            <span
+              aria-disabled="true"
+              className="mt-3 block cursor-not-allowed rounded-full bg-charcoal-600/20 px-6 py-4 text-center font-display text-sm font-semibold text-charcoal-600/50"
+            >
+              {t("checkout")}
+            </span>
+          </>
         ) : (
           <Link
             href="/checkout"

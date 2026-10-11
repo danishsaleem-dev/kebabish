@@ -160,6 +160,13 @@
     "decrease": "Remove one",
     "minimumOrder": "Minimum order is {amount}. Add {missing} more to check out.",
     "freeDeliveryHint": "Add {missing} more for free delivery.",
+    "soldOutBadge": "Sold out",
+    "soldOutHint": "Sold out today.",
+    "unavailableBadge": "No longer available",
+    "optionsChangedBadge": "Options changed",
+    "removeToContinue": "Remove this dish to continue.",
+    "priceUpdated": "Price updated",
+    "blockedNotice": "One or more dishes in your cart can no longer be ordered. Remove the marked dishes to continue to checkout — the rest of your order stays as it is.",
     "itemCount": "{count, plural, =0 {No items} one {# item} other {# items}}"
   },
   "allergenNames": {
@@ -253,6 +260,8 @@
     "emptyCart": "Your cart is empty.",
     "failed": "Something went wrong starting the payment. Nothing has been charged — please try again.",
     "priceChanged": "Some prices changed while you were ordering. Please review your cart.",
+    "itemUnavailable": "One or more dishes in your cart are no longer available. Remove them from your cart and try again.",
+    "optionsChanged": "The options for a dish in your cart have changed. Remove that dish and add it again.",
     "completeTitle": "Thanks for your order",
     "completePaid": "Payment received. We've started on it.",
     "completePending": "We're waiting for your payment to confirm. This page updates itself.",
