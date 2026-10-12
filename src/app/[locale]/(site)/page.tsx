@@ -13,6 +13,7 @@ import Popular from "@/components/home/Popular";
 import Why from "@/components/home/Why";
 import DeliveryArea from "@/components/home/DeliveryArea";
 import FinalCta from "@/components/home/FinalCta";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 import { getPublicSettings } from "@/lib/admin/store";
 import { pageMetadata } from "@/lib/seo";
 import HomeSchema from "@/components/schema/HomeSchema";
@@ -68,6 +69,7 @@ export default async function HomePage({
       <DeliveryArea locale={locale} />
       <Faq locale={locale} />
       <FinalCta locale={locale} isOpen={isOpen} />
+      <FeedbackCta locale={locale} />
     </>
   );
 }

@@ -5,6 +5,7 @@ import { Link } from "@/i18n/navigation";
 import { reviews } from "@/lib/reviews-data";
 import { pageMetadata } from "@/lib/seo";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateMetadata({
   params,
@@ -116,6 +117,8 @@ export default async function ReviewsPage({
           </div>
         </div>
       </div>
+
+      <FeedbackCta locale={locale} />
     </div>
   );
 }

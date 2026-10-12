@@ -15,6 +15,7 @@ import { formatEuro } from "@/lib/money";
 import ItemOrderPanel from "@/components/menu/ItemOrderPanel";
 import ItemGallery from "@/components/menu/ItemGallery";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateStaticParams() {
   const slugs = await getPublicItemSlugs();
@@ -113,141 +114,144 @@ export default async function ItemPage({
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-10 sm:px-6 sm:py-14">
-      <ProductSchema
-        locale={locale}
-        item={item}
-        category={category.label}
-        description={schemaDescription}
-      />
-      <BreadcrumbSchema
-        locale={locale}
-        items={[
-          { name: t("nav.menu"), path: "/menu" },
-          { name: item.name, path: `/menu/${slug}` },
-        ]}
-      />
-      <Link
-        href="/menu"
-        className="inline-flex items-center gap-2 text-sm font-medium text-ink/60 transition-colors hover:text-charcoal-600"
-      >
-        <ArrowLeft size={16} />
-        {t("item.backToMenu")}
-      </Link>
+    <>
+      <div className="mx-auto max-w-5xl px-5 pb-4 pt-10 sm:px-6 sm:pt-14">
+        <ProductSchema
+          locale={locale}
+          item={item}
+          category={category.label}
+          description={schemaDescription}
+        />
+        <BreadcrumbSchema
+          locale={locale}
+          items={[
+            { name: t("nav.menu"), path: "/menu" },
+            { name: item.name, path: `/menu/${slug}` },
+          ]}
+        />
+        <Link
+          href="/menu"
+          className="inline-flex items-center gap-2 text-sm font-medium text-ink/60 transition-colors hover:text-charcoal-600"
+        >
+          <ArrowLeft size={16} />
+          {t("item.backToMenu")}
+        </Link>
 
-      {/* The heading used to be rendered twice — once per breakpoint — which
-          put two <h1>s (and would now put two <h2>s) in the DOM on a page
-          where SEO is the priority. Grid placement gets the same layout from
-          one copy: the media column spans both rows on desktop, so the
-          heading and order panel auto-place beside it. */}
-      <div className="mt-8 grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
-        {/* The photos stick while the right column scrolls: a dish with
-            several extras groups makes that column far taller than this one,
-            and the photo scrolling away left a long empty gutter. `self-start`
-            is what makes it work — a stretched grid item can't stick. */}
-        <div className="lg:sticky lg:top-28 lg:row-span-2 lg:self-start">
-          {item.images.length > 0 ? (
-            <ItemGallery
-              images={item.images}
-              alt={item.name}
-              photoLabels={item.images.map((_, i) =>
-                t("item.photoCounter", { current: i + 1, total: item.images.length })
-              )}
-              zoomLabel={t("item.zoomPhoto")}
-              closeLabel={t("item.closePhoto")}
-              previousLabel={t("item.previousPhoto")}
-              nextLabel={t("item.nextPhoto")}
-            />
-          ) : (
-            <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-cream-300">
-              <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]">
-                <BrandLogo
-                  src="/logo/Kebabish-light.png"
-                  alt=""
-                  width={260}
-                  height={195}
-                  className="h-auto w-28 opacity-25"
-                />
+        {/* The heading used to be rendered twice — once per breakpoint — which
+            put two <h1>s (and would now put two <h2>s) in the DOM on a page
+            where SEO is the priority. Grid placement gets the same layout from
+            one copy: the media column spans both rows on desktop, so the
+            heading and order panel auto-place beside it. */}
+        <div className="mt-8 grid items-start gap-10 lg:grid-cols-2 lg:gap-14">
+          {/* The photos stick while the right column scrolls: a dish with
+              several extras groups makes that column far taller than this one,
+              and the photo scrolling away left a long empty gutter. `self-start`
+              is what makes it work — a stretched grid item can't stick. */}
+          <div className="lg:sticky lg:top-28 lg:row-span-2 lg:self-start">
+            {item.images.length > 0 ? (
+              <ItemGallery
+                images={item.images}
+                alt={item.name}
+                photoLabels={item.images.map((_, i) =>
+                  t("item.photoCounter", { current: i + 1, total: item.images.length })
+                )}
+                zoomLabel={t("item.zoomPhoto")}
+                closeLabel={t("item.closePhoto")}
+                previousLabel={t("item.previousPhoto")}
+                nextLabel={t("item.nextPhoto")}
+              />
+            ) : (
+              <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-cream-300">
+                <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]">
+                  <BrandLogo
+                    src="/logo/Kebabish-light.png"
+                    alt=""
+                    width={260}
+                    height={195}
+                    className="h-auto w-28 opacity-25"
+                  />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+
+          <ItemHeading {...headingProps} />
+
+          <ItemOrderPanel item={item} isOpen={isOpen} whatsappHref={whatsappHref} />
         </div>
 
-        <ItemHeading {...headingProps} />
-
-        <ItemOrderPanel item={item} isOpen={isOpen} whatsappHref={whatsappHref} />
-      </div>
-
-      {/* Everything above is what someone needs to actually order. The
-          video and the write-up are a separate section underneath, so they
-          can't push the price and the order panel down the page. */}
-      {(item.videoUrl || item.description) && (
-        <section className="mt-14 border-t border-charcoal-600/10 pt-10 sm:mt-16 sm:pt-12">
-          <h2 className="font-display text-2xl font-semibold text-charcoal-600">
-            {t("item.aboutTitle")}
-          </h2>
-
-          <div
-            className={`mt-6 grid gap-8 ${
-              item.videoUrl && item.description ? "lg:grid-cols-2 lg:gap-12" : ""
-            }`}
-          >
-            {item.videoUrl && (
-              // preload="metadata" + #t=0.001 shows the first frame without
-              // pulling the whole file, and nothing plays until the customer
-              // asks — this page is an SEO/PageSpeed landing page first.
-              <video
-                src={`${item.videoUrl}#t=0.001`}
-                controls
-                playsInline
-                preload="metadata"
-                aria-label={t("item.videoLabel", { item: item.name })}
-                className="aspect-video w-full rounded-3xl bg-charcoal-900 object-cover"
-              />
-            )}
-
-            {item.description && (
-              // whitespace-pre-line keeps the line breaks typed in the admin.
-              <p className="max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink/75">
-                {item.description}
-              </p>
-            )}
-          </div>
-        </section>
-      )}
-
-      {related.length > 0 && (
-        <section className="mt-14 border-t border-charcoal-600/10 pt-10 sm:mt-16 sm:pt-12">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+        {/* Everything above is what someone needs to actually order. The
+            video and the write-up are a separate section underneath, so they
+            can't push the price and the order panel down the page. */}
+        {(item.videoUrl || item.description) && (
+          <section className="mt-14 border-t border-charcoal-600/10 pt-10 sm:mt-16 sm:pt-12">
             <h2 className="font-display text-2xl font-semibold text-charcoal-600">
-              {t("item.relatedTitle")}
+              {t("item.aboutTitle")}
             </h2>
-            <Link
-              href="/menu"
-              className="link-underline font-display text-sm font-semibold text-ember-600"
-            >
-              {t("item.relatedAll")}
-            </Link>
-          </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
-            {related.map((dish) => (
-              <FeaturedDishCard
-                key={dish.slug}
-                item={dish}
-                addLabel={t("menu.addToOrder")}
-                priceOnRequestLabel={t("menu.priceOnRequest")}
-                vegetarianLabel={t("menu.vegetarian")}
-                soldOutLabel={t("menu.soldOut")}
-                isOpen={isOpen}
-                unavailableLabel={t("status.menuUnavailable")}
-                reveal={false}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+            <div
+              className={`mt-6 grid gap-8 ${
+                item.videoUrl && item.description ? "lg:grid-cols-2 lg:gap-12" : ""
+              }`}
+            >
+              {item.videoUrl && (
+                // preload="metadata" + #t=0.001 shows the first frame without
+                // pulling the whole file, and nothing plays until the customer
+                // asks — this page is an SEO/PageSpeed landing page first.
+                <video
+                  src={`${item.videoUrl}#t=0.001`}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  aria-label={t("item.videoLabel", { item: item.name })}
+                  className="aspect-video w-full rounded-3xl bg-charcoal-900 object-cover"
+                />
+              )}
+
+              {item.description && (
+                // whitespace-pre-line keeps the line breaks typed in the admin.
+                <p className="max-w-2xl whitespace-pre-line text-base leading-relaxed text-ink/75">
+                  {item.description}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
+
+        {related.length > 0 && (
+          <section className="mt-14 border-t border-charcoal-600/10 pt-10 sm:mt-16 sm:pt-12">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <h2 className="font-display text-2xl font-semibold text-charcoal-600">
+                {t("item.relatedTitle")}
+              </h2>
+              <Link
+                href="/menu"
+                className="link-underline font-display text-sm font-semibold text-ember-600"
+              >
+                {t("item.relatedAll")}
+              </Link>
+            </div>
+
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
+              {related.map((dish) => (
+                <FeaturedDishCard
+                  key={dish.slug}
+                  item={dish}
+                  addLabel={t("menu.addToOrder")}
+                  priceOnRequestLabel={t("menu.priceOnRequest")}
+                  vegetarianLabel={t("menu.vegetarian")}
+                  soldOutLabel={t("menu.soldOut")}
+                  isOpen={isOpen}
+                  unavailableLabel={t("status.menuUnavailable")}
+                  reveal={false}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+      <FeedbackCta locale={locale} />
+    </>
   );
 }
 

@@ -69,6 +69,9 @@ export type HeardFrom = (typeof HEARD_FROM_OPTIONS)[number];
  * Where a visit to the form came from. A fixed list — the value comes from a
  * query string anyone can edit, so anything else collapses to "direct".
  * "packaging" is for a QR code or sticker on the bag: kebabish.nl/feedback?src=packaging.
+ * "site" is the section above the footer, "qr" is the QR code inside it — kept
+ * apart so it's visible whether anyone actually scans it before that code is
+ * ever printed on anything.
  */
 export const FEEDBACK_SOURCES = [
   "email",
@@ -76,6 +79,8 @@ export const FEEDBACK_SOURCES = [
   "confirmation",
   "footer",
   "contact",
+  "site",
+  "qr",
   "packaging",
   "direct",
 ] as const;

@@ -9,6 +9,7 @@ import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { getPublicMenu } from "@/lib/public-menu";
 import { resolveCategoryLabel } from "@/lib/category-labels";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateMetadata({
   params,
@@ -47,27 +48,30 @@ export default async function MenuPage({
   }));
 
   return (
-    <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
-      <MenuStructuredData categories={categories} locale={locale} />
-      <PageSchema
-        locale={locale}
-        path="/menu"
-        type="CollectionPage"
-        name={tSeo("menuTitle")}
-        description={tSeo("menuDescription")}
-      />
-      <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/menu" }]} />
+    <>
+      <div className="mx-auto max-w-6xl px-5 pb-6 pt-16 sm:px-6 sm:pt-20">
+        <MenuStructuredData categories={categories} locale={locale} />
+        <PageSchema
+          locale={locale}
+          path="/menu"
+          type="CollectionPage"
+          name={tSeo("menuTitle")}
+          description={tSeo("menuDescription")}
+        />
+        <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/menu" }]} />
 
-      <div className="text-center">
-        <h1 className="font-display text-4xl font-semibold text-charcoal-600 sm:text-5xl">
-          {t("title")}
-        </h1>
-        <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-ink/70">
-          {t("intro")}
-        </p>
+        <div className="text-center">
+          <h1 className="font-display text-4xl font-semibold text-charcoal-600 sm:text-5xl">
+            {t("title")}
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-pretty text-base text-ink/70">
+            {t("intro")}
+          </p>
+        </div>
+
+        <MenuBrowser categories={categories} isOpen={isOpen} />
       </div>
-
-      <MenuBrowser categories={categories} isOpen={isOpen} />
-    </div>
+      <FeedbackCta locale={locale} />
+    </>
   );
 }

@@ -3,6 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import LegalPage from "@/components/legal/LegalPage";
 import { pageMetadata } from "@/lib/seo";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateMetadata({
   params,
@@ -38,6 +39,7 @@ export default async function TermsPage({
         intro={t("intro")}
         sections={t.raw("sections")}
       />
+      <FeedbackCta locale={locale} />
     </>
   );
 }

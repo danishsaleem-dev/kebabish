@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { Flame, Leaf, Clock, Smartphone, MessageCircle, UtensilsCrossed } from "lucide-react";
+import { Flame, Leaf, Clock, Smartphone, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { siteConfig } from "@/lib/site-config";
 import { menu } from "@/lib/menu-data";
 import { pageMetadata } from "@/lib/seo";
 import PageSchema from "@/components/schema/PageSchema";
@@ -14,6 +14,7 @@ import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
 import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateMetadata({
   params,
@@ -38,11 +39,9 @@ export default async function AboutPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "about" });
-  const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
   const tHome = await getTranslations({ locale, namespace: "home" });
   const tSeo = await getTranslations({ locale, namespace: "seo" });
 
-  const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
 
   // The banner is wide, so the widescreen clip suits it; the vertical one is
   // the fallback when that file is missing. Checked at build time, and the
@@ -292,18 +291,11 @@ export default async function AboutPage({
               />
               {t("ctaMenu")}
             </Link>
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full items-center justify-center gap-2.5 rounded-full border border-cream-100/40 bg-cream-50/10 px-8 py-4 text-sm font-semibold text-cream-50 backdrop-blur-sm transition-transform duration-300 hover:-translate-y-0.5 sm:w-auto"
-            >
-              <MessageCircle size={18} />
-              {t("ctaWhatsapp")}
-            </a>
           </div>
         </div>
       </div>
+
+      <FeedbackCta locale={locale} />
     </div>
   );
 }

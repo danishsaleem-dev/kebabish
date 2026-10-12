@@ -25,6 +25,8 @@ const SOURCE_LABELS: Record<string, string> = {
   confirmation: "Order page",
   footer: "Footer link",
   contact: "Contact page",
+  site: "Site banner",
+  qr: "Scanned the site QR",
   packaging: "Packaging / QR",
   direct: "Direct link",
 };

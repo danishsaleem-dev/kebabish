@@ -132,8 +132,7 @@
     "factRadiusValue": "Within 10 km of Hoogkarspel",
     "ctaTitle": "Taste the difference",
     "ctaText": "Browse the menu or send us a WhatsApp message — we deliver within 10 km of Hoogkarspel.",
-    "ctaMenu": "View the menu",
-    "ctaWhatsapp": "Order via WhatsApp"
+    "ctaMenu": "View the menu"
   },
   "deliveryAreas": {
     "title": "Delivery area",
@@ -812,10 +811,18 @@
       "text": "Tell us in two minutes — it shows us what works and what could be better.",
       "cta": "Give your feedback"
     },
-    "contactCta": {
-      "title": "Feedback or a complaint?",
-      "text": "Tell us how it went. It takes about two minutes.",
-      "cta": "Go to the feedback form"
+    "siteCta": {
+      "eyebrow": "Your say",
+      "title": "Tell us how it went",
+      "text": "We are a small kitchen in Hoogkarspel and we read every response ourselves. Two minutes of your time help us improve the food, the delivery and this website.",
+      "points": [
+        "It takes about two minutes",
+        "Anonymous — unless you leave your name yourself",
+        "About the food, the delivery and the website"
+      ],
+      "cta": "Give your feedback",
+      "qr": "Scan it and fill it in on your phone",
+      "qrAlt": "QR code to the Kebabish feedback form"
     }
   }
 }

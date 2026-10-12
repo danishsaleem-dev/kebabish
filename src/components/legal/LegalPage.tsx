@@ -23,7 +23,7 @@ export default function LegalPage({
 }) {
   return (
     <div className="bg-cream-200">
-      <div className="mx-auto max-w-3xl px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-3xl px-5 pb-8 pt-16 sm:px-6 sm:pb-10 sm:pt-24">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-ember-600">
           {title}
         </p>

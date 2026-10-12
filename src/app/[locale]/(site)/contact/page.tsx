@@ -8,9 +8,9 @@ import {
   Instagram,
   Facebook,
   Music2,
-  MessageCircle,
+  ShoppingBag,
 } from "lucide-react";
-import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { siteConfig } from "@/lib/site-config";
 import { pageMetadata } from "@/lib/seo";
 import PageSchema from "@/components/schema/PageSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
@@ -18,6 +18,7 @@ import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { Link } from "@/i18n/navigation";
 import DeliveryMap from "@/components/home/DeliveryMap";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateMetadata({
   params,
@@ -43,15 +44,13 @@ export default async function ContactPage({
   const t = await getTranslations({ locale, namespace: "contact" });
   const tStatus = await getTranslations({ locale, namespace: "status" });
   const tSeo = await getTranslations({ locale, namespace: "seo" });
-  const tFeedback = await getTranslations({ locale, namespace: "feedback" });
-  const tWhatsapp = await getTranslations({ locale, namespace: "whatsapp" });
+  const tCommon = await getTranslations({ locale, namespace: "common" });
   const settings = await getPublicSettings();
   const tFooter = await getTranslations({ locale, namespace: "footer" });
   const status = getStoreStatus(settings);
   const weekdays = tStatus.raw("weekdays") as string[];
   const sortedHours = [...settings.hours].sort((a, b) => a.day - b.day);
   const fullAddress = `${siteConfig.address.postalCode} ${siteConfig.address.city}`;
-  const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
 
   return (
     <div className="bg-cream-200">
@@ -63,7 +62,7 @@ export default async function ContactPage({
         description={tSeo("contactDescription")}
       />
       <BreadcrumbSchema locale={locale} items={[{ name: t("title"), path: "/contact" }]} />
-      <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
+      <div className="mx-auto max-w-6xl px-5 pb-8 pt-16 sm:px-6 sm:pb-10 sm:pt-24">
         <div className="text-center">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-ember-600">
             {t("title")}
@@ -78,15 +77,13 @@ export default async function ContactPage({
           <div className="order-2 lg:order-1">
             <div className="sticky top-28">
               <DeliveryMap />
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-4 flex items-center justify-center gap-2.5 rounded-full bg-[#25D366] px-6 py-4 font-display text-sm font-semibold text-white transition-transform duration-300 hover:-translate-y-0.5"
+              <Link
+                href="/menu"
+                className="mt-4 flex items-center justify-center gap-2.5 rounded-full bg-ember-600 px-6 py-4 font-display text-sm font-semibold text-cream-50 transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-ember-500"
               >
-                <MessageCircle size={18} />
-                {tWhatsapp("orderGeneric").split("!")[0]}!
-              </a>
+                <ShoppingBag size={18} />
+                {tCommon("orderNow")}
+              </Link>
             </div>
           </div>
 
@@ -221,24 +218,11 @@ export default async function ContactPage({
                 {t("deliveryCheckText")}
               </p>
             </div>
-
-            <div className="rounded-3xl border border-charcoal-600/10 bg-cream-50 p-6 sm:p-8">
-              <h2 className="font-display text-base font-semibold text-charcoal-600">
-                {tFeedback("contactCta.title")}
-              </h2>
-              <p className="mt-2 text-sm leading-relaxed text-ink/65">
-                {tFeedback("contactCta.text")}
-              </p>
-              <Link
-                href="/feedback?src=contact"
-                className="mt-4 inline-flex items-center gap-2 rounded-full bg-charcoal-600 px-5 py-2.5 font-display text-sm font-semibold text-cream-100 transition-colors hover:bg-ember-600"
-              >
-                {tFeedback("contactCta.cta")}
-              </Link>
-            </div>
           </div>
         </div>
       </div>
+
+      <FeedbackCta locale={locale} source="contact" />
     </div>
   );
 }

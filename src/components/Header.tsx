@@ -4,8 +4,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
 import { routing } from "@/i18n/routing";
-import { Menu, X, MessageCircle } from "lucide-react";
-import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
+import { Menu, X, ShoppingBag } from "lucide-react";
+import { siteConfig } from "@/lib/site-config";
 import CartButton from "@/components/cart/CartButton";
 import BrandLogo from "@/components/shared/BrandLogo";
 
@@ -24,7 +24,6 @@ export default function Header({
 }) {
   const t = useTranslations("nav");
   const tCommon = useTranslations("common");
-  const tWhatsapp = useTranslations("whatsapp");
   const locale = useLocale();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -48,8 +47,6 @@ export default function Header({
     { href: "/about", label: t("about") },
     { href: "/contact", label: t("contact") },
   ];
-
-  const whatsappHref = whatsappOrderLink(tWhatsapp("orderGeneric"));
 
   return (
     <header
@@ -113,15 +110,13 @@ export default function Header({
           <LocaleSwitch locale={locale} onHero={onHero} />
           <CartButton onHero={onHero} />
           {isOpen ? (
-            <a
-              href={whatsappHref}
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              href="/menu"
               className="inline-flex items-center gap-2 rounded-full bg-ember-600 px-5 py-2.5 font-display text-sm font-semibold text-cream-50 transition-[background-color,translate] duration-300 hover:-translate-y-0.5 hover:bg-ember-500"
             >
-              <MessageCircle size={17} />
+              <ShoppingBag size={17} />
               {tCommon("orderNow")}
-            </a>
+            </Link>
           ) : (
             <span
               className={`inline-flex cursor-default items-center gap-2 rounded-full border px-5 py-2.5 font-display text-sm font-semibold ${
@@ -130,7 +125,7 @@ export default function Header({
                   : "border-charcoal-600/20 text-charcoal-600/50"
               }`}
             >
-              <MessageCircle size={17} />
+              <ShoppingBag size={17} />
               {tCommon("closedNow")}
             </span>
           )}
@@ -175,18 +170,17 @@ export default function Header({
 
           <div className="mt-4">
             {isOpen ? (
-              <a
-                href={whatsappHref}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/menu"
+                onClick={() => setOpen(false)}
                 className="flex items-center justify-center gap-2 rounded-full bg-ember-600 px-5 py-3.5 font-display text-sm font-semibold text-cream-50"
               >
-                <MessageCircle size={17} />
+                <ShoppingBag size={17} />
                 {tCommon("orderNow")}
-              </a>
+              </Link>
             ) : (
               <span className="flex cursor-default items-center justify-center gap-2 rounded-full border border-charcoal-600/20 px-5 py-3.5 font-display text-sm font-semibold text-charcoal-600/50">
-                <MessageCircle size={17} />
+                <ShoppingBag size={17} />
                 {tCommon("closedNow")}
               </span>
             )}

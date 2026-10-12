@@ -12,6 +12,7 @@ import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
 import DeliveryMap from "@/components/home/DeliveryMap";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateMetadata({
   params,
@@ -205,6 +206,8 @@ export default async function DeliveryAreasPage({
           </div>
         </div>
       </div>
+
+      <FeedbackCta locale={locale} />
     </div>
   );
 }

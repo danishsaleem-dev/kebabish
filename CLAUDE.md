@@ -54,8 +54,17 @@ dashboard, below).
    decision — tap target size, sticky header, WhatsApp button placement,
    checkout flow — should be designed for mobile first, desktop second.
 3. **Two ordering paths, both must stay easy:** a full on-site cart/
-   checkout with online payment, AND WhatsApp click-to-order (currently
-   the only working path — see "What's not built yet" below).
+   checkout with online payment, AND WhatsApp click-to-order.
+   **The on-site checkout is the primary path now** (Oct 2026, Danish's
+   call): every **"Order now" / "Nu bestellen"** button — the desktop
+   header, the mobile menu, the contact page — is a plain link to
+   `/menu`, not a `wa.me` link, and carries a shopping-bag icon rather
+   than the chat bubble. WhatsApp is still there as the *conversation*
+   route (the floating button, "WhatsApp us" on the homepage FAQ and
+   final CTA, "Ask on WhatsApp" on Delivery areas, "Discuss it on
+   WhatsApp" on Catering, the error page, the coming-soon page, and a
+   dish that has no price yet) — don't turn those into menu links
+   without asking, and don't turn "Order now" back into WhatsApp.
 
 ## Tech stack (already decided, don't relitigate without asking Danish)
 
@@ -604,6 +613,37 @@ table for exactly this reason; only `insertFeedback` reports it.
   feedback button was sent but its rendering in an inbox was not checked — look at the next real one.
 - **Not built:** showing a response on the order's own admin page, and promoting a quote to the
   testimonials section automatically (that list is still hand-edited in `reviews-data.ts`).
+
+#### The feedback section above the footer (Oct 2026)
+
+`src/components/feedback/FeedbackCta.tsx` is a charcoal card on a cream band, rendered **just
+above the footer on every normal page**: home, `/menu`, every dish page, `/about`, `/contact`,
+`/catering`, `/delivery-areas`, `/reviews`, `/privacy`, `/terms`. Deliberately **not** on
+`/cart`, `/checkout`, the order confirmation (it has its own, order-linked prompt) or `/feedback`
+itself. It is per-page rather than in `(site)/layout.tsx` because a layout can't know the path
+without reading a header, and that would make every page dynamic — the menu and dish pages are
+statically generated for SEO, which outranks saving ten one-line imports.
+
+- **No `data-reveal` attributes anywhere in it.** Those are primed to `opacity: 0` under
+  `html.js` in `globals.css` and are only unhidden by the `<Motion />` island, which `/menu`,
+  `/contact` and the legal pages never mount — the whole section would have been invisible there.
+- **The QR code is `hidden lg:block` plus `loading="lazy"`,** so a phone never downloads it: you
+  can't scan your own screen. It is for someone reading on a laptop who would rather answer on
+  their phone, and for pointing a camera at the screen. Two files, picked by locale, because a
+  scan opens the URL cold and an English reader must not land on the Dutch form.
+  `scripts/generate-feedback-qr.mjs` regenerates both (a one-off, like the favicon and OG-image
+  scripts — it shells out to `npx -y qrcode`, so no QR encoder joins `package.json` for something
+  the running site never does). The light modules are transparent so the cream tile shows
+  through. **Verified by decoding the committed SVGs** (rasterised with sharp, read with jsQR):
+  they resolve to `https://www.kebabish.nl/feedback?src=qr` and `.../en/feedback?src=qr`.
+- **Two new `FEEDBACK_SOURCES`:** `site` (the button) and `qr` (the code), kept apart so it is
+  visible whether anyone actually scans it before that code gets printed on anything. The
+  contact page passes `source="contact"` to keep that existing signal; its old small feedback
+  card was removed as a duplicate of the section now sitting below it.
+- Copy lives in `messages/*.json` under `feedback.siteCta`. It promises nothing we don't do:
+  "we read every response ourselves", "about two minutes", "anonymous unless you leave your
+  name" (true — a name and email are only stored if the contact-me box is ticked). **There is
+  no discount or reward offered**, because none is built.
 
 ### SEO audit and structured data (Oct 2026)
 
@@ -1567,8 +1607,9 @@ existing `/admin/orders/[id]/ticket` route, which allows kitchen.
   menu list), `/contact` (address, hours, socials, embedded map)
 - SEO plumbing: `sitemap.ts`, `robots.ts`, per-page metadata, hreflang
   alternates, `FoodEstablishment` JSON-LD
-- WhatsApp ordering: floating button site-wide + per-dish "Add" button
-  that opens a pre-filled WhatsApp message
+- WhatsApp ordering: floating button site-wide, plus a pre-filled WhatsApp
+  link on a dish that has no price yet (that one can't go in the cart).
+  **"Order now" is not a WhatsApp link** — see below.
 - Live open/closed status site-wide, driven by `/admin/settings` (see
   "Live open/closed status on the public site" above) — every ordering
   CTA and a site banner react to the real Taking Orders toggle, hours,

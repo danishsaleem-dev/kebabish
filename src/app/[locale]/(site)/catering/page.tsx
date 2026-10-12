@@ -17,6 +17,7 @@ import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
+import FeedbackCta from "@/components/feedback/FeedbackCta";
 
 export async function generateMetadata({
   params,
@@ -197,6 +198,8 @@ export default async function CateringPage({
           </div>
         </div>
       </div>
+
+      <FeedbackCta locale={locale} />
     </div>
   );
 }
