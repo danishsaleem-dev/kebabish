@@ -8,3 +8,12 @@ export const VIDEO_BUCKET = "videos";
 export const MAX_VIDEO_MB = 30;
 export const MAX_VIDEO_BYTES = MAX_VIDEO_MB * 1024 * 1024;
 export const VIDEO_TYPES = ["video/mp4", "video/webm"] as const;
+
+/**
+ * The `type` for a `<source>`, from the file's extension. Uploads are mp4 or
+ * webm, and a `<source>` that claims the wrong type can be skipped by a browser
+ * that trusts it, so it is derived rather than hard-coded as mp4.
+ */
+export function videoMimeType(src: string): "video/mp4" | "video/webm" {
+  return /\.webm(\?|$)/i.test(src) ? "video/webm" : "video/mp4";
+}

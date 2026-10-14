@@ -1,12 +1,12 @@
 import { getTranslations } from "next-intl/server";
 import { ArrowUpRight, Quote, Star } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { reviews } from "@/lib/reviews-data";
+import { getReviews } from "@/lib/content/site";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
 
 /**
- * What customers said, from `src/lib/reviews-data.ts` — real quotes Danish
+ * What customers said, from Website content → Reviews in /admin — real quotes Danish
  * supplies, never invented copy.
  *
  * The section is absent, not empty, while that list is: a testimonial block
@@ -20,6 +20,7 @@ import SectionEyebrow from "@/components/home/SectionEyebrow";
  * few reviews look deliberate rather than like a grid missing its other cards.
  */
 export default async function Testimonials({ locale }: { locale: string }) {
+  const reviews = await getReviews();
   if (reviews.length === 0) return null;
 
   const t = await getTranslations({ locale });

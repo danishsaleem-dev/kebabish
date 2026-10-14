@@ -9,8 +9,7 @@ import PageSchema from "@/components/schema/PageSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import StoryFrame from "@/components/shared/StoryFrame";
 import VideoBanner from "@/components/shared/VideoBanner";
-import { getHeroVideoAvailability } from "@/lib/hero-video";
-import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
+import { getSiteMedia } from "@/lib/content/site";
 import Motion from "@/components/motion/Motion";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
@@ -43,15 +42,14 @@ export default async function AboutPage({
   const tSeo = await getTranslations({ locale, namespace: "seo" });
 
 
-  // The banner is wide, so the widescreen clip suits it; the vertical one is
-  // the fallback when that file is missing. Checked at build time, and the
-  // banner falls back to its still if neither exists.
-  const { web, mobile } = getHeroVideoAvailability();
-  const bannerVideo = web
-    ? "/video/hero-web.mp4"
-    : mobile
-      ? "/video/hero-mobile.mp4"
-      : null;
+  // The banner is wide, so it plays its own clip if the owner set one, else
+  // the homepage's widescreen clip (see getSiteMedia). It shows its still if
+  // there is no clip at all. On a phone the still is the tall homepage one,
+  // unless the banner has a clip of its own, whose frame is used at every width.
+  const media = await getSiteMedia();
+  const banner = media.aboutBanner;
+  const bannerVideo = banner.video;
+  const bannerMobilePoster = banner === media.heroWeb ? media.heroMobile.poster : banner.poster;
 
   const stats = [
     { value: `${siteConfig.deliveryRadiusKm} km`, label: t("statsLabel1") },
@@ -97,9 +95,9 @@ export default async function AboutPage({
       <section className="relative isolate flex min-h-[58svh] items-end overflow-hidden bg-charcoal-950 sm:min-h-[62svh]">
         <div className="absolute inset-0">
           <picture>
-            <source media="(min-width: 640px)" srcSet={HERO_POSTER_WEB} />
+            <source media="(min-width: 640px)" srcSet={banner.poster} />
             <img
-              src={HERO_POSTER_MOBILE}
+              src={bannerMobilePoster}
               alt=""
               fetchPriority="high"
               className="absolute inset-0 h-full w-full object-cover"
@@ -108,7 +106,7 @@ export default async function AboutPage({
           {bannerVideo && (
             <VideoBanner
               src={bannerVideo}
-              poster={HERO_POSTER_WEB}
+              poster={banner.poster}
               label={t("bannerVideoLabel")}
             />
           )}

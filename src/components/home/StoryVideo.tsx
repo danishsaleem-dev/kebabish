@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { videoMimeType } from "@/lib/video-config";
 
 /**
  * The looping clip in the story section.
@@ -65,7 +66,7 @@ export default function StoryVideo({
           aria-label={label}
           className="h-full w-full animate-[media-fade-in_0.7s_ease-out_both] object-cover"
         >
-          <source src={src} type="video/mp4" />
+          <source src={src} type={videoMimeType(src)} />
         </video>
       )}
     </div>

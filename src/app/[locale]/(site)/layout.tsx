@@ -7,7 +7,7 @@ import CartProvider from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
-import { reviews } from "@/lib/reviews-data";
+import { getReviews } from "@/lib/content/site";
 
 // Revalidate at most every minute — status can flip on its own (opening
 // hours boundary) without anyone touching /admin/settings. A save there
@@ -32,6 +32,7 @@ export default async function SiteLayout({
   const { locale } = await params;
   const settings = await getPublicSettings();
   const status = getStoreStatus(settings);
+  const reviews = await getReviews();
 
   return (
     <CartProvider>

@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { reviews } from "@/lib/reviews-data";
+import { getReviews } from "@/lib/content/site";
 import { routing } from "@/i18n/routing";
 import { siteConfig } from "@/lib/site-config";
 import { isComingSoonEnabled } from "@/lib/site-gate";
@@ -59,6 +59,7 @@ const STATIC_PAGES = [
 const LOW_PRIORITY = new Set(["/privacy", "/terms"]);
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const reviews = await getReviews();
   if (isComingSoonEnabled()) {
     // Only the coming-soon page is actually reachable right now — listing
     // the real pages here while they 307-redirect away would just teach

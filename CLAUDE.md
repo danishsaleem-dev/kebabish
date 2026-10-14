@@ -452,7 +452,7 @@ Structured data is split by concern rather than one giant block:
   `hasDeliveryMethod` is gone). Rendered once in `[locale]/layout.tsx`, so it's on
   every page — that's expected, same as a footer address. Also carries
   `aggregateRating`/`review` for the whole business, but **only when
-  `src/lib/reviews-data.ts` actually has entries** — a rating with
+  there are actually reviews (Website content → Reviews, `getReviews()`)** — a rating with
   nothing behind it is exactly what Google's review-snippet guidelines
   penalise, so this stays entirely absent (not zeroed, absent) until
   Danish supplies real reviews. No code change needed when he does; it
@@ -500,7 +500,7 @@ it weekly. It is a stopgap, not point-in-time recovery — up to a week of order
 the page says so and recommends **Supabase Pro (~$25/month, daily backups)** once orders flow, keeping
 this export as a second copy outside Supabase.
 
-- **`src/lib/backup/export.ts`** — `BACKUP_TABLES` lists all 12 tables **in dependency order** (a
+- **`src/lib/backup/export.ts`** — `BACKUP_TABLES` lists all 14 tables **in dependency order** (a
   row is restored after the rows it points at) with each table's primary key. The file carries
   each table's `pk`, `omit` and `restoreDefaults` inside it, so the restore script is generic and an
   old file stays restorable if this list later changes. **Add any new table to `BACKUP_TABLES`** when
@@ -531,7 +531,7 @@ this export as a second copy outside Supabase.
   tables is a per-row **UPDATE, not an upsert**: Postgres checks a NOT NULL column on the *proposed*
   row before it looks for the existing one, so an upsert that omits the hash fails even for rows that
   exist (the first version of the script did exactly that).
-- **Verified (Oct 2026) against the live database:** a full export → restore → re-export of all 12
+- **Verified (Oct 2026) against the live database:** a full export → restore → re-export of all 12 (the original set; `site_content` and its history joined later)
   tables is byte-for-byte identical (the only difference is the last-backup stamp the export itself
   writes); a deleted customer + order + line item came back field-for-field (accented text, JSON
   options, the customer link, the original timestamp) with the placeholder password; the real
@@ -612,7 +612,7 @@ table for exactly this reason; only `insertFeedback` reports it.
   kitchen and logged-out sessions are turned away from `/admin/feedback`. The delivered email's
   feedback button was sent but its rendering in an inbox was not checked — look at the next real one.
 - **Not built:** showing a response on the order's own admin page, and promoting a quote to the
-  testimonials section automatically (that list is still hand-edited in `reviews-data.ts`).
+  testimonials section automatically (reviews are added by hand in Website content → Reviews).
 
 #### The feedback section above the footer (Oct 2026)
 
@@ -644,6 +644,109 @@ statically generated for SEO, which outranks saving ten one-line imports.
   "we read every response ourselves", "about two minutes", "anonymous unless you leave your
   name" (true — a name and email are only stored if the contact-me box is ticked). **There is
   no discount or reward offered**, because none is built.
+
+### Editable website content (Oct 2026, migration `0019_site_content.sql`)
+
+**The ask:** the owner changes what the website says and shows from the admin, without a developer.
+Built as **Website content** in the sidebar → `/admin/content` (owner and staff; managers are
+bounced — the layout is `OwnerStaffOnly` and every action calls `requireRole(OWNER_STAFF)`).
+**Run migration 0019 before using it.** Until then the public site shows its built-in text, the
+admin shows a "not set up yet" card, and one line is logged ("run migration 0019"). Nothing fails.
+
+**The design in one sentence: an override layer.** Every public string already lived in
+`messages/nl.json` / `en.json`, so an edit is a row that overrides *one dotted path* of that file,
+merged over it in `src/i18n/request.ts` (`getMergedMessages`). **No component changed** —
+`t("home.whyTitle")` is simply answered from the merged object. A field with no row is on its
+default, so "Reset to default" = delete the row, and the shipped files stay the single source of
+the original copy. If the database is down or a row is bad the site renders as it ships; **reading
+must never fail a page** (`getContent()` swallows errors, logs at most once a minute, caches 15 s,
+and a failure is cached 10 s so a dead database isn't hammered).
+
+- **`src/lib/content/registry.ts` is the allow-list** — ~180 fields in 10 groups (homepage, about,
+  delivery area, catering, contact, reviews page, menu page, header/footer/banners, coming-soon,
+  SEO). The server refuses any key not in it and the loader ignores any stored key not in it, so the
+  table can **never** override checkout, cart, the feedback form, error pages or **Privacy/Terms**
+  (excluded deliberately: they name the legal entity and carry legal claims). To make a new string
+  editable, add it to a group; nothing else is needed. Field kinds: `text`, `longtext`, `strings`
+  (a list — the marquee), `faq` (Q/A pairs). `max` is per string.
+- **The part that can take a page down is ICU.** Every `t("…")` string is parsed as ICU: one stray
+  `{` or `<b>` typed into a heading throws while the page renders. So `model.ts` parses an edit with
+  `intl-messageformat` first and allows only plain text plus the placeholders its default already
+  has (`{radius}`/`{towns}` in the delivery SEO description, `{name}` on dish titles); it rejects
+  `plural`/`select` and tags. Strings that *are* plural rules (`categoriesCount`, `resultCount`…)
+  are simply **not in the registry**. `applyOverrides` re-checks each override at merge time and
+  skips a bad one instead of throwing. Lists/FAQ are read with `t.raw`, so braces are harmless there.
+- **Also rejected:** empty values (use Reset), over-length values, and the text "Marfah" (the
+  public-site rule). A save is **all-or-nothing**: if any field is invalid, nothing is written and the
+  messages are shown inline. Typing a field back to exactly its default is stored as a reset, not an
+  override that happens to equal the default.
+- **Both languages are edited side by side and are independent.** There is no machine translation:
+  changing only Dutch leaves English on its own text. The editor shows the original under any edited
+  field, "Edited" badges, last-changed-by, a per-field **History** (`site_content_history`, last 25;
+  "Use this" only puts the old value in the box as an unsaved edit) and a sticky "N unsaved changes —
+  Save & publish" bar. SEO fields get a length counter (title ≤ 60, description 110–160) and a Google
+  preview. `beforeunload` warns about unsaved edits.
+- **Storage:** `site_content (key, locale, value jsonb, updated_at, updated_by)` — only what the owner
+  *changed* — and `site_content_history`. A table of its own, **not** the `store_document` JSON,
+  because that document is read and written whole, so a content edit and a menu edit at the same
+  moment would overwrite each other. `locale` is `nl`/`en` for text and `*` for language-independent
+  values. Both tables are in `BACKUP_TABLES`.
+- **Publishing:** every save calls `publish()` → `revalidatePath("/", "layout")`, `("/en", "layout")`,
+  `/sitemap.xml` and the admin screens. In production a static page can be a little stale on a
+  *different* server instance (≤ 15 s cache, then the layout's 60 s revalidate heals it), so the
+  toasts say **"live within a minute"**, not "now". In dev it is instant.
+- **Homepage sections** (`/admin/content/homepage`, `HOME_SECTIONS` in `model.ts`): show/hide and
+  reorder (drag or arrows). `page.tsx` renders `getHomeLayout()`'s order. The **top banner is pinned**
+  first and always on (the header floats transparent over it, so anywhere else it would be unreadable).
+  Each section declares a `band` (dark / ember / pale / plain) and the editor **warns, never blocks**,
+  when two same-colour bands touch or a dark one sits above the dark footer. Sections that render
+  nothing yet (photo gallery with no photos, quotes with no reviews) are labelled "Nothing to show
+  yet" and ignored by the warnings. `resolveLayout()` repairs anything stored (drops unknown ids,
+  de-dupes, appends a section added to the site later, forces the banner first) — **to add a new
+  homepage section, add it to `HOME_SECTIONS` and to the `sections` map in `(site)/page.tsx`**.
+  Hiding the FAQ also removes its FAQPage JSON-LD (the schema is emitted by the component, so it can
+  never describe content that isn't on the page).
+- **Images & videos** (`/admin/content/media`, `MEDIA_SLOTS`): `heroWeb`, `heroMobile`, `story`,
+  `aboutBanner` (follows `heroWeb` until it has its own) and `storyDetail` (a library photo). A slot
+  with no row shows the file that ships in `public/`. **Video uploads are checked in the browser
+  before anything is stored:** MP4/WebM ≤ 30 MB, **not HEVC/AV1** (read from the file's sample-entry
+  tag — a phone-recorded HEVC clip plays on the owner's iPhone but shows only a still to most
+  visitors, which is exactly what happened with the first mobile hero), the right *shape* for the slot
+  (wide vs tall), ≤ 60 s. The clip's **first frame becomes its still** (canvas → `uploadPosterAction`
+  → sharp → WebP in `media/posters/`), so the "poster = the clip's own first frame" rule holds for
+  uploads. The clip goes straight to the `videos` bucket by signed URL (Vercel's body cap), and
+  `saveMediaSlotAction` only accepts URLs from our own buckets. **Replacing or resetting deletes the old
+  clip and poster** (best effort) — but `deletePosterByUrl` only ever deletes inside `posters/`, so a
+  *library* image used by a slot is never removed. Media changes keep no history (the old file is gone).
+  `lib/hero-video.ts`, `story-media.ts` and `hero-posters.ts` no longer exist; `Hero`, `HeroVideo`,
+  `StoryFrame` (now async) and the About banner take their clips from `getSiteMedia()`.
+  `<source type>` comes from the extension (`videoMimeType`), not a hard-coded mp4.
+- **Reviews** (`/admin/content/reviews`, key `reviews.items`): name, 1–5 stars, text, source. Once a
+  list is saved it *is* the list (so a review can be removed too); until then it is the (empty)
+  `reviews-data.ts`. Everything that was keyed on `reviews.length` — the homepage quotes block, the
+  Reviews page + its `noindex`, the footer link, the sitemap entry and the `aggregateRating`
+  schema — now goes through `getReviews()`, so adding the first review switches all of it on.
+- **Tested (Oct 2026):** `npx tsx scripts/check-content.mts` (960 checks, no database: every registry
+  key exists in both message files with the right shape, every shipped default passes its own rules,
+  hostile input — `{`, `<script>`, plural rules, empty, over-long, "Marfah", keys outside the registry
+  — is rejected without throwing, `applyOverrides` ignores junk and never mutates the defaults, real
+  `next-intl` formatting of the merged messages, layout resolution). **Run it after touching
+  `messages/*.json`, `registry.ts` or `model.ts`.** In the browser (with an in-memory stand-in for the
+  store): a Dutch edit shows on `/` and not `/en`; reset; history/"Use this"; marquee + FAQ edits
+  (FAQ JSON-LD followed); layout hide/reorder reflected on the live page; reviews switching on the quotes
+  block, page, footer link and rating schema; SEO counters/preview/placeholder check; a real HEVC clip
+  refused, a tall clip refused in a wide slot, a valid clip uploaded to the real bucket and then reset
+  (both objects gone from storage); library photo slot; a manager bounced from every screen.
+  **The real Supabase SQL was then verified against the live database after migration 0019** (17
+  checks: composite-key upsert, jsonb round-trips of unicode/braces/arrays/objects, reset = row
+  deleted + a null history entry, newest-first history, `history:false`, pruning to 25, and the
+  database's own `locale` check constraint rejecting a bad value), plus a full admin-UI edit → public
+  page → reload → history → reset pass. All test rows were removed afterwards. (To run store code
+  from a script: `NODE_OPTIONS=--conditions=react-server npx tsx --env-file=.env x.mts` — the
+  `react-server` condition is what lets `server-only` load outside Next.)
+- **Not built:** draft/preview-before-publish (publishing is instant, undo is History), translation
+  help, editing Privacy/Terms, per-dish SEO overrides (the dish editor already owns those), and
+  scheduling a change for later.
 
 ### SEO audit and structured data (Oct 2026)
 
@@ -1020,7 +1123,7 @@ out of it and aren't obvious from the code:
   shown until they're filled in — we don't guess a rate. KVK is shown on the
   footer/contact/receipt/invoice; the BTW-id joins it once set. "Marfah
   Enterprise" still only appears on Privacy and Terms.
-- Reviews link/sitemap entry only appear once `reviews-data.ts` has entries.
+- Reviews link/sitemap entry only appear once there are reviews (added in Website content → Reviews).
 - The slot rule stays 30 min live + 15 min buffer — the spec's "closes 15
   minutes before start" was deliberately *not* adopted.
 
@@ -1308,8 +1411,8 @@ Danish asked for a round of visual work. What it changed, and the decisions insi
 **The poster stills are frames of the clips.** `hero-poster.jpg` was a 1600x2133 portrait
 photo of the *old* footage, shown full-bleed behind the current video — unrelated picture,
 wrong shape. There are now two, cut straight out of the two clips with ffmpeg and pointed at
-by `src/lib/hero-posters.ts` (**its own module, deliberately**: `hero-video.ts` reads the
-filesystem, so a Client Component cannot import from it):
+(these are the **shipped defaults**, named in `MEDIA_SLOTS` in `src/lib/content/model.ts`; the
+owner can replace any clip from /admin/content/media — see "Editable website content"):
 
 - `hero-poster.jpg` — 1920x1080, **frame 0** of `hero-web.mp4` (flames on black), upscaled with
   Lanczos + a light unsharp.
@@ -1321,14 +1424,20 @@ filesystem, so a Client Component cannot import from it):
 each clip: from an 848x478 source stretched across a full-width hero it looked blocky and blurry,
 and the video then started on something different, so the swap was jarring. No filter can make a
 poster sharper than its footage, but frame 0 (soft flames on black) hides low resolution and is
-seamless. The exact ffmpeg commands are in the comment in `hero-posters.ts`.
+seamless. The exact ffmpeg commands:
 
-The command is in that file's comment; re-run it whenever the footage changes, since nothing
-regenerates these automatically. The hero's base layer is a `<picture>` with a `media`
+    web (16:9):    ffmpeg -ss 0 -i public/video/hero-web.mp4 -frames:v 1 -vf "scale=1920:1080:flags=lanczos,unsharp=5:5:0.5:5:5:0.0" out.png
+    mobile (9:16): ffmpeg -ss 0 -i public/video/hero-mobile.mp4 -frames:v 1 out.png
+
+then save as JPEG (quality ~90, 4:4:4 so dark gradients don't band). When the OWNER uploads a
+clip the same rule is applied for him: the browser paints the clip's first frame to a canvas and
+that is stored as the still (so "the poster is the clip's own first frame" holds for uploads too).
+
+Re-run it whenever the *bundled* footage changes, since nothing regenerates these automatically. The hero's base layer is a `<picture>` with a `media`
 source, not `next/image` — art direction needs two different files, and `hidden` on a second
 `<Image>` would still download it. `HeroVideo` picks its own `poster` per variant.
 
-**The story clip is `about-video.mp4`** (`src/lib/story-media.ts`, poster `about-poster.jpg`) — its
+**The story clip is `about-video.mp4`** (the `story` slot, poster `about-poster.jpg`) — its
 own file, not a reuse of the hero's mobile clip, so the two change independently. The `/about`
 banner still uses the widescreen hero clip (a portrait clip would not fit it).
 
@@ -1364,6 +1473,8 @@ off when Kebabish is no longer new — no code change.
 Code is launch-ready; what's left is data and accounts. Before turning the
 gate off (`SITE_COMING_SOON=false` in Vercel, redeploy):
 
+0. **Run `supabase/migrations/0019_site_content.sql`** (website content editing), then open
+   `/admin/content` once to confirm it is no longer asking for it.
 1. **Delete the test data**: the 11 old test orders (3 paid, incl. a €0.01 one,
    which currently count as revenue), the `maha@marfahenterprise.com` customer if
    it's a test, and reset the invoice counter (`invoice_counters`) so the first
@@ -1635,9 +1746,9 @@ delivery-radius diagram, and a closing CTA.
 3. ~~Hero background video~~ — **done.** Two variants, not one:
    `public/video/hero-web.mp4` and `hero-mobile.mp4`, swapped via CSS
    breakpoint rather than both loading and one being hidden.
-   `src/lib/hero-video.ts` checks for each independently at build time,
-   so either alone still works (used for both breakpoints) if the other
-   is ever missing.
+   `getSiteMedia()` (`src/lib/content/site.ts`) checks for each independently
+   (the owner's upload, else the bundled file on disk), so either alone still
+   works (used for both breakpoints) if the other is ever missing.
 4. **Real food photography.** Everything in `public/images/` is a Pexels
    placeholder (see `public/images/CREDITS.md`). Replacing a photo is a
    file drop at the same path.

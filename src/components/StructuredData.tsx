@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { siteConfig } from "@/lib/site-config";
 import { getPublicSettings } from "@/lib/admin/store";
-import { reviews } from "@/lib/reviews-data";
+import { getReviews } from "@/lib/content/site";
 import { absoluteUrl, BUSINESS_ID } from "@/lib/seo";
 import JsonLd from "@/components/JsonLd";
 
@@ -27,9 +27,10 @@ const SCHEMA_DAYS = [
  * public-facing copy like any other.
  */
 export default async function StructuredData({ locale }: { locale: string }) {
-  const [settings, t] = await Promise.all([
+  const [settings, t, reviews] = await Promise.all([
     getPublicSettings(),
     getTranslations({ locale, namespace: "seo" }),
+    getReviews(),
   ]);
 
   const openingHoursSpecification = settings.hours

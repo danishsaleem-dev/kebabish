@@ -5,19 +5,19 @@ import { siteConfig } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import BrandLogo from "@/components/shared/BrandLogo";
 import HeroVideo from "@/components/home/HeroVideo";
-import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
+import type { VideoMedia } from "@/lib/content/site";
 
 export default async function Hero({
   locale,
-  heroVideo,
+  media,
   showBadge = true,
 }: {
   locale: string;
-  heroVideo: { web: boolean; mobile: boolean };
+  /** The clips and stills — the owner's uploads, or the bundled ones (lib/content/site.ts). */
+  media: { web: VideoMedia; mobile: VideoMedia };
   showBadge?: boolean;
 }) {
-  const { web, mobile } = heroVideo;
-  const hasVideo = web || mobile;
+  const hasVideo = Boolean(media.web.video || media.mobile.video);
   const t = await getTranslations({ locale });
 
   return (
@@ -38,15 +38,15 @@ export default async function Hero({
             requests anything. Plain <img>, since next/image has no art
             direction; these are already small, hand-sized files. */}
         <picture>
-          <source media="(min-width: 640px)" srcSet={HERO_POSTER_WEB} />
+          <source media="(min-width: 640px)" srcSet={media.web.poster} />
           <img
-            src={HERO_POSTER_MOBILE}
+            src={media.mobile.poster}
             alt=""
             fetchPriority="high"
             className="absolute inset-0 h-full w-full object-cover"
           />
         </picture>
-        {hasVideo && <HeroVideo web={web} mobile={mobile} />}
+        {hasVideo && <HeroVideo web={media.web} mobile={media.mobile} />}
       </div>
 
       {/* ---- scrims ------------------------------------------------------ */}

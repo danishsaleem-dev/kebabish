@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
+import { videoMimeType } from "@/lib/video-config";
+
+/** One clip and its still. `video` is null when that variant has no clip. */
+interface Clip {
+  video: string | null;
+  poster: string;
+}
 
 /**
  * Picks and mounts exactly one video source client-side, instead of
@@ -17,30 +23,30 @@ import { HERO_POSTER_MOBILE, HERO_POSTER_WEB } from "@/lib/hero-posters";
  * that gap and for no-JS/slow-JS visitors, same as it already did while
  * a video's own `poster` attribute loads.
  */
-export default function HeroVideo({
-  web,
-  mobile,
-}: {
-  web: boolean;
-  mobile: boolean;
-}) {
-  const [variant, setVariant] = useState<"web" | "mobile" | null>(null);
+export default function HeroVideo({ web, mobile }: { web: Clip; mobile: Clip }) {
+  // With only one clip there is nothing to choose, so no effect is needed. With
+  // both, the screen width decides — which isn't known until after mount, hence
+  // the null until then.
+  const only = web.video && !mobile.video ? "web" : mobile.video && !web.video ? "mobile" : null;
+  const neither = !web.video && !mobile.video;
+  const [wide, setWide] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!web || !mobile) {
-      setVariant(web ? "web" : mobile ? "mobile" : null);
-      return;
-    }
-
+    if (only || neither) return;
     // Matches the sm: breakpoint the old CSS-hidden approach used.
     const mq = window.matchMedia("(min-width: 640px)");
-    const update = () => setVariant(mq.matches ? "web" : "mobile");
+    const update = () => setWide(mq.matches);
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, [web, mobile]);
+  }, [only, neither]);
+
+  const variant: "web" | "mobile" | null = neither
+    ? null
+    : (only ?? (wide === null ? null : wide ? "web" : "mobile"));
 
   if (!variant) return null;
+  const clip = variant === "web" ? web : mobile;
 
   return (
     <video
@@ -52,12 +58,12 @@ export default function HeroVideo({
       loop
       playsInline
       preload="auto"
-      poster={variant === "web" ? HERO_POSTER_WEB : HERO_POSTER_MOBILE}
+      poster={clip.poster}
       className="absolute inset-0 h-full w-full object-cover"
     >
       <source
-        src={variant === "web" ? "/video/hero-web.mp4" : "/video/hero-mobile.mp4"}
-        type="video/mp4"
+        src={clip.video!}
+        type={videoMimeType(clip.video!)}
       />
     </video>
   );

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import StoryVideo from "@/components/home/StoryVideo";
-import { STORY_POSTER, STORY_VIDEO_SRC, storyVideoAvailable } from "@/lib/story-media";
+import { getSiteMedia } from "@/lib/content/site";
 
 /**
  * The portrait media frame used by both story sections — the homepage's and
@@ -8,15 +8,17 @@ import { STORY_POSTER, STORY_VIDEO_SRC, storyVideoAvailable } from "@/lib/story-
  * about page kept showing a still after the homepage moved to video; one
  * component means that can't drift again.
  *
- * The clip is `about-video.mp4` (see `lib/story-media.ts`), a portrait clip that
- * fits this frame without cropping. Checked at build time like the hero's own.
+ * The clip and the small detail photo come from the "Our story" slots in
+ * /admin/content/media (`lib/content/site.ts`) — the owner's upload, or the
+ * bundled `about-video.mp4` and `burger.webp` until he picks one. The clip is
+ * portrait so it fits this frame without cropping.
  *
  * The poster still is the server-rendered layer — a crawler, a no-JS reader,
  * anyone on save-data or asking for reduced motion sees this — and StoryVideo
  * fades the clip in over it once the section is near. The poster is a frame of
  * that same clip, so there is no visible swap.
  */
-export default function StoryFrame({
+export default async function StoryFrame({
   videoLabel,
   detailAlt,
   posterAlt,
@@ -26,7 +28,8 @@ export default function StoryFrame({
   detailAlt: string;
   posterAlt: string;
 }) {
-  const hasVideo = storyVideoAvailable();
+  const { story, storyDetail } = await getSiteMedia();
+  const hasVideo = story.video !== null;
 
   return (
     <div className="relative order-2 lg:order-1">
@@ -35,7 +38,7 @@ export default function StoryFrame({
         className="relative aspect-4/5 overflow-hidden rounded-[1.75rem] bg-charcoal-800 sm:aspect-3/4"
       >
         <Image
-          src={hasVideo ? STORY_POSTER : "/images/story/tandoor.jpg"}
+          src={hasVideo ? story.poster : "/images/story/tandoor.jpg"}
           alt={posterAlt}
           fill
           sizes="(min-width: 1024px) 45vw, 90vw"
@@ -43,7 +46,7 @@ export default function StoryFrame({
           className="scale-110 object-cover"
         />
         {hasVideo && (
-          <StoryVideo src={STORY_VIDEO_SRC} poster={STORY_POSTER} label={videoLabel} />
+          <StoryVideo src={story.video!} poster={story.poster} label={videoLabel} />
         )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-charcoal-950/45 to-transparent" />
       </div>
@@ -56,7 +59,7 @@ export default function StoryFrame({
         className="absolute -bottom-8 -right-4 hidden aspect-square w-40 overflow-hidden rounded-2xl border-[6px] border-cream-200 bg-charcoal-800 shadow-xl shadow-charcoal-950/10 sm:block sm:w-48 lg:-right-8"
       >
         <Image
-          src="/images/story/burger.webp"
+          src={storyDetail.image}
           alt={detailAlt}
           fill
           sizes="200px"

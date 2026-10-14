@@ -1,6 +1,7 @@
+import { Fragment, type ReactNode } from "react";
 import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
-import { getHeroVideoAvailability } from "@/lib/hero-video";
+import { getHomeLayout, getSiteMedia } from "@/lib/content/site";
 import Motion from "@/components/motion/Motion";
 import Hero from "@/components/home/Hero";
 import Marquee from "@/components/home/Marquee";
@@ -47,6 +48,33 @@ export default async function HomePage({
   const marqueeItems = t.raw("home.marquee") as string[];
   const settings = await getPublicSettings();
   const { isOpen } = getStoreStatus(settings);
+  // The owner's choice of which sections show, and in what order
+  // (/admin/content/homepage). The default is the order below.
+  const [layout, media] = await Promise.all([getHomeLayout(), getSiteMedia()]);
+
+  // Showcase and Testimonials each render nothing until there is real content
+  // behind them (photos picked in /admin, reviews added there), so the page
+  // reads correctly either way.
+  const sections: Record<string, ReactNode> = {
+    hero: (
+      <Hero
+        locale={locale}
+        media={{ web: media.heroWeb, mobile: media.heroMobile }}
+        showBadge={settings.showLaunchBadge ?? true}
+      />
+    ),
+    marquee: <Marquee items={marqueeItems} />,
+    story: <Story locale={locale} />,
+    categories: <Categories locale={locale} />,
+    popular: <Popular locale={locale} isOpen={isOpen} />,
+    why: <Why locale={locale} />,
+    showcase: <Showcase locale={locale} />,
+    testimonials: <Testimonials locale={locale} />,
+    delivery: <DeliveryArea locale={locale} />,
+    faq: <Faq locale={locale} />,
+    cta: <FinalCta locale={locale} isOpen={isOpen} />,
+    feedback: <FeedbackCta locale={locale} />,
+  };
 
   return (
     <>
@@ -55,21 +83,11 @@ export default async function HomePage({
       <Motion />
       <HomeSchema locale={locale} />
 
-      <Hero locale={locale} heroVideo={getHeroVideoAvailability()} showBadge={settings.showLaunchBadge ?? true} />
-      <Marquee items={marqueeItems} />
-      <Story locale={locale} />
-      <Categories locale={locale} />
-      <Popular locale={locale} isOpen={isOpen} />
-      <Why locale={locale} />
-      {/* Showcase and Testimonials each render nothing until there is real
-          content behind them (photos picked in /admin, reviews Danish
-          supplied), so the page reads correctly either way. */}
-      <Showcase locale={locale} />
-      <Testimonials locale={locale} />
-      <DeliveryArea locale={locale} />
-      <Faq locale={locale} />
-      <FinalCta locale={locale} isOpen={isOpen} />
-      <FeedbackCta locale={locale} />
+      {layout
+        .filter((entry) => entry.enabled)
+        .map((entry) => (
+          <Fragment key={entry.id}>{sections[entry.id]}</Fragment>
+        ))}
     </>
   );
 }

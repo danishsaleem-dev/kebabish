@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Star, MessageSquareHeart, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { reviews } from "@/lib/reviews-data";
+import { getReviews } from "@/lib/content/site";
 import { pageMetadata } from "@/lib/seo";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
@@ -14,6 +14,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { locale } = await params;
   const t = await getTranslations({ locale, namespace: "seo" });
+  const reviews = await getReviews();
   return pageMetadata({
     locale,
     path: "/reviews",
@@ -33,6 +34,7 @@ export default async function ReviewsPage({
   const { locale } = await params;
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "reviews" });
+  const reviews = await getReviews();
 
   return (
     <div className="bg-cream-200">
