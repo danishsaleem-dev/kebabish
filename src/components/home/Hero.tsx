@@ -1,9 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { ArrowDown, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { siteConfig } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
-import BrandLogo from "@/components/shared/BrandLogo";
 import HeroVideo from "@/components/home/HeroVideo";
 import type { VideoMedia } from "@/lib/content/site";
 
@@ -76,22 +74,11 @@ export default async function Hero({
         data-hero-copy
         className="relative z-10 mx-auto w-full max-w-4xl px-5 pb-16 pt-24 text-center sm:px-6 sm:pb-28 sm:pt-28"
       >
-        <div data-hero-mark data-reveal className="flex justify-center">
-          <BrandLogo
-            src="/logo/kebabish-dark.png"
-            alt={siteConfig.brandName}
-            width={300}
-            height={225}
-            priority
-            className="h-auto w-20 sm:w-28"
-          />
-        </div>
-
         {showBadge && (
           <p
             data-hero-eyebrow
             data-reveal
-            className="mt-5 inline-flex items-center gap-2 rounded-full border border-cream-100/30 bg-charcoal-950/35 px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cream-100 shadow-lg shadow-charcoal-950/25 backdrop-blur-md sm:mt-7 sm:text-[0.7rem]"
+            className="inline-flex items-center gap-2 rounded-full border border-cream-100/30 bg-charcoal-950/35 px-4 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-cream-100 shadow-lg shadow-charcoal-950/25 backdrop-blur-md sm:text-[0.7rem]"
           >
             <span className="h-1.5 w-1.5 rounded-full bg-ember-500" />
             {t("hero.eyebrow")}

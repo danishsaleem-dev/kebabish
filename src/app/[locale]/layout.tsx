@@ -10,6 +10,7 @@ import { siteConfig } from "@/lib/site-config";
 import { localeAlternates } from "@/lib/seo";
 import StructuredData from "@/components/StructuredData";
 import "../globals.css";
+import HalalBadge from "@/components/HalalBadge";
 
 // Inter for body copy, Bitter (slab serif) for headings — picked to sit
 // beside the logo's hand-cut serif wordmark. See globals.css.
@@ -134,6 +135,7 @@ export default async function LocaleLayout({
         <NextIntlClientProvider messages={messages}>
           <StructuredData locale={locale} />
           {children}
+          <HalalBadge />
         </NextIntlClientProvider>
       </body>
     </html>

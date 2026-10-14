@@ -664,7 +664,8 @@
     "viewMenu": "Bekijk menu",
     "deliveryOnly": "Alleen bezorgen",
     "readMore": "Lees meer",
-    "closedNow": "Bestellen gepauzeerd"
+    "closedNow": "Bestellen gepauzeerd",
+    "halalBadge": "100% halal"
   },
   "status": {
     "closedTitle": "Online bestellen is gepauzeerd",

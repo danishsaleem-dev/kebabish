@@ -664,7 +664,8 @@
     "viewMenu": "View menu",
     "deliveryOnly": "Delivery only",
     "readMore": "Read more",
-    "closedNow": "Orders paused"
+    "closedNow": "Orders paused",
+    "halalBadge": "100% halal"
   },
   "status": {
     "closedTitle": "Online ordering is paused",

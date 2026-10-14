@@ -186,7 +186,6 @@ export default function Motion() {
             0
           )
           .to(q("[data-hero-veil]"), { opacity: 0, duration: 1.2 }, 0)
-          .to(q("[data-hero-mark]"), { opacity: 1, y: 0 }, 0.25)
           .to(q("[data-hero-eyebrow]"), { opacity: 1, y: 0 }, 0.35)
           .to(
             titleWords,

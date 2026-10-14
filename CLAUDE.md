@@ -748,6 +748,60 @@ and a failure is cached 10 s so a dead database isn't hammered).
   help, editing Privacy/Terms, per-dish SEO overrides (the dish editor already owns those), and
   scheduling a change for later.
 
+### Deleting data (Oct 2026)
+
+The owner can delete everything from the panel. Menu items, categories, ingredients, allergens,
+recipes, extras, promo codes, media, staff, reviews and website text (reset) always could be. What was
+missing was **orders, customers and feedback responses**, which have no row-level "delete" until now.
+
+**Orders** (`src/lib/admin/deletion.ts`, actions in `orders/delete-actions.ts`, UI in
+`DeleteOrdersDialog` / `DeleteOrderControl` / `OrdersTable`): **owner only** (the page hides the
+buttons from everyone else *and* every action calls `requireRole(["owner"])`; staff can still cancel
+and refund, which leaves a record, but cannot erase one). Entry points: "Select unpaid" + "Delete
+selected" in the Orders tables (all / new / completed), and a "Delete this order" card on an order's own
+page. The dialog first asks the server for a **preview of what is actually in the selection**
+(`previewOrderDeletion`) and states it:
+
+- **Unpaid / abandoned / failed checkouts** are not sales: one click, no typing.
+- **A sale** = paid, refunded afterwards, or carrying an invoice number. Dutch bookkeeping rules want
+  invoices kept seven years and numbered without gaps, so any selection containing one requires typing
+  **DELETE**. The server enforces this too (`deleteOrders(ids, confirmed)` refuses without it), not
+  just the dialog.
+- **Deleting does not refund.** An online (Mollie) payment that was never refunded is money the shop
+  still holds; the preview shows the amount and says to refund first. **In-flight** orders (paid, not
+  yet delivered/cancelled) are flagged — a customer may be waiting.
+- Lines and refunds cascade (FKs); feedback just loses its `order_id`; a customer account is untouched.
+  A delivery slot the order still held is released (not for cancelled orders or ones whose payment
+  already failed/expired/cancelled — those released it then — and not for past dates).
+- **Invoice numbering never goes backwards.** Deleting the newest invoices does **not** wind the counter
+  back (an emailed PDF carrying that number may exist, and reusing it would put two different invoices
+  in the world under one number); the toast says the sequence now has gaps. The one exception: when **no
+  invoice for that year remains at all**, `invoice_counters` (and `credit_note_counters`) for that year
+  are removed so numbering starts again at 000001 — exactly the "reset the invoice counter before launch"
+  checklist step, now done by deleting the test orders.
+
+**Customers** (`customers/actions.ts`, `DeleteCustomerDialog`): a *registered* account can be deleted
+(sign-in, saved address, marketing consent). Their orders are **kept by default** — they are the shop's
+records and each carries its own copy of the name/address — and simply unlink, then show under Customers
+as a guest; a checkbox deletes them too. A *guest* has no account (they exist only as their orders,
+grouped by email or phone), so deleting one means deleting those orders (`guestOrderIds` uses the same
+grouping as the Customers list). Anything that deletes orders requires typing DELETE.
+
+**Feedback** (`deleteFeedbackAction`, owner **or** staff like the rest of that screen): a two-step trash
+button on each response; the summary figures recount.
+
+**Tested against the live database (Oct 2026)** with throwaway `QADEL-` rows only (a script that was
+deleted afterwards): 38 checks covering preview counts, unpaid delete without confirmation, paid refused
+without it, FK cascades, invoice numbering restart / "gaps, no restart" / reset only once the last one is
+gone, credit-note counters, input hardening (empty, non-uuid, >300, missing ids), guest grouping, account
+delete keeping and unlinking orders, account+orders needing confirmation. Then through the real UI as
+owner and as staff: staff see no delete control anywhere; "Select unpaid" picks only unpaid rows; the paid
+order's dialog shows the invoice warning and stays disabled until DELETE is typed; order page, customer
+page, guest row and feedback row all delete. All test rows were removed and the real order count and
+invoice counter were checked unchanged. **One slip worth knowing about:** the refund test issued a real
+credit-note number (`CN-2026-000002`) whose counter bump survived the deletion by design; it was set back
+to 1 by hand because that number had never left the database.
+
 ### SEO audit and structured data (Oct 2026)
 
 A full audit found real bugs, not polish. It was done by crawling the built site, and is now
@@ -1460,6 +1514,25 @@ the source really is 1080x1920, so the native-resolution encode is visibly clean
 The widescreen clip (`hero-web.mp4`, 848x478) is still low-resolution and visibly soft on a
 large display; a higher-resolution source is the only remedy for that one.
 
+### The halal seal and the hero (Oct 2026)
+
+- **The "100% halal" seal** (`public/halal.png`, Danish's own artwork) is fixed to the **bottom-left
+  corner of every public page** by `src/components/HalalBadge.tsx`, mounted once in
+  `[locale]/layout.tsx` — so it is also on the coming-soon page and the 404, and never in the
+  admin/kitchen/rider apps (they sit outside `[locale]`). Bottom-right belongs to the WhatsApp button.
+  It is `pointer-events-none` (on a phone that corner can hold a form field or button, and a decorative
+  seal must never swallow a tap), `print:hidden` (no stamp on a receipt), 64px on phones / 96px from `sm`,
+  and `loading="eager"` (it is on screen from the first paint, so lazy loading only makes it pop in late —
+  and never fires at all in a hidden tab). The source PNG is 1254px/~800 KB; `next/image` serves a ~96px
+  WebP instead. Its alt text is `common.halalBadge` in `messages/*.json`.
+  **Whether the food is halal is a claim Danish makes, not one we inferred** — he supplied the image and
+  asked for it to be shown on every page. Don't add halal wording anywhere else (FAQ, schema, copy)
+  without him saying so; the FAQ deliberately avoids it (see the Faq note above).
+- **The hero no longer carries the brand logo.** The logo mark above the "New in Hoogkarspel" badge was
+  removed at Danish's request (the header already shows the logo). `data-hero-mark` and its line in the
+  GSAP intro timeline (`Motion.tsx`) went with it; the eyebrow badge is now the first element and lost its
+  top margin. The logo still appears in the header, footer, favicon and OG image.
+
 ### Error page and launch badge
 
 `[locale]/error.tsx` says "Online bestellen is tijdelijk niet beschikbaar. Bestel gerust via
@@ -1475,8 +1548,10 @@ gate off (`SITE_COMING_SOON=false` in Vercel, redeploy):
 
 0. **Run `supabase/migrations/0019_site_content.sql`** (website content editing), then open
    `/admin/content` once to confirm it is no longer asking for it.
-1. **Delete the test data**: the 11 old test orders (3 paid, incl. a €0.01 one,
-   which currently count as revenue), the `maha@marfahenterprise.com` customer if
+1. **Delete the test data** (now possible from the panel — Orders → "Select unpaid" / tick rows →
+   "Delete selected"; paid ones ask for DELETE, and once no 2026 invoice remains numbering restarts at
+   000001 by itself, so the manual counter reset is no longer needed): the old test orders (some paid, incl.
+   a €0.01 one, which currently count as revenue), the `maha@marfahenterprise.com` customer if
    it's a test, and reset the invoice counter (`invoice_counters`) so the first
    real invoice is `INV-<year>-000001`. Check `WELKOM10`/`WELKOM20` are meant to
    be live.
