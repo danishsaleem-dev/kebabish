@@ -16,6 +16,8 @@ import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import { formatMoney } from "@/lib/admin/units";
 import { getCustomer, listOrders } from "@/lib/admin/orders-data";
+import { isOwner } from "@/lib/admin/guard";
+import DeleteCustomerControl from "@/components/admin/DeleteCustomerControl";
 import { CUSTOMER_STATUS_LABELS } from "@/lib/admin/order-types";
 
 export const dynamic = "force-dynamic";
@@ -36,9 +38,10 @@ export default async function CustomerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [customer, allOrders] = await Promise.all([
+  const [customer, allOrders, canDelete] = await Promise.all([
     getCustomer(id),
     listOrders(),
+    isOwner(),
   ]);
   if (!customer) notFound();
 
@@ -192,6 +195,18 @@ timeZone: "Europe/Amsterdam",
             </ul>
           )}
         </Card>
+
+        {canDelete && (
+          <Card>
+            <CardHeader
+              title="Delete this account"
+              subtitle="Removes their sign-in, saved address and marketing consent. You choose whether their orders stay."
+            />
+            <div className="mt-4">
+              <DeleteCustomerControl id={customer.id} name={customer.name} orderCount={customer.orderCount} />
+            </div>
+          </Card>
+        )}
       </div>
     </AdminShell>
   );

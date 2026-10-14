@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronsUpDown, Eye, Globe, MessageCircle, Search, X } from "lucide-react";
+import { ChevronsUpDown, Eye, Globe, MessageCircle, Search, Trash2, X } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
 import Dropdown from "@/components/admin/ui/Dropdown";
 import TableActions from "@/components/admin/ui/TableActions";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
 import OrderQuickView from "@/components/admin/OrderQuickView";
+import DeleteOrdersDialog from "@/components/admin/DeleteOrdersDialog";
 import { formatMoney } from "@/lib/admin/units";
 import { downloadCsv, stampedFilename, toCsv } from "@/lib/admin/export";
 import {
@@ -24,10 +25,13 @@ export default function OrdersTable({
   orders,
   title = "Orders",
   lockedStatus,
+  canDelete = false,
 }: {
   orders: AdminOrder[];
   title?: string;
   lockedStatus?: OrderStatus;
+  /** Owner only: shows the delete controls. The actions enforce it again. */
+  canDelete?: boolean;
 }) {
   const router = useRouter();
 
@@ -38,6 +42,8 @@ export default function OrdersTable({
   const [desc, setDesc] = useState(true);
   const [quickView, setQuickView] = useState<AdminOrder | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // The ids being deleted, fixed when the dialog opens so it doesn't re-ask as the table re-renders.
+  const [deleteIds, setDeleteIds] = useState<string[] | null>(null);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -185,6 +191,25 @@ export default function OrdersTable({
               ]}
             />
 
+            {canDelete && (
+              <button
+                type="button"
+                onClick={() =>
+                  setSelected(
+                    new Set(
+                      rows
+                        .filter((o) => o.paymentStatus !== "paid" && o.paymentStatus !== "refunded")
+                        .map((o) => o.id)
+                    )
+                  )
+                }
+                title="Select every order shown here that was never paid"
+                className="h-10 rounded-lg border border-hairline bg-panel px-3 text-sm font-semibold text-body-text transition-colors hover:bg-canvas"
+              >
+                Select unpaid
+              </button>
+            )}
+
             <TableActions onExport={exportRows} />
           </div>
         </div>
@@ -202,6 +227,16 @@ export default function OrdersTable({
               >
                 Export selection
               </button>
+              {canDelete && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteIds([...selected])}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-danger px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-danger/90"
+                >
+                  <Trash2 size={15} />
+                  Delete selected
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setSelected(new Set())}
@@ -333,6 +368,18 @@ export default function OrdersTable({
       </Card>
 
       <OrderQuickView order={quickView} onClose={() => setQuickView(null)} />
+
+      {deleteIds && (
+        <DeleteOrdersDialog
+          ids={deleteIds}
+          onClose={() => setDeleteIds(null)}
+          onDeleted={() => {
+            setDeleteIds(null);
+            setSelected(new Set());
+            router.refresh();
+          }}
+        />
+      )}
     </>
   );
 }

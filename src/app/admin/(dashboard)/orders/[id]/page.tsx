@@ -38,6 +38,7 @@ import {
   PAYMENT_STATUS_LABELS,
 } from "@/lib/admin/order-types";
 import MarkPaidControl from "@/components/admin/MarkPaidControl";
+import DeleteOrderControl from "@/components/admin/DeleteOrderControl";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +65,8 @@ export default async function OrderDetailPage({
   if (!order) notFound();
   const session = await auth();
   const canRefund = session?.user.role === "owner" || session?.user.role === "staff";
+  // Erasing an order is the owner's call alone (the action checks it again).
+  const canDelete = session?.user.role === "owner";
   const settings = await getSettings();
   const vatRate = settings.vatRatePercent ?? null;
   const invoiceNumber = await getInvoiceNumber(order.reference);
@@ -424,6 +427,18 @@ timeZone: "Europe/Amsterdam",
                 </div>
               )}
             </Card>
+
+            {canDelete && (
+              <Card className="print:hidden">
+                <CardHeader
+                  title="Delete this order"
+                  subtitle="Removes it, its items and any refunds for good. For a test or abandoned order that's all it takes; a paid order asks you to confirm first."
+                />
+                <div className="mt-4">
+                  <DeleteOrderControl orderId={order.id} />
+                </div>
+              </Card>
+            )}
           </div>
         </div>
       </div>

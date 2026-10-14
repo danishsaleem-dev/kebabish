@@ -2,13 +2,14 @@ import AdminShell from "@/components/admin/AdminShell";
 import Card from "@/components/admin/ui/Card";
 import CustomersTable from "@/components/admin/CustomersTable";
 import { listCustomers, listOrders } from "@/lib/admin/orders-data";
+import { isOwner } from "@/lib/admin/guard";
 import { formatMoney } from "@/lib/admin/units";
 
 export const metadata = { title: "Customers" };
 export const dynamic = "force-dynamic";
 
 export default async function CustomersPage() {
-  const [customers, orders] = await Promise.all([listCustomers(), listOrders()]);
+  const [customers, orders, canDelete] = await Promise.all([listCustomers(), listOrders(), isOwner()]);
 
   const active = customers.filter((c) => c.status === "active").length;
   const lapsed = customers.filter((c) => c.status === "lapsed").length;
@@ -48,7 +49,7 @@ export default async function CustomersPage() {
           </div>
         </Card>
 
-        <CustomersTable customers={customers} />
+        <CustomersTable customers={customers} canDelete={canDelete} />
       </div>
     </AdminShell>
   );

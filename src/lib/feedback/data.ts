@@ -207,6 +207,13 @@ export async function getFeedbackForOrder(orderId: string): Promise<StoredFeedba
   return data ? map(data as FeedbackRow) : null;
 }
 
+/** Permanently delete one response. Returns false if it wasn't there. */
+export async function deleteFeedback(id: string): Promise<boolean> {
+  const { data, error } = await supabaseAdmin().from("feedback").delete().eq("id", id).select("id");
+  if (error) throw new Error(error.message);
+  return (data ?? []).length > 0;
+}
+
 /** Toggle "handled". Returns the new state, or null if the row isn't there. */
 export async function toggleHandled(id: string): Promise<boolean | null> {
   const db = supabaseAdmin();

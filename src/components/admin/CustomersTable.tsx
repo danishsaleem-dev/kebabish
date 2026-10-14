@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import { CHANNEL_LABELS } from "@/lib/admin/order-types";
 import { useRouter } from "next/navigation";
-import { ChevronsUpDown, Globe, MessageCircle, Search } from "lucide-react";
+import { ChevronsUpDown, Globe, MessageCircle, Search, Trash2 } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
 import Dropdown from "@/components/admin/ui/Dropdown";
+import DeleteCustomerDialog, { type CustomerTarget } from "@/components/admin/DeleteCustomerDialog";
 import { formatMoney } from "@/lib/admin/units";
 import {
   CUSTOMER_STATUS_LABELS,
@@ -25,8 +26,11 @@ const STATUS_TONE: Record<CustomerStatus, string> = {
 
 export default function CustomersTable({
   customers,
+  canDelete = false,
 }: {
   customers: AdminCustomer[];
+  /** Owner only: shows the delete button on each row. The actions enforce it again. */
+  canDelete?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -35,6 +39,7 @@ export default function CustomersTable({
   const [town, setTown] = useState("all");
   const [sort, setSort] = useState<SortKey>("totalSpent");
   const [desc, setDesc] = useState(true);
+  const [deleting, setDeleting] = useState<CustomerTarget | null>(null);
 
   const towns = useMemo(
     () => [...new Set(customers.map((c) => c.town))].sort(),
@@ -154,6 +159,7 @@ export default function CustomersTable({
               <Th>Channel</Th>
               <Th>Account</Th>
               <Th>Status</Th>
+              {canDelete && <th scope="col" className="w-14 px-4 py-3" />}
             </tr>
           </thead>
 
@@ -236,6 +242,31 @@ export default function CustomersTable({
                     {CUSTOMER_STATUS_LABELS[customer.status]}
                   </span>
                 </td>
+                {canDelete && (
+                  <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      aria-label={
+                        registered ? `Delete ${customer.name}'s account` : `Delete ${customer.name}'s orders`
+                      }
+                      onClick={() =>
+                        setDeleting(
+                          registered
+                            ? { kind: "registered", id: customer.id, name: customer.name, orderCount: customer.orderCount }
+                            : {
+                                kind: "guest",
+                                key: customer.id.slice("guest:".length),
+                                name: customer.name,
+                                orderCount: customer.orderCount,
+                              }
+                        )
+                      }
+                      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </td>
+                )}
               </tr>
               );
             })}
@@ -259,6 +290,17 @@ export default function CustomersTable({
           </p>
         )}
       </div>
+
+      {deleting && (
+        <DeleteCustomerDialog
+          target={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={() => {
+            setDeleting(null);
+            router.refresh();
+          }}
+        />
+      )}
     </Card>
   );
 }

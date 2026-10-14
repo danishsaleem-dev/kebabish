@@ -2,9 +2,14 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ChevronDown, Mail, MessageSquareQuote, Quote } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Check, ChevronDown, Mail, MessageSquareQuote, Quote, Trash2 } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
-import { toggleFeedbackHandledAction } from "@/app/admin/(dashboard)/feedback/actions";
+import { useToast } from "@/components/admin/ui/Toast";
+import {
+  deleteFeedbackAction,
+  toggleFeedbackHandledAction,
+} from "@/app/admin/(dashboard)/feedback/actions";
 import { UNHAPPY_AT_OR_BELOW } from "@/lib/feedback/questions";
 import type { StoredFeedback } from "@/lib/feedback/data";
 import { questionLabel, scaleLabel, type FeedbackLabels } from "@/lib/feedback/label-types";
@@ -56,12 +61,31 @@ export default function FeedbackResponses({
   // Optimistic overrides, so the row updates the moment it's clicked.
   const [handledOverride, setHandledOverride] = useState<Record<string, boolean>>({});
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
+  const { toast } = useToast();
+  // Two-step delete, like the rest of the panel: the first click arms it.
+  const [armed, setArmed] = useState<string | null>(null);
+  // Rows deleted this session, hidden at once rather than waiting for the refresh.
+  const [removed, setRemoved] = useState<Set<string>>(new Set());
+
+  function remove(item: StoredFeedback) {
+    startTransition(async () => {
+      const result = await deleteFeedbackAction(item.id);
+      toast(result.message, result.ok ? "success" : "error");
+      setArmed(null);
+      if (result.ok) {
+        setRemoved((prev) => new Set(prev).add(item.id));
+        router.refresh(); // the summary figures above recount
+      }
+    });
+  }
 
   const isHandled = (item: StoredFeedback) => handledOverride[item.id] ?? Boolean(item.handledAt);
   const needsFollowUp = (item: StoredFeedback) =>
     (item.recommend ?? 99) <= UNHAPPY_AT_OR_BELOW && !isHandled(item);
 
   const visible = items.filter((item) => {
+    if (removed.has(item.id)) return false;
     switch (filter) {
       case "followup":
         return needsFollowUp(item);
@@ -227,6 +251,34 @@ export default function FeedbackResponses({
                     >
                       {handled ? "Undo handled" : "Mark handled"}
                     </button>
+                    {armed === item.id ? (
+                      <span className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => remove(item)}
+                          disabled={pending}
+                          className="rounded-lg bg-danger px-2.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-danger/90 disabled:opacity-60"
+                        >
+                          Delete for good
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setArmed(null)}
+                          className="rounded-lg border border-hairline px-2.5 py-2 text-xs font-semibold text-body-text hover:bg-canvas"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setArmed(item.id)}
+                        aria-label="Delete this response"
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    )}
                     {answerEntries.length > 0 && (
                       <button
                         type="button"
