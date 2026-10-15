@@ -841,5 +841,15 @@
     "toMenu": "Bekijk het menu",
     "toCheckout": "Naar afrekenen",
     "close": "Sluiten"
+  },
+  "promoWidget": {
+    "label": "{discount} korting",
+    "timeLeft": "Nog {time}",
+    "added": "Code {code} toegevoegd",
+    "unitDay": "d",
+    "unitHour": "u",
+    "unitMinute": "m",
+    "unitSecond": "s",
+    "hide": "Verbergen"
   }
 }

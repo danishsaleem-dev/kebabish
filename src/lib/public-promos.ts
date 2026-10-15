@@ -28,6 +28,36 @@ export interface PromoPopup {
   width: number;
   height: number;
   alt: string;
+  /** For the floating promotion widget: what the code is worth. */
+  type: "percentage" | "fixed";
+  value: number;
+  /**
+   * The instant the promotion stops (ms since epoch): the **end of its last day in
+   * Amsterdam**, because a code with expiry "28 Oct" still works all of the 28th
+   * (checkout compares Amsterdam calendar days). Null = it doesn't end.
+   */
+  endsAt: number | null;
+}
+
+/** The moment Amsterdam's calendar day `dateKey` ends — i.e. midnight starting the next day. */
+function endOfAmsterdamDay(dateKey: string): number | null {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  const nextMidnightUtc = Date.UTC(y, m - 1, d + 1, 0, 0, 0);
+  // What does Amsterdam's wall clock read at that UTC instant? The difference is the offset.
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Amsterdam",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+  }).formatToParts(new Date(nextMidnightUtc));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  const wallAsUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  return nextMidnightUtc - (wallAsUtc - nextMidnightUtc);
 }
 
 export async function getPromoPopups(): Promise<PromoPopup[]> {
@@ -61,6 +91,9 @@ export async function getPromoPopups(): Promise<PromoPopup[]> {
           width: image.width || 800,
           height: image.height || 800,
           alt: image.alt || p.code,
+          type: p.type,
+          value: p.value,
+          endsAt: p.expiresAt ? endOfAmsterdamDay(p.expiresAt) : null,
         };
       });
   } catch (error) {

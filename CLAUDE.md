@@ -836,6 +836,19 @@ migration (it's a field in the store document). No image = no popup, so a code c
   the menu (empty basket) or checkout. Modal: focus starts on the image and is trapped, Escape/backdrop/X
   close it, the page behind doesn't scroll (`body` overflow + `data-lenis-prevent`), `z-[80]` above the
   header (50) and cart drawer (60). `QUIET_DAYS`, `SHOW_AFTER_MS` and `QUIET_PATHS` are constants at the top.
+- **Size:** the image is up to 26rem wide on phones and 45rem from `md` (capped at `100svh − 10rem` tall so the
+  hint pill still fits); it was 26rem everywhere and read as tiny on a desktop.
+- **The corner badge** (`src/components/PromoWidget.tsx`, mounted next to the popup in `(site)/layout.tsx`):
+  a small charcoal pill above the WhatsApp button (it drops to the corner when WhatsApp is hidden because
+  orders are paused) reading e.g. "50% korting / WELKOM50 · Nog 13d 6u". It is what stays on screen after the
+  popup is closed, for the **same promotions** (`getPromoPopups()`, newest first, so an image is what makes a
+  code public here too). Tapping it adds the code like tapping the popup image (it then reads "Code X added").
+  The countdown runs to **the end of the code's last day in Amsterdam** (`endsAt`, `endOfAmsterdamDay()` in
+  `public-promos.ts`, DST-safe — checked across both clock changes), shows days+hours, then hours+minutes, then
+  minutes+seconds in the last hour, and the badge disappears itself at zero. A code with no end date shows the
+  code and no countdown (nothing is invented). It renders only after mount (time depends on *now*, which the
+  cached page can't know), can be hidden for the visit (`sessionStorage`), and stays off `/checkout` and
+  `/feedback`. Wording: Website content → Header, footer & banners → *Promotion popup* (`promoWidget.*`).
 - **A bug the test caught:** the delay timer and the "choose a promotion" step shared one effect, and
   choosing re-ran the effect, whose cleanup cancelled the timer — the popup never opened. They are now
   separate effects.
@@ -1502,6 +1515,8 @@ Danish asked for a round of visual work. What it changed, and the decisions insi
   section is near, never on save-data or 2g, and never under `prefers-reduced-motion`. The
   poster still is the server-rendered layer underneath, so it degrades to exactly what was
   there before.
+- **Homepage "Populaire gerechten" is two dishes per row on mobile** (`Popular.tsx`, `grid-cols-2 gap-3`), like `/menu`;
+  `FeaturedDishCard`'s container query supplies the compact layout.
 - **`/menu` has a real sidebar on `lg`+** — search, categories as a list with *live counts*
   (a category nothing matches is greyed and unclickable), dietary checkboxes, clear-all —
   with dishes alone on the right. Below `lg` the compact search + filters-panel row is kept

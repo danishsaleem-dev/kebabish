@@ -841,5 +841,15 @@
     "toMenu": "View the menu",
     "toCheckout": "Go to checkout",
     "close": "Close"
+  },
+  "promoWidget": {
+    "label": "{discount} off",
+    "timeLeft": "{time} left",
+    "added": "Code {code} added",
+    "unitDay": "d",
+    "unitHour": "h",
+    "unitMinute": "m",
+    "unitSecond": "s",
+    "hide": "Hide"
   }
 }

@@ -36,7 +36,7 @@ const QUIET_DAYS = 3;
 const STORAGE_KEY = "kebabish-promo-popup-v1";
 /** Pages where a popup would get in the way of finishing an order. */
 const QUIET_PATHS = ["/cart", "/checkout", "/feedback"];
-const IMAGE_SIZES = "(min-width: 640px) 416px, 92vw";
+const IMAGE_SIZES = "(min-width: 768px) 720px, 92vw";
 
 type Seen = Record<string, number>;
 
@@ -200,7 +200,7 @@ export default function PromoPopup({ promos }: { promos: PromoPopupData[] }) {
         role="dialog"
         aria-modal="true"
         aria-label={candidate.alt}
-        className="relative flex max-h-full w-full max-w-[26rem] flex-col items-center"
+        className="relative flex max-h-full w-full max-w-[26rem] flex-col items-center md:max-w-[45rem]"
       >
         <button
           type="button"
@@ -226,7 +226,7 @@ export default function PromoPopup({ promos }: { promos: PromoPopupData[] }) {
                 height={candidate.height}
                 sizes={IMAGE_SIZES}
                 loading="eager"
-                className="h-auto max-h-[70svh] w-auto max-w-full object-contain"
+                className="h-auto max-h-[70svh] w-auto max-w-full object-contain md:max-h-[calc(100svh-10rem)]"
               />
             </button>
 

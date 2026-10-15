@@ -546,6 +546,18 @@ export const GROUPS: GroupDef[] = [
           long("promoPopup.addedText", "Text after the image is tapped", { max: 160 }),
           text("promoPopup.toMenu", "Button when the basket is empty", { max: 30 }),
           text("promoPopup.toCheckout", "Button when there is something in the basket", { max: 30 }),
+          text("promoWidget.label", "Small corner badge: what the offer is", {
+            max: 40,
+            hint: "{discount} is filled in automatically, e.g. 50% — keep it.",
+          }),
+          text("promoWidget.timeLeft", "Small corner badge: time left", {
+            max: 40,
+            hint: "{time} is filled in automatically, e.g. 3d 4h — keep it.",
+          }),
+          text("promoWidget.added", "Small corner badge after tapping it", {
+            max: 40,
+            hint: "{code} is filled in automatically.",
+          }),
         ],
       },
       {
