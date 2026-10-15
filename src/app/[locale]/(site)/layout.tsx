@@ -5,9 +5,11 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import StoreStatusBanner from "@/components/StoreStatusBanner";
 import CartProvider from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
+import PromoPopup from "@/components/PromoPopup";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { getReviews } from "@/lib/content/site";
+import { getPromoPopups } from "@/lib/public-promos";
 
 // Revalidate at most every minute — status can flip on its own (opening
 // hours boundary) without anyone touching /admin/settings. A save there
@@ -32,7 +34,7 @@ export default async function SiteLayout({
   const { locale } = await params;
   const settings = await getPublicSettings();
   const status = getStoreStatus(settings);
-  const reviews = await getReviews();
+  const [reviews, promos] = await Promise.all([getReviews(), getPromoPopups()]);
 
   return (
     <CartProvider>
@@ -47,6 +49,7 @@ export default async function SiteLayout({
       />
       <WhatsAppButton isOpen={status.isOpen} />
       <CartDrawer />
+      <PromoPopup promos={promos} />
     </CartProvider>
   );
 }

@@ -10,8 +10,14 @@ import {
   SubmitButton,
   FormError,
 } from "@/components/admin/ui/Form";
+import ImageField from "@/components/admin/media/ImageField";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
-import type { StoredCategory, StoredItem, StoredPromoCode } from "@/lib/admin/store/types";
+import type {
+  StoredCategory,
+  StoredItem,
+  StoredMedia,
+  StoredPromoCode,
+} from "@/lib/admin/store/types";
 
 export default function PromoCodeForm({
   promo,
@@ -19,10 +25,13 @@ export default function PromoCodeForm({
   submitLabel,
   categories,
   items,
+  media,
 }: {
   promo?: StoredPromoCode;
   categories: StoredCategory[];
   items: StoredItem[];
+  /** The image library, for picking the popup image. */
+  media: StoredMedia[];
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   submitLabel: string;
 }) {
@@ -213,6 +222,30 @@ export default function PromoCodeForm({
               ))}
             </div>
           </div>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Popup image (optional)"
+          subtitle="Add a promotional image and this code is shown as a popup when someone opens the website. Tapping the image adds the code to their basket, and it is applied automatically at checkout."
+        />
+        <div className="mt-4 space-y-3">
+          <ImageField
+            library={media}
+            name="imageId"
+            initialId={promo?.imageId}
+            label="Promotion image"
+            hint="Upload or choose one from the library. Portrait or square artwork works best, with the offer written on it."
+          />
+          {state.errors?.imageId && (
+            <p className="text-xs font-medium text-danger">{state.errors.imageId}</p>
+          )}
+          <p className="rounded-lg bg-canvas px-3 py-2.5 text-xs text-muted">
+            The popup shows only while the code is switched on and inside its start and end dates, and
+            once a visitor closes it they are not shown it again for a few days. A code with an image
+            is public (anyone can see it), so leave the image off any code you hand out privately.
+          </p>
         </div>
       </Card>
 

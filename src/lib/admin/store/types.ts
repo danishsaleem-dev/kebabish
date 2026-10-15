@@ -261,6 +261,14 @@ export interface StoredPromoCode {
    */
   onlyCategoryIds?: string[];
   onlyItemSlugs?: string[];
+  /**
+   * An optional promotional image (a media-library id). While the code is valid,
+   * a code that has one is shown as a popup to visitors of the website; clicking
+   * the image adds the code to their basket. No image = no popup, so a code can
+   * be kept private (e.g. handed to one customer). Setting one makes the code
+   * public: it ends up in the page the popup is rendered into.
+   */
+  imageId?: string;
   createdAt: string;
 }
 

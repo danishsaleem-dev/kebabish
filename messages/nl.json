@@ -228,7 +228,9 @@
     "deliveryOnlyNote": "Alleen bezorgen, binnen {radius} km van Hoogkarspel.",
     "securePaymentNote": "Veilig betalen via Mollie.",
     "slotNote": "Je kiest je bezorgmoment bij het afrekenen.",
-    "each": "per stuk"
+    "each": "per stuk",
+    "promoWaiting": "Code {code} wordt toegepast bij het afrekenen",
+    "promoDrop": "Code verwijderen"
   },
   "allergenNames": {
     "gluten": "Glutenbevattende granen",
@@ -825,5 +827,13 @@
       "qr": "Scan en vul het in op je telefoon",
       "qrAlt": "QR-code naar het feedbackformulier van Kebabish"
     }
+  },
+  "promoPopup": {
+    "claimHint": "Tik op de afbeelding om code {code} te gebruiken",
+    "addedTitle": "Code {code} toegevoegd",
+    "addedText": "We trekken de korting automatisch af bij het afrekenen.",
+    "toMenu": "Bekijk het menu",
+    "toCheckout": "Naar afrekenen",
+    "close": "Sluiten"
   }
 }

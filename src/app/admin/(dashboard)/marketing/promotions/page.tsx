@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Tag, Pencil } from "lucide-react";
+import { Plus, Tag, Pencil, Image as ImageIcon } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import DeleteButton from "@/components/admin/ui/DeleteButton";
@@ -70,6 +70,15 @@ export default async function PromoCodesPage() {
                           {promo.code}
                         </p>
                         <StatusPill active={promo.active} expired={expired} />
+                        {promo.imageId && (
+                          <span
+                            title="Shown as a popup on the website while this code is valid"
+                            className="inline-flex items-center gap-1 rounded-full bg-ember-600/10 px-2.5 py-0.5 text-xs font-semibold text-ember-700"
+                          >
+                            <ImageIcon size={12} />
+                            Popup
+                          </span>
+                        )}
                       </div>
                       <p className="mt-0.5 text-xs text-muted">
                         {promo.type === "percentage"

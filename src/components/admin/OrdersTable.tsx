@@ -7,6 +7,7 @@ import Card from "@/components/admin/ui/Card";
 import Dropdown from "@/components/admin/ui/Dropdown";
 import TableActions from "@/components/admin/ui/TableActions";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
+import PaymentStatusPill, { PAYMENT_PILL_LABELS } from "@/components/admin/PaymentStatusPill";
 import OrderQuickView from "@/components/admin/OrderQuickView";
 import DeleteOrdersDialog from "@/components/admin/DeleteOrdersDialog";
 import { formatMoney } from "@/lib/admin/units";
@@ -15,11 +16,13 @@ import {
   ORDER_STATUS_LABELS,
   type AdminOrder,
   type OrderStatus,
+  type PaymentStatus,
 } from "@/lib/admin/order-types";
 
 type StatusOption = OrderStatus | "all";
 type ChannelOption = "all" | "whatsapp" | "website";
-type SortKey = "reference" | "customerName" | "items" | "placedAt" | "total" | "status";
+type PaymentOption = PaymentStatus | "all";
+type SortKey = "reference" | "customerName" | "items" | "placedAt" | "total" | "status" | "payment";
 
 export default function OrdersTable({
   orders,
@@ -38,6 +41,7 @@ export default function OrdersTable({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusOption>(lockedStatus ?? "all");
   const [channel, setChannel] = useState<ChannelOption>("all");
+  const [payment, setPayment] = useState<PaymentOption>("all");
   const [sort, setSort] = useState<SortKey>("placedAt");
   const [desc, setDesc] = useState(true);
   const [quickView, setQuickView] = useState<AdminOrder | null>(null);
@@ -51,6 +55,7 @@ export default function OrdersTable({
     const filtered = orders.filter((o) => {
       if (status !== "all" && o.status !== status) return false;
       if (channel !== "all" && o.channel !== channel) return false;
+      if (payment !== "all" && o.paymentStatus !== payment) return false;
       if (!q) return true;
       return (
         o.reference.toLowerCase().includes(q) ||
@@ -76,11 +81,13 @@ export default function OrdersTable({
           return (a.total - b.total) * dir;
         case "status":
           return a.status.localeCompare(b.status) * dir;
+        case "payment":
+          return a.paymentStatus.localeCompare(b.paymentStatus) * dir;
         default:
           return (Date.parse(a.placedAt) - Date.parse(b.placedAt)) * dir;
       }
     });
-  }, [orders, query, status, channel, sort, desc]);
+  }, [orders, query, status, channel, payment, sort, desc]);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDesc((d) => !d);
@@ -128,6 +135,8 @@ export default function OrdersTable({
         { header: "Delivery fee", value: (o) => o.deliveryFee.toFixed(2) },
         { header: "Total", value: (o) => o.total.toFixed(2) },
         { header: "Status", value: (o) => ORDER_STATUS_LABELS[o.status] },
+        { header: "Payment status", value: (o) => PAYMENT_PILL_LABELS[o.paymentStatus] },
+        { header: "Refunded", value: (o) => o.refunded.toFixed(2) },
       ])
     );
   };
@@ -191,6 +200,19 @@ export default function OrdersTable({
               ]}
             />
 
+            <Dropdown
+              label="Payment"
+              value={payment}
+              onChange={setPayment}
+              options={[
+                { value: "all", label: "All payments" },
+                ...(Object.keys(PAYMENT_PILL_LABELS) as PaymentStatus[]).map((p) => ({
+                  value: p,
+                  label: PAYMENT_PILL_LABELS[p],
+                })),
+              ]}
+            />
+
             {canDelete && (
               <button
                 type="button"
@@ -250,7 +272,7 @@ export default function OrdersTable({
         )}
 
         <div className="overflow-x-auto border-t border-hairline px-3 pb-3 sm:px-4 sm:pb-4">
-          <table className="w-full min-w-[960px] border-collapse text-left">
+          <table className="w-full min-w-[1040px] border-collapse text-left">
             <thead>
               {/* Pill-shaped header row, matching the reference design. */}
               <tr className="[&>th:first-child]:rounded-l-full [&>th:last-child]:rounded-r-full">
@@ -270,6 +292,7 @@ export default function OrdersTable({
                 <Th>Channel</Th>
                 <Th sortKey="total" {...{ sort, desc, toggleSort }}>Amount</Th>
                 <Th sortKey="status" {...{ sort, desc, toggleSort }}>Status</Th>
+                <Th sortKey="payment" {...{ sort, desc, toggleSort }}>Payment</Th>
                 <th className="w-16 bg-panel py-3 pr-4 ring-1 ring-inset ring-hairline print:hidden" />
               </tr>
             </thead>
@@ -330,6 +353,12 @@ export default function OrdersTable({
                   <td className="px-4 py-4">
                     <OrderStatusPill status={order.status} />
                   </td>
+                  <td className="px-4 py-4">
+                    <PaymentStatusPill
+                      status={order.paymentStatus}
+                      partlyRefunded={order.refunded > 0}
+                    />
+                  </td>
                   <td className="px-4 py-4 print:hidden">
                     <button
                       type="button"
@@ -357,6 +386,7 @@ export default function OrdersTable({
                   setQuery("");
                   setStatus(lockedStatus ?? "all");
                   setChannel("all");
+                  setPayment("all");
                 }}
                 className="font-semibold text-ember-600 hover:underline"
               >

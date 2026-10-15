@@ -7,6 +7,7 @@ import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard
 import {
   createPromoCode,
   deletePromoCode,
+  getMedia,
   updatePromoCode,
 } from "@/lib/admin/store";
 import { flashRedirect } from "@/lib/admin/flash";
@@ -39,6 +40,7 @@ const promoSchema = z
     firstOrderOnly: z.coerce.boolean(),
     onlyCategoryIds: z.array(z.string()),
     onlyItemSlugs: z.array(z.string()),
+    imageId: z.string().nullable(),
   })
   .refine((v) => !v.startsAt || !v.expiresAt || v.startsAt <= v.expiresAt, {
     message: "The start date can't be after the end date.",
@@ -77,11 +79,22 @@ function readPromoForm(formData: FormData) {
     firstOrderOnly: formData.get("firstOrderOnly") === "on",
     onlyCategoryIds: formData.getAll("onlyCategoryIds").map(String).filter(Boolean),
     onlyItemSlugs: formData.getAll("onlyItemSlugs").map(String).filter(Boolean),
+    imageId: String(formData.get("imageId") ?? "").trim() || null,
   });
+}
+
+/** The popup image has to be a real library image, not an id someone made up. */
+async function imageError(imageId: string | null): Promise<Record<string, string> | null> {
+  if (!imageId) return null;
+  return (await getMedia(imageId)) ? null : { imageId: "Pick an image from the library." };
 }
 
 function refreshPromotions() {
   revalidatePath("/admin/marketing/promotions");
+  // The popup is rendered into every public page, so a change shows on the site
+  // now rather than at the next 60-second revalidation.
+  revalidatePath("/", "layout");
+  revalidatePath("/en", "layout");
 }
 
 export async function createPromoCodeAction(
@@ -92,9 +105,12 @@ export async function createPromoCodeAction(
   const parsed = readPromoForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
+  const badImage = await imageError(parsed.data.imageId);
+  if (badImage) return { ok: false, errors: badImage };
+
   let promo;
   try {
-    promo = await createPromoCode(parsed.data);
+    promo = await createPromoCode({ ...parsed.data, imageId: parsed.data.imageId ?? undefined });
   } catch (error) {
     return { ok: false, message: (error as Error).message };
   }
@@ -114,9 +130,13 @@ export async function updatePromoCodeAction(
   const parsed = readPromoForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
+  const badImage = await imageError(parsed.data.imageId);
+  if (badImage) return { ok: false, errors: badImage };
+
   let promo;
   try {
-    promo = await updatePromoCode(id, parsed.data);
+    // An empty image field removes the popup image (undefined drops the key on save).
+    promo = await updatePromoCode(id, { ...parsed.data, imageId: parsed.data.imageId ?? undefined });
   } catch (error) {
     return { ok: false, message: (error as Error).message };
   }

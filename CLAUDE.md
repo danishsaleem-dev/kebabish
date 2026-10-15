@@ -802,6 +802,56 @@ invoice counter were checked unchanged. **One slip worth knowing about:** the re
 credit-note number (`CN-2026-000002`) whose counter bump survived the deletion by design; it was set back
 to 1 by hand because that number had never left the database.
 
+### Promotion popup (Oct 2026)
+
+A promo code can carry an **optional image** (`StoredPromoCode.imageId`, a media-library id, set in
+*Marketing → Promo codes → Popup image*). While the code is valid, that image is shown as a popup to
+visitors; **tapping the image adds the code to their basket and checkout applies it for them.** No
+migration (it's a field in the store document). No image = no popup, so a code can stay private.
+
+- **What decides whether a promo is advertised** (`src/lib/public-promos.ts`, `getPromoPopups()`, called
+  from `(site)/layout.tsx`): it has an image that still exists, it is switched on, today is inside its
+  start/end dates (Amsterdam day, same as checkout), and it isn't used up (`maxRedemptions`, counted like
+  checkout does). Per-basket rules (minimum order, "only on kebabs", first-order-only) can't be known
+  without a basket, so they are explained at checkout as before. Newest first. Never throws — a store
+  hiccup means no popup, not a broken page. **An image makes the code public**: it is in the page data
+  of every public page. The admin form says so; don't put an image on a code meant for one customer.
+- **The code lives in the cart provider.** `CartProvider` now holds `promoCode` / `setPromoCode`
+  (localStorage key `kebabish-promo-v1`, separate from the cart's own key so its saved format didn't
+  change; `cleanPromoCode()` only lets `[A-Z0-9-]{3,30}` through). Promo codes used to exist *only* inside
+  `CheckoutForm`'s component state, which is why "auto-add to cart" needed something persistent. Like all
+  cart data it is untrusted: `checkPromoCodeAction` re-validates against the real basket on the server.
+  `clear()` (run when an order is confirmed paid, `ClearCartOnPaid`) drops the code with the basket.
+- **Checkout applies it itself**, once per code, through the same `checkPromoCodeAction` as typing it
+  in (`CheckoutForm` effect; the state is set after the `await` — the lint rule forbids setState in an
+  effect body). If it can't be used on this basket the normal message appears and the code stays in the
+  box. Removing the code at checkout also forgets it, or it would come straight back. The cart page shows
+  "Code X will be applied at checkout" with a remove button.
+- **The popup** (`src/components/PromoPopup.tsx`, client-only, so no layout shift and nothing for a crawler):
+  shown 1.8 s after load; **only once its image has loaded** (fetched invisibly first; a failed image means
+  no popup — an empty frame is worse than none); not on `/cart`, `/checkout`, `/feedback`; closing or
+  claiming it is remembered **per promotion for 3 days** (`kebabish-promo-popup-v1`), so a newer promotion
+  can still appear but the same one doesn't nag; skipped if the visitor already holds that code; one popup
+  per visit. Tapping the image saves the code and shows a confirmation ("Code X added") with a button to
+  the menu (empty basket) or checkout. Modal: focus starts on the image and is trapped, Escape/backdrop/X
+  close it, the page behind doesn't scroll (`body` overflow + `data-lenis-prevent`), `z-[80]` above the
+  header (50) and cart drawer (60). `QUIET_DAYS`, `SHOW_AFTER_MS` and `QUIET_PATHS` are constants at the top.
+- **A bug the test caught:** the delay timer and the "choose a promotion" step shared one effect, and
+  choosing re-ran the effect, whose cleanup cancelled the timer — the popup never opened. They are now
+  separate effects.
+- **Deleting a library image** detaches it from any promo using it (the promo just stops having a popup),
+  and the "used by" warning in Media lists such promos.
+- Wording is editable in Website content → Header, footer & banners → *Promotion popup* (`promoPopup.*`).
+- **Verified (Oct 2026)** with throwaway `QA*` promos in the real store (removed afterwards; the real
+  `WELKOM10/20/50` untouched): the server hands the page only the valid imaged promos — a private code, a
+  switched-off, an expired and a not-yet-started one are all excluded; popup appears after the delay with
+  the image already loaded, focus on the image; tapping it saves the code and confirms; the cart page shows
+  it; checkout auto-applied a 15% code (−€3.90 on €25.98) with no popup on that page; removing it sticks
+  across reload; a saved code that has since expired shows "Deze code is verlopen." and applies nothing;
+  a second visit shows the *other* promotion; Escape closes, unlocks scrolling and is remembered; at phone
+  width the image fits with 16px margins and the close button stays on screen; the admin form saved an image
+  on a code, and removing it drops the key and the popup.
+
 ### SEO audit and structured data (Oct 2026)
 
 A full audit found real bugs, not polish. It was done by crawling the built site, and is now
@@ -1113,6 +1163,12 @@ why those exist).
   that already-fetched array client-side, so switching one still tweens
   instantly with no round-trip — same UX the mock version had, now over
   real orders.
+
+**Orders table has a Payment column** (`PaymentStatusPill`, short wording: Paid / Pending / Failed /
+Expired / Cancelled / Refunded; a paid order with some money handed back reads "Part refunded"). It is
+sortable, has its own filter next to Status/Channel, and the CSV export gains "Payment status" and
+"Refunded". "Pending" is `payment_status = 'open'` (checkout started or awaiting a manual payment-link
+confirmation). The longer `PAYMENT_STATUS_LABELS` is the rider-facing wording and was left alone.
 
 Known, documented approximations rather than invented numbers:
 - **Customer status** ("new"/"active"/"lapsed") is derived: no orders yet

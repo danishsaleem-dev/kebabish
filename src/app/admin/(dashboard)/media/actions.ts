@@ -189,7 +189,7 @@ export async function deleteMediaAction(
   if (!record) return { ok: false, message: "Image not found." };
 
   const usage = await mediaUsage(id);
-  const used = [...usage.items, ...usage.categories];
+  const used = [...usage.items, ...usage.categories, ...usage.promos.map((code) => `promo ${code}`)];
   const force = formData.get("force") === "true";
 
   if (used.length > 0 && !force) {

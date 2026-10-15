@@ -11,11 +11,11 @@ import { useCart } from "@/components/cart/CartProvider";
  * has their order in it rather than an empty one.
  */
 export default function ClearCartOnPaid() {
-  const { clear, ready, lines } = useCart();
+  const { clear, ready, lines, promoCode } = useCart();
 
   useEffect(() => {
-    if (ready && lines.length > 0) clear();
-  }, [ready, lines.length, clear]);
+    if (ready && (lines.length > 0 || promoCode)) clear();
+  }, [ready, lines.length, promoCode, clear]);
 
   return null;
 }

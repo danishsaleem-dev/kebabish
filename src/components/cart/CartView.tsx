@@ -9,7 +9,9 @@ import {
   Plus,
   ShieldCheck,
   ShoppingBag,
+  Tag,
   Trash2,
+  X,
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal, type CartLine } from "@/components/cart/CartProvider";
@@ -39,7 +41,7 @@ export default function CartView({
   minimumOrder: number;
 }) {
   const t = useTranslations("cart");
-  const { lines, subtotal, count, ready, setQuantity, remove, issues, repriced, blocked } =
+  const { lines, subtotal, count, ready, setQuantity, remove, issues, repriced, blocked, promoCode, setPromoCode } =
     useCart();
 
   // Until localStorage has been read the cart is empty on both server and
@@ -210,6 +212,23 @@ export default function CartView({
           <span>{t("total")}</span>
           <span className="tabular-nums">{formatEuro(subtotal + fee)}</span>
         </div>
+
+        {promoCode && (
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-ember-600/10 px-4 py-3 text-sm text-ember-700">
+            <span className="inline-flex items-center gap-2">
+              <Tag size={15} className="shrink-0" />
+              {t("promoWaiting", { code: promoCode })}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPromoCode(null)}
+              aria-label={t("promoDrop")}
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-ember-600/15"
+            >
+              <X size={15} />
+            </button>
+          </div>
+        )}
 
         {showFreeProgress && (
           <div className="mt-5">

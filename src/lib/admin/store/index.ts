@@ -326,12 +326,13 @@ export async function updateMedia(id: string, alt: string) {
 
 /** Where an image is in use — deleting silently would break those screens. */
 export async function mediaUsage(id: string) {
-  const { items, categories } = await readStore();
+  const { items, categories, promoCodes } = await readStore();
   return {
     items: items.filter((i) => i.imageIds?.includes(id)).map((i) => i.name),
     categories: categories
       .filter((c) => c.imageId === id)
       .map((c) => c.label),
+    promos: (promoCodes ?? []).filter((p) => p.imageId === id).map((p) => p.code),
   };
 }
 
@@ -343,6 +344,10 @@ export async function deleteMedia(id: string) {
     });
     data.categories.forEach((category) => {
       if (category.imageId === id) delete category.imageId;
+    });
+    // A promo whose popup image is deleted simply stops having a popup.
+    (data.promoCodes ?? []).forEach((promo) => {
+      if (promo.imageId === id) delete promo.imageId;
     });
     data.media = (data.media ?? []).filter((m) => m.id !== id);
   });

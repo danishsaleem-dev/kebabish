@@ -228,7 +228,9 @@
     "deliveryOnlyNote": "Delivery only, within {radius} km of Hoogkarspel.",
     "securePaymentNote": "Secure payment through Mollie.",
     "slotNote": "You pick your delivery time at checkout.",
-    "each": "each"
+    "each": "each",
+    "promoWaiting": "Code {code} will be applied at checkout",
+    "promoDrop": "Remove code"
   },
   "allergenNames": {
     "gluten": "Cereals containing gluten",
@@ -825,5 +827,13 @@
       "qr": "Scan it and fill it in on your phone",
       "qrAlt": "QR code to the Kebabish feedback form"
     }
+  },
+  "promoPopup": {
+    "claimHint": "Tap the image to use code {code}",
+    "addedTitle": "Code {code} added",
+    "addedText": "We'll take the discount off automatically at checkout.",
+    "toMenu": "View the menu",
+    "toCheckout": "Go to checkout",
+    "close": "Close"
   }
 }

@@ -531,6 +531,24 @@ export const GROUPS: GroupDef[] = [
         ],
       },
       {
+        id: "promo",
+        title: "Promotion popup",
+        where: "The popup shown for a promo code that has an image (Marketing → Promo codes).",
+        fields: [
+          text("promoPopup.claimHint", "Hint under the image", {
+            max: 80,
+            hint: "{code} is filled in automatically — keep it, or leave it out.",
+          }),
+          text("promoPopup.addedTitle", "Heading after the image is tapped", {
+            max: 60,
+            hint: "{code} is filled in automatically.",
+          }),
+          long("promoPopup.addedText", "Text after the image is tapped", { max: 160 }),
+          text("promoPopup.toMenu", "Button when the basket is empty", { max: 30 }),
+          text("promoPopup.toCheckout", "Button when there is something in the basket", { max: 30 }),
+        ],
+      },
+      {
         id: "status",
         title: "Orders-paused banner",
         where: "The strip under the header when orders are switched off.",

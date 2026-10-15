@@ -20,6 +20,21 @@ import {
 
 const STORAGE_KEY = "kebabish-cart-v1";
 
+/**
+ * A promo code the visitor picked up (from the promotion popup) and hasn't spent
+ * yet. Kept in its own key so the cart's saved format is untouched. Like
+ * everything here it is only a convenience: checkout re-validates the code on the
+ * server against the real basket, so a hand-edited value can't buy a discount.
+ */
+const PROMO_KEY = "kebabish-promo-v1";
+const PROMO_SHAPE = /^[A-Z0-9-]{3,30}$/;
+
+/** Normalise a code; anything that couldn't be a real one becomes null. */
+export function cleanPromoCode(value: unknown): string | null {
+  const code = typeof value === "string" ? value.trim().toUpperCase() : "";
+  return PROMO_SHAPE.test(code) ? code : null;
+}
+
 export interface CartOption {
   groupId: string;
   groupLabel: string;
@@ -65,6 +80,10 @@ interface CartValue {
   repriced: string[];
   /** True while any line can't be ordered — payment must wait until it's removed. */
   blocked: boolean;
+  /** A promo code waiting to be applied at checkout, or null. */
+  promoCode: string | null;
+  /** Save (or, with null, forget) the pending promo code. */
+  setPromoCode: (code: string | null) => void;
   add: (line: NewCartLine, quantity?: number) => void;
   setQuantity: (id: string, quantity: number) => void;
   remove: (id: string) => void;
@@ -107,6 +126,7 @@ export default function CartProvider({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [issues, setIssues] = useState<Record<string, CartIssue>>({});
   const [repriced, setRepriced] = useState<string[]>([]);
+  const [promoCode, setPromoCodeState] = useState<string | null>(null);
 
   // Read after mount, never during render: the server has no localStorage,
   // so reading it inline would render a different tree than it hydrates.
@@ -116,6 +136,11 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       if (raw) setLines(JSON.parse(raw) as CartLine[]);
     } catch {
       // Corrupt or unavailable (private mode) — start empty rather than crash.
+    }
+    try {
+      setPromoCodeState(cleanPromoCode(window.localStorage.getItem(PROMO_KEY)));
+    } catch {
+      // Same: no storage, no remembered code.
     }
     setReady(true);
   }, []);
@@ -128,6 +153,16 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       // Out of quota or blocked; the cart still works for this page view.
     }
   }, [lines, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    try {
+      if (promoCode) window.localStorage.setItem(PROMO_KEY, promoCode);
+      else window.localStorage.removeItem(PROMO_KEY);
+    } catch {
+      // Blocked storage: the code still works until this page is closed.
+    }
+  }, [promoCode, ready]);
 
   // Keep the basket honest against the live menu. A dish can sell out, be
   // hidden, or have its extras changed after someone added it — they should
@@ -272,7 +307,13 @@ export default function CartProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const clear = useCallback(() => setLines([]), []);
+  // An order that has gone through has used its code, so it goes with the basket.
+  const clear = useCallback(() => {
+    setLines([]);
+    setPromoCodeState(null);
+  }, []);
+
+  const setPromoCode = useCallback((code: string | null) => setPromoCodeState(cleanPromoCode(code)), []);
 
   const value = useMemo<CartValue>(
     () => ({
@@ -284,6 +325,8 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       issues,
       repriced,
       blocked: Object.keys(issues).length > 0,
+      promoCode,
+      setPromoCode,
       add,
       setQuantity,
       remove,
@@ -291,7 +334,7 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       openDrawer: () => setDrawerOpen(true),
       closeDrawer: () => setDrawerOpen(false),
     }),
-    [lines, ready, drawerOpen, issues, repriced, add, setQuantity, remove, clear]
+    [lines, ready, drawerOpen, issues, repriced, promoCode, setPromoCode, add, setQuantity, remove, clear]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

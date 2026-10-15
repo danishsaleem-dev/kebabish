@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useFormStatus } from "react-dom";
 import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useCart, lineTotal } from "@/components/cart/CartProvider";
+import { useCart, lineTotal, type CartLine } from "@/components/cart/CartProvider";
 import CartLineNotice from "@/components/cart/CartLineNotice";
 import { normalizeDutchPhone } from "@/lib/phone";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
@@ -25,6 +25,21 @@ const EMPTY: CheckoutState = { ok: false };
 interface AppliedPromo {
   code: string;
   discountCents: number;
+}
+
+/** Only what was ordered — never prices. The server rebuilds those. */
+function cartPayloadFor(lines: CartLine[]): string {
+  return JSON.stringify(
+    lines.map((l) => ({
+      slug: l.slug,
+      quantity: l.quantity,
+      instructions: l.instructions,
+      options: l.options.map((o) => ({
+        groupId: o.groupId,
+        optionId: o.optionId,
+      })),
+    }))
+  );
 }
 
 export default function CheckoutForm({
@@ -61,12 +76,36 @@ export default function CheckoutForm({
   const t = useTranslations("checkout");
   const tCart = useTranslations("cart");
   const locale = useLocale();
-  const { lines, subtotal, ready, issues, repriced, blocked, remove } = useCart();
+  const { lines, subtotal, ready, issues, repriced, blocked, remove, promoCode, setPromoCode } = useCart();
   const [state, formAction] = useActionState(checkoutAction, EMPTY);
   const [promoInput, setPromoInput] = useState("");
   const [promo, setPromo] = useState<AppliedPromo | null>(null);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoPending, startPromoTransition] = useTransition();
+
+  // A code the visitor picked up from the promotion popup is applied for them
+  // here, once per code, using the same server check as typing it in. Everything
+  // is set after the await, not in the effect body. If the code can't be used on
+  // this basket (a minimum order, "only on kebabs"…) the usual message appears
+  // under the code box, filled in so they can fix the basket and press Apply.
+  const autoTried = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ready || lines.length === 0 || !promoCode || promo) return;
+    if (autoTried.current === promoCode) return;
+    autoTried.current = promoCode;
+    const code = promoCode;
+    startPromoTransition(async () => {
+      const result = await checkPromoCodeAction(code, cartPayloadFor(lines));
+      setPromoInput(code);
+      if (result.ok && result.code && result.discountCents != null) {
+        setPromo({ code: result.code, discountCents: result.discountCents });
+        setPromoError(null);
+      } else {
+        setPromo(null);
+        setPromoError(result.error ?? "notFound");
+      }
+    });
+  }, [ready, lines, promoCode, promo]);
 
   const saved = account?.address ?? null;
   const [resolvedStreet, setResolvedStreet] = useState(saved?.street ?? "");
@@ -133,20 +172,11 @@ export default function CheckoutForm({
     setPromo(null);
     setPromoError(null);
     setPromoInput("");
+    // Also forget the remembered code, or it would come straight back.
+    setPromoCode(null);
   }
 
-  // Only what was ordered — never prices. The server rebuilds those.
-  const cartPayload = JSON.stringify(
-    lines.map((l) => ({
-      slug: l.slug,
-      quantity: l.quantity,
-      instructions: l.instructions,
-      options: l.options.map((o) => ({
-        groupId: o.groupId,
-        optionId: o.optionId,
-      })),
-    }))
-  );
+  const cartPayload = cartPayloadFor(lines);
 
   return (
     <form action={formAction} className="grid gap-10 lg:grid-cols-[1.3fr_1fr]">
