@@ -190,6 +190,12 @@
     "hoursNote": "No pickup available — delivery only.",
     "deliveryCheckTitle": "Check if we deliver to you",
     "deliveryCheckText": "Enter your postcode to see if you're within our 10 km delivery area.",
+    "deliveryCheckLabel": "Your postcode",
+    "deliveryCheckPlaceholder": "Your postcode, e.g. 1616 AB",
+    "deliveryCheckYes": "Good news — we deliver to {town}!",
+    "deliveryCheckNo": "Sorry, {town} is outside our delivery area.",
+    "deliveryCheckAsk": "Ask us on WhatsApp",
+    "deliveryCheckWhatsapp": "Hi Kebabish, can you deliver to my postcode?",
     "socialsTitle": "Follow us"
   },
   "cart": {

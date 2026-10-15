@@ -10,7 +10,7 @@ import {
   Music2,
   ShoppingBag,
 } from "lucide-react";
-import { siteConfig } from "@/lib/site-config";
+import { siteConfig, whatsappOrderLink } from "@/lib/site-config";
 import { pageMetadata } from "@/lib/seo";
 import PageSchema from "@/components/schema/PageSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
@@ -19,6 +19,7 @@ import { getStoreStatus } from "@/lib/store-status";
 import { Link } from "@/i18n/navigation";
 import DeliveryMap from "@/components/home/DeliveryMap";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
+import DeliveryCheck from "@/components/DeliveryCheck";
 
 export async function generateMetadata({
   params,
@@ -211,12 +212,16 @@ export default async function ContactPage({
             </div>
 
             <div className="rounded-3xl bg-charcoal-600 p-6 text-cream-100 sm:p-8">
-              <h2 className="font-display text-base font-semibold">
+              <h2 className="font-display text-base font-semibold text-cream-50">
                 {t("deliveryCheckTitle")}
               </h2>
               <p className="mt-2 text-sm leading-relaxed text-cream-200/70">
                 {t("deliveryCheckText")}
               </p>
+              <DeliveryCheck
+                towns={siteConfig.deliveryAreaTowns.map((town) => town.name)}
+                whatsappHref={whatsappOrderLink(t("deliveryCheckWhatsapp"))}
+              />
             </div>
           </div>
         </div>

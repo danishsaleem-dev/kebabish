@@ -36,16 +36,21 @@ interface LookupDoc {
 }
 
 export default function PostcodeField({
+  id,
   name,
   placeholder,
   required,
   onResolved,
+  onEdit,
   initial,
 }: {
+  id?: string;
   name: string;
   placeholder?: string;
   required?: boolean;
   onResolved: (address: ResolvedAddress) => void;
+  /** Called when the customer types over a postcode that was already picked. */
+  onEdit?: () => void;
   /** A saved address to start from — fills the field and resolves it at once. */
   initial?: ResolvedAddress;
 }) {
@@ -131,9 +136,13 @@ export default function PostcodeField({
   return (
     <div ref={containerRef} className="relative">
       <input
+        id={id}
         name={name}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => {
+          setValue(e.target.value);
+          onEdit?.();
+        }}
         onFocus={() => suggestions.length > 0 && setOpen(true)}
         placeholder={placeholder}
         autoComplete="off"

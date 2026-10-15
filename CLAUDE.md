@@ -973,6 +973,16 @@ The option rows submit as a single JSON field, not parallel
 `optionLabel[]`/`optionPrice[]` inputs — see the opening-hours bug below
 for why positional zipping of FormData arrays is a trap.
 
+### The "Check if we deliver to you" box on /contact
+
+`src/components/DeliveryCheck.tsx`: the card used to be a heading and a sentence telling people to "enter your
+postcode" with **no input at all** (and the heading was invisible — the global `h2` colour is charcoal, on a
+charcoal card; it now sets `text-cream-50`). It now reuses checkout's `PostcodeField` (PDOK suggestions, pick one)
+and the same rule as `isDeliverableTown()`: delivery is decided by the **town** the postcode belongs to, matched
+against `siteConfig.deliveryAreaTowns`, not by measuring km. Yes → "we deliver to {town}"; no → "{town} is outside
+our delivery area" plus a pre-filled WhatsApp link. Typing over a picked postcode clears the answer (`onEdit`).
+Wording is `contact.deliveryCheck*` in `messages/*.json`. Verified: 1616… → Hoogkarspel yes; 1012… → Amsterdam no.
+
 ### The delivery-area map
 
 `src/lib/map-projection.ts` holds the shared centre/zoom/size and the Web

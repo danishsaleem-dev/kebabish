@@ -190,6 +190,12 @@
     "hoursNote": "Geen afhalen mogelijk — alleen bezorging.",
     "deliveryCheckTitle": "Check of wij bij jou bezorgen",
     "deliveryCheckText": "Vul je postcode in om te zien of je binnen ons bezorggebied van 10 km valt.",
+    "deliveryCheckLabel": "Jouw postcode",
+    "deliveryCheckPlaceholder": "Jouw postcode, bijv. 1616 AB",
+    "deliveryCheckYes": "Goed nieuws — wij bezorgen in {town}!",
+    "deliveryCheckNo": "Helaas, {town} valt buiten ons bezorggebied.",
+    "deliveryCheckAsk": "Vraag het ons via WhatsApp",
+    "deliveryCheckWhatsapp": "Hoi Kebabish, kunnen jullie bij mij bezorgen?",
     "socialsTitle": "Volg ons"
   },
   "cart": {
