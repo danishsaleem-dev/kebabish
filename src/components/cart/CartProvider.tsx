@@ -64,6 +64,62 @@ export interface CartLine {
 
 export type NewCartLine = Omit<CartLine, "id" | "quantity">;
 
+/**
+ * What comes back out of localStorage is untrusted: it may be a basket saved by an
+ * older version of the site, hand-edited, cut short by a full disk, or written by a
+ * second tab. This provider sits in the layout, so one malformed line used to take
+ * the *whole site* down ("Er ging iets mis" on every page, on every reload, until the
+ * visitor cleared their browser data). Anything that isn't a well-formed line is
+ * dropped instead; the server re-prices whatever is left at checkout anyway.
+ */
+function sanitizeLines(raw: unknown): CartLine[] {
+  if (!Array.isArray(raw)) return [];
+  const finite = (n: unknown): n is number => typeof n === "number" && Number.isFinite(n);
+  const out: CartLine[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const l = entry as Record<string, unknown>;
+    if (typeof l.id !== "string" || typeof l.slug !== "string" || typeof l.name !== "string") continue;
+    if (!finite(l.unitPrice) || l.unitPrice < 0) continue;
+
+    const options: CartOption[] = [];
+    if (l.options !== undefined && !Array.isArray(l.options)) continue;
+    for (const o of (l.options as unknown[] | undefined) ?? []) {
+      if (!o || typeof o !== "object") continue;
+      const opt = o as Record<string, unknown>;
+      if (
+        typeof opt.groupId !== "string" ||
+        typeof opt.optionId !== "string" ||
+        typeof opt.groupLabel !== "string" ||
+        typeof opt.optionLabel !== "string" ||
+        !finite(opt.price)
+      ) {
+        continue;
+      }
+      options.push({
+        groupId: opt.groupId,
+        groupLabel: opt.groupLabel,
+        optionId: opt.optionId,
+        optionLabel: opt.optionLabel,
+        price: opt.price,
+      });
+    }
+
+    const quantity = finite(l.quantity) ? Math.min(50, Math.max(1, Math.round(l.quantity))) : 1;
+    out.push({
+      id: l.id,
+      slug: l.slug,
+      name: l.name,
+      unitPrice: l.unitPrice,
+      options,
+      instructions: typeof l.instructions === "string" ? l.instructions : "",
+      quantity,
+      ...(typeof l.image === "string" ? { image: l.image } : {}),
+    });
+  }
+  return out;
+}
+
 /** Why a line can't be ordered any more (it is simply absent when it can). */
 export type CartIssue = "soldOut" | "unavailable" | "optionsChanged";
 
@@ -133,7 +189,7 @@ export default function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setLines(JSON.parse(raw) as CartLine[]);
+      if (raw) setLines(sanitizeLines(JSON.parse(raw)));
     } catch {
       // Corrupt or unavailable (private mode) — start empty rather than crash.
     }

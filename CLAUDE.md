@@ -1720,6 +1720,28 @@ name on invoices"** is ticked (off by default; ask the accountant). Built-in
 Helvetica covers Dutch/English; a character outside it is transliterated or shown
 as "?" rather than crashing. **Refunds are on credit notes**, never on the invoice (see Refunds and credit notes).
 
+### "Er ging iets mis" and how errors are reported (Oct 2026)
+
+`[locale]/error.tsx` is the page a visitor gets when something throws while rendering. A customer reported it
+while adding to the cart, on a phone, with no way to see the cause. What was found and done:
+
+- **A malformed saved basket took the whole site down.** `CartProvider` is mounted in the layout and used to
+  `JSON.parse` localStorage straight into state; a value that isn't an array of well-formed lines (an older
+  version's basket, a line without `options`, `null`, a number, a half-written value) crashed the render of
+  *every* page, on every reload, until the visitor cleared their browser data. Reproduced in the browser: six
+  malformed shapes crashed, all fine after the fix. `sanitizeLines()` now keeps only well-formed lines and clamps
+  quantity; nothing is trusted from storage (the server re-prices at checkout regardless). Whether this was
+  *the* cause of the reported error is unproven — it is the one crash found by testing; every one of the 16 dishes
+  added to the basket without error.
+- **A stale tab reloads itself once.** A tab open across a deploy asks for scripts that no longer exist
+  (ChunkLoadError / "Loading chunk"); the error page now reloads once (guarded by a 60 s sessionStorage stamp) instead
+  of showing the message.
+- **The error page reports what broke:** `POST /api/client-error` (`src/app/api/client-error/route.ts`) writes one
+  log line — message, top of the stack, digest, page, a one-word description of the saved basket, user agent — and
+  stores nothing and no personal data. Find it in **Vercel → Logs → search `[client-error]`**. Capped lengths, 20 a
+  minute per server instance. There is still no error-monitoring service; this is the cheap substitute.
+  A server-side render failure shows only a *digest* in the browser; match it to the server log line with the same digest.
+
 ### Cart stays honest against the live menu
 
 A dish can sell out, be hidden, or have its extras changed after someone put it

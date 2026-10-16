@@ -21,6 +21,56 @@ export default function ErrorPage({
 
   useEffect(() => {
     console.error("[page error]", error);
+
+    // A tab that was open while the site was updated asks for scripts that no longer
+    // exist. That is not a bug a visitor can act on: reload once to pick up the new
+    // version (guarded, so a genuine failure can't loop).
+    const stale =
+      /ChunkLoadError|Loading chunk|Loading CSS chunk|dynamically imported module|Importing a module script failed/i.test(
+        `${error.name} ${error.message}`
+      );
+    if (stale) {
+      try {
+        const last = Number(window.sessionStorage.getItem("kebabish-error-reload") ?? 0);
+        if (Date.now() - last > 60_000) {
+          window.sessionStorage.setItem("kebabish-error-reload", String(Date.now()));
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // No session storage: fall through and show the page.
+      }
+    }
+
+    // Tell the server what broke (one log line, no personal data) — without it, an error that
+    // only happens in somebody's browser leaves us nothing but a screenshot.
+    let cart = "none";
+    try {
+      const raw = window.localStorage.getItem("kebabish-cart-v1");
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        cart = Array.isArray(parsed) ? `array(${parsed.length})` : typeof parsed;
+      }
+    } catch {
+      cart = "unreadable";
+    }
+    try {
+      void fetch("/api/client-error", {
+        method: "POST",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          message: error.message,
+          name: error.name,
+          digest: error.digest,
+          stack: error.stack,
+          path: window.location.pathname,
+          cart,
+        }),
+      }).catch(() => {});
+    } catch {
+      // Reporting must never make things worse.
+    }
   }, [error]);
 
   return (
