@@ -10,7 +10,7 @@ import type {
   CustomerStatus,
   OrderStatus,
 } from "@/lib/admin/order-types";
-import { ALLOWED_NEXT, RIDER_STATUSES } from "@/lib/admin/order-types";
+import { ALLOWED_NEXT, RIDER_STATUSES, isFutureDelivery } from "@/lib/admin/order-types";
 import { after } from "next/server";
 import { getOrderSummaryById } from "@/lib/orders";
 import { notifyRefund, refundOrder } from "@/lib/refunds";
@@ -202,7 +202,7 @@ export async function updateOrderStatus(
 ): Promise<void> {
   const { data: row, error: fetchError } = await supabaseAdmin()
     .from("orders")
-    .select("status, assigned_rider_id")
+    .select("status, assigned_rider_id, delivery_date")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -210,14 +210,29 @@ export async function updateOrderStatus(
   if (!row) throw new Error("Order not found.");
 
   const currentStatus = row.status as OrderStatus;
+
+  // Accepting an order for a later day doesn't start the cooking: it is
+  // *scheduled*, and becomes "preparing" when the kitchen starts it on the day.
+  // Decided here, once, so every screen that accepts (the popup, the kitchen
+  // board, the order page) gets it right without each having to remember.
+  if (currentStatus === "new" && nextStatus === "preparing" && isFutureDelivery(row.delivery_date)) {
+    nextStatus = "scheduled";
+  }
+
   if (!ALLOWED_NEXT[currentStatus].includes(nextStatus)) {
     throw new Error(`Can't move an order from "${currentStatus}" to "${nextStatus}".`);
   }
 
-  // The kitchen accepts an order and marks it ready — nothing further. Handing
-  // it to a rider, delivering it, cancelling or refunding it are not its job.
-  if (actor.role === "kitchen" && nextStatus !== "preparing" && nextStatus !== "ready") {
-    throw new Error("The kitchen can only accept an order or mark it ready.");
+  // The kitchen accepts an order, starts a scheduled one and marks it ready —
+  // nothing further. Handing it to a rider, delivering it, cancelling or
+  // refunding it are not its job.
+  if (
+    actor.role === "kitchen" &&
+    nextStatus !== "preparing" &&
+    nextStatus !== "scheduled" &&
+    nextStatus !== "ready"
+  ) {
+    throw new Error("The kitchen can only accept an order, start it or mark it ready.");
   }
 
   if (actor.role === "rider") {
@@ -229,23 +244,44 @@ export async function updateOrderStatus(
     }
   }
 
-  const { error } = await supabaseAdmin()
-    .from("orders")
-    .update({
-      status: nextStatus,
-      ...(nextStatus === "delivered" ? { delivered_at: new Date().toISOString() } : {}),
-      ...(nextStatus === "preparing" ? { accepted_at: new Date().toISOString() } : {}),
-    })
-    .eq("id", orderId);
+  // `accepted_at` is when the kitchen first said yes — new -> preparing or
+  // scheduled — and is never overwritten when a scheduled order later starts.
+  const accepting = currentStatus === "new" && (nextStatus === "preparing" || nextStatus === "scheduled");
+  const patch = {
+    status: nextStatus,
+    ...(nextStatus === "delivered" ? { delivered_at: new Date().toISOString() } : {}),
+    ...(accepting ? { accepted_at: new Date().toISOString() } : {}),
+  };
+  let { error } = await supabaseAdmin().from("orders").update(patch).eq("id", orderId);
 
+  // Migration 0020 widens the status check to allow "scheduled". Until it has
+  // been run the database refuses the new value; accepting an order must still
+  // work, so fall back to the old behaviour and say so in the log.
+  if (error && nextStatus === "scheduled" && error.code === "23514") {
+    console.error("[orders] status 'scheduled' refused by the database - run migration 0020. Falling back to 'preparing'.");
+    nextStatus = "preparing";
+    ({ error } = await supabaseAdmin()
+      .from("orders")
+      .update({ ...patch, status: "preparing" })
+      .eq("id", orderId));
+  }
   if (error) throw new Error(error.message);
 
   // Tell the customer. "Ready for delivery" is an internal step, so it
-  // doesn't get an email. after() keeps the send alive on Vercel without
+  // doesn't get an email; neither does starting a scheduled order (they were
+  // told when it was accepted). after() keeps the send alive on Vercel without
   // holding up the click.
-  if (nextStatus === "preparing" || nextStatus === "on_the_way" || nextStatus === "delivered") {
+  const emailKind =
+    nextStatus === "scheduled"
+      ? "scheduled"
+      : nextStatus === "preparing" && currentStatus === "new"
+        ? "preparing"
+        : nextStatus === "on_the_way" || nextStatus === "delivered"
+          ? nextStatus
+          : null;
+  if (emailKind) {
     const order = await getOrderSummaryById(orderId);
-    if (order) after(() => sendOrderStatusEmail(order, nextStatus));
+    if (order) after(() => sendOrderStatusEmail(order, emailKind));
   }
 }
 
@@ -352,7 +388,7 @@ export async function listKitchenOrders(): Promise<AdminOrder[]> {
     .from("orders")
     .select(ORDER_SELECT)
     .or(
-      "and(status.eq.new,payment_status.eq.paid),and(status.in.(preparing,ready),payment_status.in.(paid,open))"
+      "and(status.eq.new,payment_status.eq.paid),and(status.in.(scheduled,preparing,ready),payment_status.in.(paid,open))"
     )
     .order("created_at", { ascending: true });
 
@@ -360,11 +396,85 @@ export async function listKitchenOrders(): Promise<AdminOrder[]> {
   return (data ?? []).map((row) => mapOrder(row as unknown as OrderRow));
 }
 
-/** Owner/staff only — assigning `null` unassigns. */
+/**
+ * Anything that finished or is out of the kitchen's hands: on its way, delivered
+ * or cancelled — newest delivery first. For the kitchen's History screen, so the
+ * cooks can look up what went out on a given day (or find a particular order).
+ *
+ * `from`/`to` are Amsterdam calendar days ("YYYY-MM-DD", inclusive). An order
+ * belongs to the day it was booked for; one with no set day, to the day it was
+ * placed. At most `limit` rows come back.
+ */
+export async function listKitchenHistory(opts: {
+  from: string;
+  to: string;
+  limit?: number;
+}): Promise<AdminOrder[]> {
+  const limit = opts.limit ?? 300;
+  const finished = ["on_the_way", "delivered", "cancelled"];
+
+  // Booked for a day in range...
+  const booked = supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .in("status", finished)
+    .gte("delivery_date", opts.from)
+    .lte("delivery_date", opts.to)
+    .limit(limit);
+
+  // ...or placed in range with no day booked. Created-at is a UTC instant, so
+  // the query is widened by a day each side and trimmed to Amsterdam days below.
+  const dayMs = 86_400_000;
+  const loose = supabaseAdmin()
+    .from("orders")
+    .select(ORDER_SELECT)
+    .in("status", finished)
+    .is("delivery_date", null)
+    .gte("created_at", new Date(Date.parse(`${opts.from}T00:00:00Z`) - dayMs).toISOString())
+    .lte("created_at", new Date(Date.parse(`${opts.to}T00:00:00Z`) + 2 * dayMs).toISOString())
+    .limit(limit);
+
+  const [a, b] = await Promise.all([booked, loose]);
+  if (a.error) throw new Error(a.error.message);
+  if (b.error) throw new Error(b.error.message);
+
+  const dayOf = (iso: string) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Amsterdam",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+
+  const rows = [...(a.data ?? []), ...(b.data ?? [])]
+    .map((row) => mapOrder(row as unknown as OrderRow))
+    .filter((o) => {
+      const day = o.deliveryDate ?? dayOf(o.placedAt);
+      return day >= opts.from && day <= opts.to;
+    });
+
+  const key = (o: AdminOrder) =>
+    `${o.deliveryDate ?? dayOf(o.placedAt)} ${o.deliverySlotStart ?? "00:00"} ${o.placedAt}`;
+  return rows.sort((x, y) => key(y).localeCompare(key(x))).slice(0, limit);
+}
+
+/** Owner/staff/manager/kitchen — assigning `null` unassigns. */
 export async function assignRider(
   orderId: string,
   riderId: string | null
 ): Promise<void> {
+  // Only a real rider can be assigned (a form value is not to be trusted).
+  if (riderId) {
+    const { data: rider, error: riderError } = await supabaseAdmin()
+      .from("admin_users")
+      .select("id")
+      .eq("id", riderId)
+      .eq("role", "rider")
+      .maybeSingle();
+    if (riderError) throw new Error(riderError.message);
+    if (!rider) throw new Error("That isn't a rider.");
+  }
+
   const { error } = await supabaseAdmin()
     .from("orders")
     .update({ assigned_rider_id: riderId })

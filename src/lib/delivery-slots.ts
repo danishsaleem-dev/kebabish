@@ -148,6 +148,30 @@ export function amsterdamDateAhead(daysAhead: number, from: Date = new Date()) {
   return { dateKey, weekday };
 }
 
+/**
+ * The UTC instant at which Amsterdam's clock read `dateKey` + `time` ("YYYY-MM-DD",
+ * "HH:MM"). For an order entered after the fact: "yesterday at 18:30" has to be stored as
+ * that moment, whatever timezone the server runs in, and across the clock changes.
+ */
+export function amsterdamLocalToUtc(dateKey: string, time: string): Date {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const [hh, mm] = time.split(":").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hh, mm, 0);
+  // What does Amsterdam's wall clock read at that UTC instant? The gap is the offset.
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Amsterdam",
+    hourCycle: "h23",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+  }).formatToParts(new Date(guess));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  const wall = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), 0);
+  return new Date(guess - (wall - guess));
+}
+
 export type SlotStatus = "available" | "full" | "disabled" | "past";
 
 export interface SlotAvailability extends SlotWindow {

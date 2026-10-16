@@ -460,6 +460,8 @@ function OrderProgress({
     { key: "on_the_way", label: t("trackOnTheWay") },
     { key: "delivered", label: t("trackDelivered") },
   ];
+  // An order accepted for a later day ("scheduled") is still waiting on its day, so it
+  // reads as received — the confirmation email says when it will be made.
   const position = status === "ready" ? 1 : Math.max(steps.findIndex((s) => s.key === status), 0);
 
   return (

@@ -2,17 +2,18 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import ManualOrderForm from "@/components/admin/ManualOrderForm";
-import { listCategories, listItems, listOptionGroups } from "@/lib/admin/store";
+import { getSettings, listCategories, listItems, listOptionGroups } from "@/lib/admin/store";
 import { isSellablePrice } from "@/lib/money";
 
 export const metadata = { title: "Create order" };
 export const dynamic = "force-dynamic";
 
 export default async function CreateOrderPage() {
-  const [categories, items, optionGroups] = await Promise.all([
+  const [categories, items, optionGroups, settings] = await Promise.all([
     listCategories(),
     listItems(),
     listOptionGroups(),
+    getSettings(),
   ]);
 
   // Only what can actually be ordered — the server refuses the rest anyway
@@ -44,10 +45,12 @@ export default async function CreateOrderPage() {
 
         <p className="max-w-2xl text-sm text-muted">
           For an order that comes in by phone or WhatsApp. It&apos;s priced from the menu exactly
-          like a website order, and appears in Orders, the kitchen and the rider&apos;s list.
+          like a website order (you can change a dish&apos;s price, add a coupon, and enter a day that has already passed), and appears in Orders, the kitchen and the rider&apos;s list.
         </p>
 
         <ManualOrderForm
+          deliveryFee={settings.deliveryFee}
+          freeDeliveryOver={settings.freeDeliveryOver ?? null}
           categories={visibleCategories.map((c) => ({ id: c.id, label: c.label }))}
           dishes={dishes}
           groups={optionGroups.map((g) => ({

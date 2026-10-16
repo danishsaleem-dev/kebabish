@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
-import { updateOrderStatus } from "@/lib/admin/orders-data";
+import { assignRider, updateOrderStatus } from "@/lib/admin/orders-data";
 
 export interface KitchenActionResult {
   ok: boolean;
@@ -36,5 +36,30 @@ export async function advanceKitchenOrderAction(
   }
 
   revalidatePath("/admin/orders");
+  return { ok: true };
+}
+
+/**
+ * The kitchen hands an order to a rider (or takes the rider off it). Same
+ * people who can use the board; a rider id that isn't a rider is refused.
+ */
+export async function assignKitchenRiderAction(
+  orderId: string,
+  riderId: string | null
+): Promise<KitchenActionResult> {
+  const session = await auth();
+  const role = session?.user.role;
+  if (role !== "kitchen" && role !== "owner" && role !== "staff" && role !== "manager") {
+    return { ok: false, message: "Sign in again to do that." };
+  }
+
+  try {
+    await assignRider(orderId, riderId || null);
+  } catch (error) {
+    return { ok: false, message: (error as Error).message };
+  }
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/rider");
   return { ok: true };
 }

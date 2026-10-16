@@ -14,6 +14,9 @@ import {
   getOrderSummaryById,
   markOrderPaymentFailed,
   priceCart,
+  validatePromoCode,
+  type PricedCart,
+  type PromoError,
   type SubmittedLine,
 } from "@/lib/orders";
 import { createPayment } from "@/lib/mollie";
@@ -21,7 +24,14 @@ import { orderAccessToken } from "@/lib/order-token";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
-import { effectiveHours, generateDaySlots, amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
+import {
+  DEFAULT_SLOT_MINUTES,
+  amsterdamLocalToUtc,
+  amsterdamNow,
+  effectiveHours,
+  generateDaySlots,
+  weekdayForDateKey,
+} from "@/lib/delivery-slots";
 import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
 
 export interface ManualOrderState {
@@ -62,9 +72,13 @@ const schema = z.object({
   notes: z.string().trim().max(500, "Keep the note under 500 characters.").default(""),
   deliveryDate: z.union([z.literal(""), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)]),
   slot: z.union([z.literal(""), z.string().regex(/^\d\d:\d\d\|\d\d:\d\d$/)]),
+  deliveryTime: z.union([z.literal(""), z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Enter a time like 18:30.")]),
+  alreadyDelivered: z.boolean(),
   channel: z.enum(["website", "whatsapp", "phone", "other"]),
   channelNote: z.string().trim().max(50, "Keep this under 50 characters.").default(""),
   payment: z.enum(["mollie_link", "cash", "bank_transfer", "unpaid", "paid_cash", "paid_bank"]),
+  promoCode: z.string().trim().max(40).default(""),
+  deliveryFee: z.string().trim().max(10).default(""),
   waiveDelivery: z.boolean(),
 });
 
@@ -77,15 +91,111 @@ async function requestOrigin(): Promise<string> {
   return `${proto}://${host}`;
 }
 
+/** Euros typed by a person ("12,50", "12.5") -> cents, or null if it isn't a sensible amount. */
+function eurosToCents(raw: unknown, max = 1000): number | null {
+  const text = String(raw ?? "").trim().replace(",", ".");
+  if (text === "") return null;
+  const euros = Number(text);
+  if (!Number.isFinite(euros) || euros < 0 || euros > max) return null;
+  return Math.round(euros * 100);
+}
+
 /**
- * Enter an order by hand — a phone call, a WhatsApp message.
+ * Staff may set the price they actually agreed for a dish. The form sends the dish and
+ * its choices, plus — only where staff changed it — `price`, the price of one portion
+ * *including* its extras. That replaces the menu's price for the line (the chosen extras
+ * stay listed on it, at no extra charge, so the line still totals exactly what was
+ * agreed). Everything else in the line is still checked against the real menu.
+ */
+function applyPriceOverrides(cart: PricedCart, submitted: unknown[]): PricedCart {
+  const lines = cart.lines.map((line, i) => {
+    const sent = submitted[i] as { price?: unknown } | undefined;
+    const cents = sent && sent.price !== undefined && sent.price !== null ? eurosToCents(sent.price) : null;
+    if (cents === null) return line;
+    return {
+      ...line,
+      unitPriceCents: cents,
+      options: line.options.map((o) => ({ ...o, priceCents: 0 })),
+      lineTotalCents: cents * line.quantity,
+    };
+  });
+  return { lines, subtotalCents: lines.reduce((sum, l) => sum + l.lineTotalCents, 0) };
+}
+
+const PROMO_MESSAGES: Record<PromoError, string> = {
+  notFound: "That code doesn't exist or is switched off.",
+  expired: "That code had expired by then.",
+  notStarted: "That code hadn't started yet.",
+  belowMinimum: "The order is below that code's minimum.",
+  alreadyUsed: "This customer has already used that code.",
+  usedUp: "That code has been used up.",
+  notFirstOrder: "That code is for a first order only.",
+  notApplicable: "None of these dishes qualify for that code.",
+};
+
+function parseCart(raw: unknown): unknown[] {
+  try {
+    const parsed = JSON.parse(String(raw ?? "[]"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The day a promo should be judged on: the day of the order, which may be in the past. */
+function promoDay(deliveryDate: string): string | undefined {
+  return deliveryDate && deliveryDate < amsterdamNow().dateKey ? deliveryDate : undefined;
+}
+
+export interface PromoPreview {
+  ok: boolean;
+  /** Euros taken off. */
+  discount?: number;
+  message?: string;
+}
+
+/**
+ * The "Check" button next to the coupon box: what this code would take off this basket
+ * (with the prices as staff have set them). The real check runs again when the order is
+ * saved — this is only so the total can be shown before then.
+ */
+export async function checkManualPromoAction(
+  cartJson: string,
+  code: string,
+  email: string,
+  deliveryDate: string
+): Promise<PromoPreview> {
+  await requireRole(OWNER_STAFF_MANAGER);
+
+  const submitted = parseCart(cartJson);
+  if (submitted.length === 0) return { ok: false, message: "Add a dish first." };
+  if (!code.trim()) return { ok: false, message: "Enter a code." };
+
+  let cart: PricedCart;
+  try {
+    cart = applyPriceOverrides(await priceCart(submitted as SubmittedLine[]), submitted);
+  } catch (error) {
+    if (error instanceof CartPricingError) return { ok: false, message: "One of those dishes can't be ordered right now." };
+    throw error;
+  }
+
+  const result = await validatePromoCode(code, cart, email.trim() || undefined, promoDay(deliveryDate));
+  if (!result.ok) return { ok: false, message: PROMO_MESSAGES[result.error] };
+  return { ok: true, discount: result.discountCents / 100 };
+}
+
+/**
+ * Enter an order by hand — a phone call, a WhatsApp message, or something that
+ * happened yesterday and was never put in the system.
  *
  * It goes through the same server-side pricing as a website checkout
- * (`priceCart`): the form only says *what* was ordered, never what it costs,
- * and a hidden, sold-out or unpriced dish is refused. What staff *can* do
- * that a customer can't: waive the delivery fee, skip the minimum order,
- * book without the customer-facing cutoff, take payment in cash or by
- * transfer, and leave out an email address.
+ * (`priceCart`): the form says *what* was ordered and checks every dish against the
+ * menu — a hidden, sold-out or unpriced dish is refused. What staff *can* do that a
+ * customer can't: set the price they agreed for a dish (or the delivery fee), apply a
+ * coupon, skip the minimum order, book without the customer-facing cutoff, take payment
+ * in cash or by transfer, leave out an email address, and **enter a day that has already
+ * passed** — the order is then filed under that date and time, and can be recorded as
+ * delivered.
  */
 export async function createManualOrderAction(
   _prev: ManualOrderState,
@@ -105,9 +215,13 @@ export async function createManualOrderAction(
     notes: formData.get("notes") ?? "",
     deliveryDate: String(formData.get("deliveryDate") ?? ""),
     slot: String(formData.get("slot") ?? ""),
+    deliveryTime: String(formData.get("deliveryTime") ?? ""),
+    alreadyDelivered: formData.get("alreadyDelivered") === "on",
     channel: formData.get("channel"),
     channelNote: formData.get("channelNote") ?? "",
     payment: formData.get("payment"),
+    promoCode: String(formData.get("promoCode") ?? ""),
+    deliveryFee: String(formData.get("deliveryFee") ?? ""),
     waiveDelivery: formData.get("waiveDelivery") === "on",
   });
   if (!parsed.success) {
@@ -119,23 +233,18 @@ export async function createManualOrderAction(
   if (d.channel === "other" && !d.channelNote) {
     return { ok: false, errors: { channelNote: "Say where this order came from." } };
   }
-  if (d.slot && !d.deliveryDate) {
-    return { ok: false, errors: { deliveryDate: "Pick the delivery date." } };
+  if ((d.slot || d.deliveryTime) && !d.deliveryDate) {
+    return { ok: false, errors: { deliveryDate: "Pick the date." } };
   }
 
-  let submitted: SubmittedLine[];
-  try {
-    submitted = JSON.parse(String(formData.get("cart") ?? "[]"));
-  } catch {
-    submitted = [];
-  }
-  if (!Array.isArray(submitted) || submitted.length === 0) {
+  const submitted = parseCart(formData.get("cart"));
+  if (submitted.length === 0) {
     return { ok: false, error: "Add at least one dish." };
   }
 
-  let cart;
+  let cart: PricedCart;
   try {
-    cart = await priceCart(submitted);
+    cart = applyPriceOverrides(await priceCart(submitted as SubmittedLine[]), submitted);
   } catch (error) {
     if (error instanceof CartPricingError) {
       return {
@@ -147,33 +256,76 @@ export async function createManualOrderAction(
     throw error;
   }
 
-  // The slot, if one was chosen: it has to be a real window for that day and
-  // have room. The customer-facing cutoff is deliberately not applied — staff
-  // can fit someone into a slot that's already running.
+  const choice = PAYMENT_CHOICES[d.payment];
+
+  // ---- when: a future/today slot (capacity-checked), an exact time, or a day that has passed.
+  const today = amsterdamNow().dateKey;
+  const isPast = Boolean(d.deliveryDate) && d.deliveryDate < today;
+  if (isPast && choice.method === "mollie" && !choice.paid) {
+    return { ok: false, errors: { payment: "A payment link can't be sent for an order that already happened." } };
+  }
+  if (isPast && !d.deliveryTime) {
+    return { ok: false, errors: { deliveryTime: "Enter the time it was ordered or delivered." } };
+  }
+
   let slotStart: string | null = null;
   let slotEnd: string | null = null;
   let reserved = false;
-  if (d.deliveryDate && d.slot) {
-    const [start, end] = d.slot.split("|");
-    const store = await readStore();
-    if (d.deliveryDate < amsterdamNow().dateKey) {
-      return { ok: false, errors: { deliveryDate: "That date has already passed." } };
-    }
-    const weekday = weekdayForDateKey(d.deliveryDate);
-    const day = effectiveHours(store.settings).find((h) => h.day === weekday);
-    const valid = day ? generateDaySlots(day).some((s) => s.start === start && s.end === end) : false;
-    if (!valid) return { ok: false, errors: { slot: "That slot isn't offered on that day." } };
+  let placedAt: string | undefined;
 
-    reserved = await reserveDeliverySlot(d.deliveryDate, weekday, start);
-    if (!reserved) return { ok: false, errors: { slot: "That slot is full or switched off." } };
-    slotStart = start;
-    slotEnd = end;
+  if (d.deliveryDate) {
+    const store = await readStore();
+    const weekday = weekdayForDateKey(d.deliveryDate);
+    const resolved = effectiveHours(store.settings);
+    const day = resolved.find((h) => h.day === weekday);
+
+    if (!isPast && d.slot) {
+      // A real slot for that day with room in it. The customer-facing cutoff is
+      // deliberately not applied — staff can fit someone into a slot that's already running.
+      const [start, end] = d.slot.split("|");
+      const valid = day ? generateDaySlots(day).some((s) => s.start === start && s.end === end) : false;
+      if (!valid) return { ok: false, errors: { slot: "That slot isn't offered on that day." } };
+
+      reserved = await reserveDeliverySlot(d.deliveryDate, weekday, start);
+      if (!reserved) return { ok: false, errors: { slot: "That slot is full or switched off." } };
+      slotStart = start;
+      slotEnd = end;
+    } else if (d.deliveryTime) {
+      // An exact time chosen by hand: no slot is reserved (staff know their own kitchen),
+      // and the window is the usual slot length starting then.
+      const [h, m] = d.deliveryTime.split(":").map(Number);
+      const length = day?.slotMinutes ?? DEFAULT_SLOT_MINUTES;
+      const endMinutes = Math.min(h * 60 + m + length, 23 * 60 + 59);
+      slotStart = d.deliveryTime;
+      slotEnd = `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+    }
+
+    // An order entered after the fact is filed at the time it happened, so it lands on the
+    // right day in the order list and in reports.
+    if (isPast && d.deliveryTime) placedAt = amsterdamLocalToUtc(d.deliveryDate, d.deliveryTime).toISOString();
   }
   const releaseSlot = () =>
     reserved && slotStart && d.deliveryDate ? releaseDeliverySlot(d.deliveryDate, slotStart) : undefined;
 
-  const choice = PAYMENT_CHOICES[d.payment];
-  const fee = d.waiveDelivery ? 0 : await deliveryFeeCents(cart.subtotalCents);
+  // ---- money: a coupon, and a delivery fee that staff may set.
+  let promoCode: string | null = null;
+  let discountCents = 0;
+  if (d.promoCode) {
+    const result = await validatePromoCode(d.promoCode, cart, d.email || undefined, promoDay(d.deliveryDate));
+    if (!result.ok) {
+      await releaseSlot();
+      return { ok: false, errors: { promoCode: PROMO_MESSAGES[result.error] } };
+    }
+    promoCode = result.code;
+    discountCents = result.discountCents;
+  }
+
+  const typedFee = d.deliveryFee === "" ? null : eurosToCents(d.deliveryFee, 100);
+  if (d.deliveryFee !== "" && typedFee === null) {
+    await releaseSlot();
+    return { ok: false, errors: { deliveryFee: "Enter an amount like 2,50 — or leave it empty." } };
+  }
+  const fee = d.waiveDelivery ? 0 : typedFee ?? (await deliveryFeeCents(cart.subtotalCents));
 
   let order;
   try {
@@ -188,8 +340,8 @@ export async function createManualOrderAction(
       notes: d.notes || null,
       cart,
       deliveryFeeCents: fee,
-      promoCode: null,
-      discountCents: 0,
+      promoCode,
+      discountCents,
       deliveryDate: d.deliveryDate && slotStart ? d.deliveryDate : null,
       deliverySlotStart: slotStart,
       deliverySlotEnd: slotEnd,
@@ -202,6 +354,7 @@ export async function createManualOrderAction(
         paid: choice.paid,
         accepted: choice.accepted,
         createdBy: session.user.id,
+        ...(isPast ? { placedAt, delivered: d.alreadyDelivered } : {}),
       },
     });
   } catch (error) {
@@ -238,8 +391,9 @@ export async function createManualOrderAction(
     }
   }
 
-  // Already paid and the customer gave an email: send the confirmation.
-  if (choice.paid && d.email) {
+  // Already paid and the customer gave an email: send the confirmation — but not for an
+  // order that already happened, where a receipt arriving now would only confuse.
+  if (choice.paid && d.email && !isPast) {
     const summary = await getOrderSummaryById(order.id);
     if (summary) after(() => sendOrderConfirmationEmail(summary, summary.locale));
   }

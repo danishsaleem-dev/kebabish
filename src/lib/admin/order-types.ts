@@ -9,6 +9,12 @@
 
 export type OrderStatus =
   | "new"
+  /**
+   * Accepted, but for a later day (tomorrow, in two days…) — the kitchen has said yes
+   * and the customer knows, but nobody should be cooking it yet. It becomes
+   * "preparing" when the kitchen starts it, on the day.
+   */
+  | "scheduled"
   | "preparing"
   | "ready"
   | "on_the_way"
@@ -90,6 +96,7 @@ export interface AdminOrder {
  */
 export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
   new: "preparing",
+  scheduled: "preparing",
   preparing: "ready",
   ready: "on_the_way",
   on_the_way: "delivered",
@@ -104,7 +111,11 @@ export const NEXT_STATUS: Record<OrderStatus, OrderStatus | null> = {
  * the extra tap can go straight from preparing to on the way.
  */
 export const ALLOWED_NEXT: Record<OrderStatus, OrderStatus[]> = {
-  new: ["preparing"],
+  // Accepting a new order is one move: `updateOrderStatus` turns "preparing" into
+  // "scheduled" itself when the delivery is for a later day, so no screen has to
+  // remember to ask. "scheduled" is the only other thing a new order can become.
+  new: ["preparing", "scheduled"],
+  scheduled: ["preparing"],
   preparing: ["ready", "on_the_way"],
   ready: ["on_the_way"],
   on_the_way: ["delivered"],
@@ -148,6 +159,7 @@ export interface AdminCustomer {
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: "New",
+  scheduled: "Scheduled",
   preparing: "Preparing",
   ready: "Ready for delivery",
   on_the_way: "On the way",
@@ -185,6 +197,27 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   unpaid: "Pay later",
   payment_link: "Mollie payment link",
 };
+
+/**
+ * Is this delivery for a later calendar day than today (Amsterdam's calendar, like
+ * everything the kitchen runs on)? Such an order is accepted as "scheduled", not
+ * "preparing". An order with no delivery date has no later day to wait for.
+ */
+export function isFutureDelivery(deliveryDate: string | null | undefined, now: Date = new Date()): boolean {
+  if (!deliveryDate) return false;
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  return deliveryDate > today;
+}
+
+/** The status accepting this order should produce. */
+export function acceptTarget(deliveryDate: string | null | undefined): "preparing" | "scheduled" {
+  return isFutureDelivery(deliveryDate) ? "scheduled" : "preparing";
+}
 
 export type Period = "daily" | "weekly" | "monthly";
 export type StatusFilter = "all" | "delivered" | "cancelled" | "preparing";

@@ -9,6 +9,7 @@ import {
   ALLOWED_NEXT,
   ORDER_STATUS_LABELS,
   RIDER_STATUSES,
+  acceptTarget,
   type OrderStatus,
 } from "@/lib/admin/order-types";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
@@ -27,10 +28,13 @@ export default function OrderStatusControl({
   orderId,
   status,
   riderView = false,
+  deliveryDate = null,
 }: {
   orderId: string;
   status: OrderStatus;
   riderView?: boolean;
+  /** Decides what accepting a new order means: cooking now, or scheduled for a later day. */
+  deliveryDate?: string | null;
 }) {
   const [state, formAction] = useActionState(updateOrderStatusAction, EMPTY);
   const { toast } = useToast();
@@ -43,7 +47,10 @@ export default function OrderStatusControl({
   }, [state, toast]);
 
   const options = ALLOWED_NEXT[status].filter(
-    (s) => !riderView || RIDER_STATUSES.includes(s)
+    (s) =>
+      (!riderView || RIDER_STATUSES.includes(s)) &&
+      // A new order is accepted as one thing or the other, depending on its day.
+      (status !== "new" || s === acceptTarget(deliveryDate))
   );
   if (options.length === 0) return null;
 

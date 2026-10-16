@@ -1187,7 +1187,10 @@ why those exist).
   instantly with no round-trip — same UX the mock version had, now over
   real orders.
 
-**Orders table has a Payment column** (`PaymentStatusPill`, short wording: Paid / Pending / Failed /
+**Every admin order list/summary shows payment status** — the Orders tables (all / new / completed), the
+dashboard's **Order Activities**, the order quick-view, an order's own page header and the order list on a
+customer's page (it was first added to `OrdersTable` only, and Order Activities was missed — when adding a
+field to "the orders table", grep for every place that renders `OrderStatusPill`). The Orders table has a Payment column** (`PaymentStatusPill`, short wording: Paid / Pending / Failed /
 Expired / Cancelled / Refunded; a paid order with some money handed back reads "Part refunded"). It is
 sortable, has its own filter next to Status/Channel, and the CSV export gains "Payment status" and
 "Refunded". "Pending" is `payment_status = 'open'` (checkout started or awaiting a manual payment-link
@@ -1445,6 +1448,19 @@ the hours list; migration `0013_slot_default_capacity.sql`):
   belong to a start time that may no longer exist. Do it on a quiet day.
 - The checkout page passes `effectiveHours` + the window to `DeliverySlotPicker`;
   the booking window is enforced server-side in `checkoutAction` too.
+
+**Manual orders — what staff can now set** (Oct 2026): (1) **Date and time from a calendar, including days that
+have passed** — an order entered after the fact is stored at that moment (`created_at`, via
+`amsterdamLocalToUtc()`), so it lands on the right day in the list and in reports; for a past day no slot is
+booked, no email is sent, an online payment link is refused, and "It was already delivered" (ticked by default)
+records it as delivered. A future/today day offers the slot picker as before, or **an exact time** (window = the
+usual slot length from there, no capacity reserved). (2) **A coupon**, checked on the server against the real
+basket and customer email (a "Check" button previews the discount; for a past day the code is judged as of that
+day via `validatePromoCode(…, asOfDate)`). (3) **The price actually agreed**: each dish line has an editable
+"Price each" (prefilled from the menu); a changed price replaces the line's price *including extras* (the extras
+stay listed at no extra charge) and the delivery fee is an editable box (blank = the usual rule, 0 = free).
+Everything else is still validated against the menu. Caveat for the accountant: a backdated *paid* order gets the
+**next** invoice number (numbers stay gap-free) but is dated in the past.
 
 Not done yet from the spec: `is_test` order flag.
 
@@ -1868,13 +1884,15 @@ the others:
 - `kitchen/layout.tsx` allow-lists kitchen/owner/staff/manager; the admin
   layout already allow-lists owner/staff/manager, so a kitchen user who types
   `/admin` is bounced back to `/kitchen`.
-- `GET /api/kitchen/orders` returns only what cooks need: order number, first
-  name, slot, lines (qty + name), the customer note, payment state. **No phone,
-  address, totals or email.** Its poll doubles as the heartbeat for
+- `GET /api/kitchen/orders` returns what the kitchen needs: order number, customer name,
+  **phone and address** (Oct 2026, Danish's call — to ring about an allergy and to point a rider),
+  assigned rider, slot, lines (qty + name), the customer note, payment state, plus the list of
+  riders. **No email, totals or card details.** Its poll doubles as the heartbeat for
   `expireStaleOrders` / `escalateUnacceptedOrders`, like the admin popup.
 - `updateOrderStatus` throws for a kitchen actor unless the target is
-  `preparing` or `ready` — so the server action is safe even called directly.
-  The kitchen cannot hand to a rider, deliver, decline or refund.
+  `preparing`, `scheduled` or `ready` — so the server action is safe even called directly.
+  The kitchen cannot deliver, decline or refund. **It can assign a rider**
+  (`assignKitchenRiderAction`; `assignRider()` only accepts a user whose role really is rider).
 
 `listKitchenOrders()` = paid-and-unaccepted orders, plus anything accepted
 (preparing/ready, paid or still-to-pay phone orders). Unpaid checkouts never
@@ -1887,6 +1905,46 @@ existing `/admin/orders/[id]/ticket` route, which allows kitchen.
 
 **Migration `0015_kitchen_role.sql` must be run before creating a kitchen user**
 (it widens `admin_users_role_check`).
+
+### Orders for a later day: the "scheduled" status (Oct 2026, migration `0020_scheduled_orders.sql`)
+
+Accepting an order used to make it "preparing" even when it was booked for tomorrow or in two days. Now
+**`updateOrderStatus` turns "accept" into `scheduled` when `delivery_date` is a later Amsterdam day**
+(`isFutureDelivery()` in `order-types.ts`; one rule in one place, so the popup, the kitchen board and the
+order page can't disagree). `scheduled` = accepted, the customer has been told (new email kind
+`scheduled`: "we start cooking on the day itself"), nobody should be cooking it. It becomes `preparing` when
+the kitchen presses **Start preparing** — `accepted_at` is stamped at the first accept and never overwritten.
+It is a real status (`ALLOWED_NEXT`: new → preparing|scheduled, scheduled → preparing; pill, labels, order-page
+timeline, kitchen board, reports' "in progress" all know it); the customer's tracker shows it as "received".
+**Run migration 0020 before relying on it** (it widens the status check and converts orders that are already
+"preparing" for a later day). Until then the app falls back to "preparing" on the check-constraint error
+(`23514`) and logs "run migration 0020" — accepting never fails.
+**Kitchen board sections:** Waiting to be accepted (the button says "Accept — for di 20 okt" for a later-day
+order) · *Scheduled — due today* (Start preparing) · Preparing · Ready · *Coming up* (accepted for a later day,
+dashed cards, "don't start yet", a small "Start now anyway"). Verified: a future-dated order accepted through
+`updateOrderStatus` attempted `scheduled` (and, on the live database that has not had 0020 yet, fell back); the
+board's sections were checked with a mocked API; a same-day order stays "preparing".
+
+### Kitchen: rider, history, auto-print (Oct 2026)
+
+- **Phone and address on every card** (tap to call / open in Maps) and a **rider dropdown** (kitchen assigns
+  riders; same `assigned_rider_id` the admin page uses).
+- **History** (`/kitchen/history`, tab next to *Live orders*): finished, on-the-way and cancelled orders by day
+  (Today / Yesterday / Last 7 days / a picked day), searchable by order number, name, phone, street or dish,
+  each with phone, address, rider and **Print ticket again**. State is in the URL. `listKitchenHistory()` files
+  an order under its delivery day, or its placed day when it has none.
+- **Auto-print** (`useAutoPrint` in `KitchenBoard.tsx`): a website on the internet cannot reach a printer on the
+  shop's Wi-Fi, so the **board itself prints** — tick "Print a ticket automatically…" on the one computer/tablet
+  the thermal printer is installed on. When an order is accepted (by anyone, from any screen) the board loads
+  `/admin/orders/[id]/ticket?auto=1` in a hidden frame, which prints itself. Per device, remembered in
+  localStorage (`kebabish-autoprint-v1`); each order once per device (`kebabish-printed-v1`); only orders
+  accepted in the last 30 min (never a backlog; ticking the box marks everything on the board as printed);
+  6 s apart. **For silent printing start Chrome with `--kiosk-printing`** and make the thermal printer the
+  default printer — otherwise Chrome shows its print dialog for each ticket (seen in testing: it blocks the
+  page until dismissed). Don't enable it on two screens. The ticket (80 mm) now carries the customer's name,
+  phone and address, "FOR LATER — DO NOT START YET" for a scheduled order, the rider, and **PAID** or **COLLECT
+  CASH €x** — no dish prices. Star CloudPRNT / Epson ePOS would remove the need for a computer; not built (the
+  printer's model wasn't known — Danish chose the installed-printer route).
 
 ## What's already built (functionally working, committed to git)
 

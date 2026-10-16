@@ -8,6 +8,7 @@ import Card from "@/components/admin/ui/Card";
 import Dropdown from "@/components/admin/ui/Dropdown";
 import TableActions from "@/components/admin/ui/TableActions";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
+import PaymentStatusPill, { PAYMENT_PILL_LABELS } from "@/components/admin/PaymentStatusPill";
 import OrderQuickView from "@/components/admin/OrderQuickView";
 import { formatMoney } from "@/lib/admin/units";
 import { downloadCsv, stampedFilename, toCsv } from "@/lib/admin/export";
@@ -15,9 +16,11 @@ import {
   ORDER_STATUS_LABELS,
   type AdminOrder,
   type OrderStatus,
+  type PaymentStatus,
 } from "@/lib/admin/order-types";
 
 type StatusOption = OrderStatus | "all";
+type PaymentOption = PaymentStatus | "all";
 type DaysOption = "today" | "7" | "30" | "all";
 type SortKey = "reference" | "customerName" | "placedAt" | "items" | "total";
 
@@ -40,6 +43,7 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
   const router = useRouter();
 
   const [status, setStatus] = useState<StatusOption>("all");
+  const [payment, setPayment] = useState<PaymentOption>("all");
   const [days, setDays] = useState<DaysOption>("30");
   const [sort, setSort] = useState<SortKey>("placedAt");
   const [desc, setDesc] = useState(true);
@@ -53,6 +57,7 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
 
     const filtered = orders.filter((o) => {
       if (status !== "all" && o.status !== status) return false;
+      if (payment !== "all" && o.paymentStatus !== payment) return false;
       return Date.parse(o.placedAt) >= cutoff;
     });
 
@@ -74,7 +79,7 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
           return (Date.parse(a.placedAt) - Date.parse(b.placedAt)) * dir;
       }
     });
-  }, [orders, status, days, sort, desc]);
+  }, [orders, status, payment, days, sort, desc]);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDesc((d) => !d);
@@ -100,6 +105,8 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
         { header: "Total Item", value: (o) => o.lines.reduce((n, l) => n + l.quantity, 0) },
         { header: "Amount", value: (o) => o.total.toFixed(2) },
         { header: "Status", value: (o) => ORDER_STATUS_LABELS[o.status] },
+        { header: "Payment status", value: (o) => PAYMENT_PILL_LABELS[o.paymentStatus] },
+        { header: "Refunded", value: (o) => o.refunded.toFixed(2) },
       ])
     );
   };
@@ -127,6 +134,19 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
                 ...(Object.keys(ORDER_STATUS_LABELS) as OrderStatus[]).map(
                   (s) => ({ value: s, label: ORDER_STATUS_LABELS[s] })
                 ),
+              ]}
+              bordered={false}
+            />
+            <Dropdown
+              label="Payment"
+              value={payment}
+              onChange={setPayment}
+              options={[
+                { value: "all", label: "All" },
+                ...(Object.keys(PAYMENT_PILL_LABELS) as PaymentStatus[]).map((p) => ({
+                  value: p,
+                  label: PAYMENT_PILL_LABELS[p],
+                })),
               ]}
               bordered={false}
             />
@@ -160,7 +180,7 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
         )}
 
         <div className="overflow-x-auto border-t border-hairline px-3 pb-3 sm:px-4 sm:pb-4">
-          <table className="w-full min-w-[860px] border-collapse text-left">
+          <table className="w-full min-w-[940px] border-collapse text-left">
             <thead>
               <tr className="[&>th:first-child]:rounded-l-full [&>th:last-child]:rounded-r-full">
                 <th className="w-12 bg-panel py-3 pl-4 ring-1 ring-inset ring-hairline">
@@ -182,6 +202,7 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
                 <Th sortKey="items" {...{ sort, desc, toggleSort }}>Total Item</Th>
                 <Th sortKey="total" {...{ sort, desc, toggleSort }}>Amount</Th>
                 <Th>Status</Th>
+                <Th>Payment</Th>
                 <th className="w-16 bg-panel py-3 pr-4 ring-1 ring-inset ring-hairline print:hidden" />
               </tr>
             </thead>
@@ -237,6 +258,9 @@ export default function OrderActivities({ orders }: { orders: AdminOrder[] }) {
                   </td>
                   <td className="px-4 py-4">
                     <OrderStatusPill status={order.status} />
+                  </td>
+                  <td className="px-4 py-4">
+                    <PaymentStatusPill status={order.paymentStatus} partlyRefunded={order.refunded > 0} />
                   </td>
                   <td className="px-4 py-4 print:hidden">
                     <button

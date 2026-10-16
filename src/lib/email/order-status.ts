@@ -16,6 +16,7 @@ import type { OrderSummary } from "@/lib/orders";
  */
 
 export type OrderStatusEmailKind =
+  | "scheduled"
   | "preparing"
   | "on_the_way"
   | "delivered"
@@ -43,9 +44,23 @@ function copy(
     order.deliverySlotStart && order.deliverySlotEnd
       ? `${order.deliverySlotStart}–${order.deliverySlotEnd}`
       : null;
+  // "zaterdag 18 oktober, 18:00–18:45" — for an order accepted for a later day.
+  const when = order.deliveryDate
+    ? `${new Date(`${order.deliveryDate}T12:00:00`).toLocaleDateString(locale === "nl" ? "nl-NL" : "en-GB", {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      })}${slot ? `, ${slot}` : ""}`
+    : slot;
 
   if (locale === "nl") {
     switch (kind) {
+      case "scheduled":
+        return {
+          subject: `Je bestelling ${ref} is bevestigd`,
+          title: "Bevestigd voor later",
+          body: `Goed nieuws: we hebben je bestelling geaccepteerd.${when ? ` Bezorging: ${when}.` : ""} We beginnen pas op de dag zelf met koken, zodat alles vers bij je aankomt.`,
+        };
       case "preparing":
         return {
           subject: `We bereiden je bestelling ${ref}`,
@@ -83,6 +98,12 @@ function copy(
   }
 
   switch (kind) {
+    case "scheduled":
+      return {
+        subject: `Your order ${ref} is confirmed`,
+        title: "Confirmed for later",
+        body: `Good news: we have accepted your order.${when ? ` Delivery: ${when}.` : ""} We only start cooking on the day itself, so everything reaches you fresh.`,
+      };
     case "preparing":
       return {
         subject: `We are preparing your order ${ref}`,

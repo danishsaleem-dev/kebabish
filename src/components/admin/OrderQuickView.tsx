@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
+import PaymentStatusPill from "@/components/admin/PaymentStatusPill";
 import { formatMoney } from "@/lib/admin/units";
 import type { AdminOrder } from "@/lib/admin/order-types";
 
@@ -73,6 +74,7 @@ export default function OrderQuickView({
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
           <div className="flex flex-wrap items-center gap-2">
             <OrderStatusPill status={order.status} />
+            <PaymentStatusPill status={order.paymentStatus} partlyRefunded={order.refunded > 0} />
             <span className="inline-flex items-center gap-1.5 rounded-full border border-hairline px-2.5 py-1 text-xs font-medium text-body-text">
               {order.channel === "whatsapp" ? (
                 <MessageCircle size={13} className="text-success" />

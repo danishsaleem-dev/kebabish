@@ -2,6 +2,7 @@ import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/admin/order-types";
 
 const TONE: Record<OrderStatus, string> = {
   new: "bg-ember-600/10 text-ember-700",
+  scheduled: "bg-violet-50 text-violet-700",
   preparing: "bg-warn-soft text-warn",
   ready: "bg-amber-50 text-amber-700",
   on_the_way: "bg-blue-50 text-blue-700",
@@ -11,6 +12,7 @@ const TONE: Record<OrderStatus, string> = {
 
 const DOT: Record<OrderStatus, string> = {
   new: "bg-ember-600",
+  scheduled: "bg-violet-600",
   preparing: "bg-warn",
   ready: "bg-amber-500",
   on_the_way: "bg-blue-600",

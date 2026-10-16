@@ -231,7 +231,7 @@ export function getOrderPerformance(allOrders: AdminOrder[]) {
     { label: "Orders Completed", value: pct(["delivered"]), tone: "success" as const },
     {
       label: "In Progress",
-      value: pct(["new", "preparing", "ready", "on_the_way"]),
+      value: pct(["new", "scheduled", "preparing", "ready", "on_the_way"]),
       tone: "warn" as const,
     },
     { label: "Orders Cancelled", value: pct(["cancelled"]), tone: "danger" as const },

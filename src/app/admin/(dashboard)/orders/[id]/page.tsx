@@ -18,6 +18,7 @@ import {
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
+import PaymentStatusPill from "@/components/admin/PaymentStatusPill";
 import OrderStatusControl from "@/components/admin/OrderStatusControl";
 import AssignRiderControl from "@/components/admin/AssignRiderControl";
 import OrderInvoiceHeader from "@/components/admin/OrderInvoiceHeader";
@@ -36,6 +37,8 @@ import {
   ORDER_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
   PAYMENT_STATUS_LABELS,
+  isFutureDelivery,
+  type OrderStatus,
 } from "@/lib/admin/order-types";
 import MarkPaidControl from "@/components/admin/MarkPaidControl";
 import DeleteOrderControl from "@/components/admin/DeleteOrderControl";
@@ -54,6 +57,8 @@ export async function generateMetadata({
 
 /** Timeline stages an order moves through, in order. */
 const STAGES = ["new", "preparing", "ready", "on_the_way", "delivered"] as const;
+/** The same, for an order accepted for a later day: it waits as "scheduled" first. */
+const SCHEDULED_STAGES = ["new", "scheduled", "preparing", "ready", "on_the_way", "delivered"] as const;
 
 export default async function OrderDetailPage({
   params,
@@ -83,7 +88,11 @@ export default async function OrderDetailPage({
 
   const placed = new Date(order.placedAt);
   const cancelled = order.status === "cancelled";
-  const reachedIndex = STAGES.indexOf(order.status as (typeof STAGES)[number]);
+  const stages: readonly OrderStatus[] =
+    order.status === "scheduled" || (order.status === "new" && isFutureDelivery(order.deliveryDate))
+      ? SCHEDULED_STAGES
+      : STAGES;
+  const reachedIndex = stages.indexOf(order.status);
 
   return (
     <AdminShell title={order.reference}>
@@ -135,6 +144,7 @@ export default async function OrderDetailPage({
                   {order.reference}
                 </h2>
                 <OrderStatusPill status={order.status} />
+                <PaymentStatusPill status={order.paymentStatus} partlyRefunded={order.refunded > 0} />
               </div>
               <p className="mt-1.5 flex items-center gap-1.5 text-sm text-muted">
                 <Clock size={14} />
@@ -165,7 +175,7 @@ timeZone: "Europe/Amsterdam",
               </p>
             ) : (
               <ol className="flex items-center gap-2">
-                {STAGES.map((stage, i) => {
+                {stages.map((stage, i) => {
                   const done = i <= reachedIndex;
                   return (
                     <li key={stage} className="flex flex-1 items-center gap-2">
@@ -192,7 +202,7 @@ timeZone: "Europe/Amsterdam",
 
           {!cancelled && (
             <div className="mt-5 flex justify-end print:hidden">
-              <OrderStatusControl orderId={order.id} status={order.status} />
+              <OrderStatusControl orderId={order.id} status={order.status} deliveryDate={order.deliveryDate} />
             </div>
           )}
 

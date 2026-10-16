@@ -13,6 +13,7 @@ import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
 import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
 import { PAYMENT_LINK_HOLD_MINUTES } from "@/lib/payment-link";
 import { amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
+import { isFutureDelivery } from "@/lib/admin/order-types";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -252,7 +253,9 @@ export interface PromoCart {
 export async function validatePromoCode(
   rawCode: string,
   cart: PromoCart,
-  customerEmail?: string
+  customerEmail?: string,
+  /** Check the code as of this Amsterdam day instead of today (an order entered after the fact). */
+  asOfDate?: string
 ): Promise<PromoValidation> {
   const store = await readStore();
   const code = rawCode.trim().toUpperCase();
@@ -262,7 +265,7 @@ export async function validatePromoCode(
 
   // Amsterdam's calendar day, like everything else the kitchen runs on — not
   // UTC's, which would flip a code an hour (or two) early or late.
-  const today = amsterdamNow().dateKey;
+  const today = asOfDate ?? amsterdamNow().dateKey;
   if (promo.startsAt && promo.startsAt > today) return { ok: false, error: "notStarted" };
   if (promo.expiresAt && promo.expiresAt < today) return { ok: false, error: "expired" };
 
@@ -424,6 +427,12 @@ export interface CreateOrderInput {
     /** Staff took the order themselves, so it starts accepted unless it's awaiting an online payment. */
     accepted: boolean;
     createdBy: string;
+    /**
+     * An order that already happened, entered afterwards: when it was placed (the moment
+     * reports and the order list file it under), and whether it is already delivered.
+     */
+    placedAt?: string;
+    delivered?: boolean;
   };
 }
 
@@ -433,6 +442,10 @@ export async function createOrder(input: CreateOrderInput) {
     input.cart.subtotalCents - input.discountCents + input.deliveryFeeCents,
     0
   );
+
+  // Until migration 0020 is run the database has no "scheduled" status; a manual order
+  // for a later day then falls back to "preparing" rather than failing to save.
+  let noScheduledStatus = false;
 
   // The reference is unique in the database; on the rare collision, try a
   // new one rather than failing someone's checkout.
@@ -464,16 +477,28 @@ export async function createOrder(input: CreateOrderInput) {
         delivery_slot_end: input.deliverySlotEnd,
         ...(input.paymentMethod ? { payment_method: input.paymentMethod } : {}),
         ...(input.manual
-          ? {
-              channel: input.manual.channel,
-              channel_note: input.manual.channelNote,
-              payment_method: input.manual.paymentMethod,
-              payment_status: input.manual.paid ? "paid" : "open",
-              paid_at: input.manual.paid ? new Date().toISOString() : null,
-              status: input.manual.accepted ? "preparing" : "new",
-              accepted_at: input.manual.accepted ? new Date().toISOString() : null,
-              created_by: input.manual.createdBy,
-            }
+          ? (() => {
+              const m = input.manual;
+              const at = m.placedAt ?? new Date().toISOString();
+              return {
+                channel: m.channel,
+                channel_note: m.channelNote,
+                payment_method: m.paymentMethod,
+                payment_status: m.paid ? "paid" : "open",
+                paid_at: m.paid ? at : null,
+                status: m.delivered
+                  ? "delivered"
+                  : m.accepted
+                    ? isFutureDelivery(input.deliveryDate) && !noScheduledStatus
+                      ? "scheduled"
+                      : "preparing"
+                    : "new",
+                accepted_at: m.accepted || m.delivered ? at : null,
+                delivered_at: m.delivered ? at : null,
+                created_by: m.createdBy,
+                ...(m.placedAt ? { created_at: m.placedAt } : {}),
+              };
+            })()
           : {}),
       })
       .select("id, reference")
@@ -481,6 +506,11 @@ export async function createOrder(input: CreateOrderInput) {
 
     if (error) {
       if (error.code === "23505") continue; // duplicate reference
+      if (error.code === "23514" && input.manual && !noScheduledStatus) {
+        console.error("[orders] status 'scheduled' refused by the database - run migration 0020. Saving as 'preparing'.");
+        noScheduledStatus = true;
+        continue;
+      }
       throw new Error(error.message);
     }
 

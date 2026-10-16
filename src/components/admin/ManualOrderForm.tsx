@@ -15,6 +15,7 @@ import {
 } from "@/components/admin/ui/Form";
 import PostcodeField from "@/components/cart/PostcodeField";
 import {
+  checkManualPromoAction,
   createManualOrderAction,
   type ManualOrderState,
 } from "@/app/admin/(dashboard)/orders/create/actions";
@@ -42,6 +43,8 @@ interface Line {
   instructions: string;
   /** Chosen option ids per group id. */
   picked: Record<string, string[]>;
+  /** The price staff typed for one portion (extras included), or null to use the menu price. */
+  price: string | null;
 }
 
 interface SlotOption {
@@ -61,14 +64,37 @@ const PAYMENT_OPTIONS = [
   { value: "mollie_link", label: "Send an online payment link", hint: "You get a link to send the customer. The kitchen sees the order once they've paid." },
 ] as const;
 
+/** "12,5" / "12.50" -> 12.5, or null when it isn't a usable amount. */
+function parseEuros(text: string): number | null {
+  const t = text.trim().replace(",", ".");
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** Today in Amsterdam, "YYYY-MM-DD" — the day a "past" order is measured against. */
+function amsterdamToday(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export default function ManualOrderForm({
   categories,
   dishes,
   groups,
+  deliveryFee,
+  freeDeliveryOver,
 }: {
   categories: { id: string; label: string }[];
   dishes: ManualMenuDish[];
   groups: ManualMenuGroup[];
+  /** The shop's delivery fee and the order value above which it is free (from Settings). */
+  deliveryFee: number;
+  freeDeliveryOver: number | null;
 }) {
   const [state, formAction] = useActionState(createManualOrderAction, EMPTY);
   const e = state.errors ?? {};
@@ -82,14 +108,20 @@ export default function ManualOrderForm({
   const [slots, setSlots] = useState<SlotOption[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [email, setEmail] = useState("");
+  const [promoCode, setPromoCode] = useState("");
+  const [promo, setPromo] = useState<{ ok: boolean; discount?: number; message?: string } | null>(null);
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [feeText, setFeeText] = useState("");
 
   const dishBySlug = useMemo(() => new Map(dishes.map((d) => [d.slug, d])), [dishes]);
   const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
 
   // Slot availability for the chosen day — the same public endpoint the
   // customer checkout polls. Only open slots can be picked.
+  const isPast = Boolean(date) && date < amsterdamToday();
   useEffect(() => {
-    if (!date) {
+    if (!date || isPast) {
       setSlots([]);
       return;
     }
@@ -103,9 +135,10 @@ export default function ManualOrderForm({
     return () => {
       cancelled = true;
     };
-  }, [date]);
+  }, [date, isPast]);
 
-  const unitPrice = (line: Line) => {
+  /** What the menu says one portion costs, extras included. */
+  const menuPrice = (line: Line) => {
     const dish = dishBySlug.get(line.slug);
     if (!dish) return 0;
     const extras = Object.entries(line.picked).reduce((sum, [groupId, ids]) => {
@@ -117,7 +150,19 @@ export default function ManualOrderForm({
     }, 0);
     return dish.price + extras;
   };
+  /** What it will be charged at: the price staff typed, if they did, else the menu's. */
+  const unitPrice = (line: Line) => {
+    const typed = line.price === null ? null : parseEuros(line.price);
+    return typed ?? menuPrice(line);
+  };
   const subtotal = lines.reduce((sum, l) => sum + unitPrice(l) * l.quantity, 0);
+
+  // The delivery fee as it will be charged: what staff typed, else the shop's rule.
+  const autoFee = freeDeliveryOver != null && subtotal >= freeDeliveryOver ? 0 : deliveryFee;
+  const typedFee = parseEuros(feeText);
+  const fee = typedFee ?? autoFee;
+  const discount = promo?.ok ? (promo.discount ?? 0) : 0;
+  const total = Math.max(subtotal - discount + fee, 0);
 
   /** Is every required extras group filled in for this line? */
   const missingChoice = (line: Line) =>
@@ -135,8 +180,21 @@ export default function ManualOrderForm({
       options: Object.entries(l.picked).flatMap(([groupId, ids]) =>
         ids.map((optionId) => ({ groupId, optionId }))
       ),
+      // Only where staff changed it; otherwise the server uses the menu's price.
+      ...(l.price !== null && parseEuros(l.price) !== null ? { price: parseEuros(l.price) } : {}),
     }))
   );
+
+  async function checkPromo() {
+    setPromoChecking(true);
+    try {
+      setPromo(await checkManualPromoAction(cartPayload, promoCode, email, date));
+    } catch {
+      setPromo({ ok: false, message: "Couldn't check the code — try again." });
+    } finally {
+      setPromoChecking(false);
+    }
+  }
 
   const patch = (key: number, change: Partial<Line>) =>
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...change } : l)));
@@ -211,7 +269,7 @@ export default function ManualOrderForm({
 
         {/* ---- dishes ---------------------------------------------------- */}
         <Card>
-          <CardHeader title="Dishes" subtitle="Prices come from the menu — they can't be changed here." />
+          <CardHeader title="Dishes" subtitle="Prices start from the menu. Change a price to what you agreed with the customer." />
           <div className="mt-4">
             <Select
               value=""
@@ -220,7 +278,7 @@ export default function ManualOrderForm({
                 if (!slug) return;
                 setLines((prev) => [
                   ...prev,
-                  { key: nextKey, slug, quantity: 1, instructions: "", picked: {} },
+                  { key: nextKey, slug, quantity: 1, instructions: "", picked: {}, price: null },
                 ]);
                 setNextKey((k) => k + 1);
               }}
@@ -253,7 +311,27 @@ export default function ManualOrderForm({
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-heading">{dish.name}</p>
-                        <p className="text-xs text-muted">{formatMoney(unitPrice(line))} each</p>
+                        <label className="mt-1.5 flex items-center gap-2 text-xs text-muted">
+                          Price each €
+                          <input
+                            inputMode="decimal"
+                            aria-label={`Price for one ${dish.name}`}
+                            value={line.price ?? menuPrice(line).toFixed(2)}
+                            onChange={(ev) => patch(line.key, { price: ev.target.value })}
+                            className={`h-8 w-24 rounded-lg border px-2 text-sm font-semibold tabular-nums text-heading focus:border-ember-500 focus:outline-none ${
+                              line.price !== null ? "border-ember-600 bg-ember-600/5" : "border-hairline bg-panel"
+                            }`}
+                          />
+                          {line.price !== null && (
+                            <button
+                              type="button"
+                              onClick={() => patch(line.key, { price: null })}
+                              className="font-semibold text-ember-700 hover:underline"
+                            >
+                              Use menu price ({formatMoney(menuPrice(line))})
+                            </button>
+                          )}
+                        </label>
                       </div>
                       <div className="flex shrink-0 items-center gap-1">
                         <button
@@ -359,7 +437,14 @@ export default function ManualOrderForm({
               error={e.email}
 
             >
-              <Input name="email" type="email" autoComplete="off" invalid={Boolean(e.email)} />
+              <Input
+                name="email"
+                type="email"
+                autoComplete="off"
+                value={email}
+                onChange={(ev) => setEmail(ev.target.value)}
+                invalid={Boolean(e.email)}
+              />
             </Field>
           </div>
         </Card>
@@ -417,8 +502,8 @@ export default function ManualOrderForm({
 
         <Card>
           <CardHeader
-            title="Delivery time"
-            subtitle="Optional. Leave the slot empty for an order with no set time."
+            title="Date & time"
+            subtitle="Pick the day from the calendar — a day that has already passed is fine, for an order you are entering afterwards."
           />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Date" error={e.deliveryDate}>
@@ -430,26 +515,53 @@ export default function ManualOrderForm({
                 invalid={Boolean(e.deliveryDate)}
               />
             </Field>
+
+            {!isPast ? (
+              <Field
+                label="Slot"
+                error={e.slot}
+                hint={date && !slotsLoading && slots.length === 0 ? "Closed that day — no slots." : undefined}
+              >
+                <Select name="slot" defaultValue="" disabled={!date || slotsLoading} invalid={Boolean(e.slot)}>
+                  <option value="">No set slot</option>
+                  {slots.map((s) => (
+                    <option
+                      key={s.start}
+                      value={`${s.start}|${s.end}`}
+                      disabled={s.status !== "available"}
+                    >
+                      {s.start}–{s.end}
+                      {s.status === "full" ? " (full)" : s.status === "disabled" ? " (off)" : s.status === "past" ? " (past)" : ""}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : (
+              <div className="hidden sm:block" />
+            )}
+
             <Field
-              label="Slot"
-              error={e.slot}
-              hint={date && !slotsLoading && slots.length === 0 ? "Closed that day — no slots." : undefined}
+              label={isPast ? "Time" : "Or an exact time"}
+              hint={
+                isPast
+                  ? "When the order was placed and delivered."
+                  : "Optional. Used when no slot is picked above."
+              }
+              error={e.deliveryTime}
             >
-              <Select name="slot" defaultValue="" disabled={!date || slotsLoading} invalid={Boolean(e.slot)}>
-                <option value="">No set time</option>
-                {slots.map((s) => (
-                  <option
-                    key={s.start}
-                    value={`${s.start}|${s.end}`}
-                    disabled={s.status !== "available"}
-                  >
-                    {s.start}–{s.end}
-                    {s.status === "full" ? " (full)" : s.status === "disabled" ? " (off)" : s.status === "past" ? " (past)" : ""}
-                  </option>
-                ))}
-              </Select>
+              <Input name="deliveryTime" type="time" step={300} invalid={Boolean(e.deliveryTime)} />
             </Field>
           </div>
+
+          {isPast && (
+            <div className="mt-4 space-y-2 rounded-lg bg-canvas p-3">
+              <p className="text-xs text-muted">
+                This day has passed, so the order is saved under that date and time (in the order list and
+                reports). No slot is booked and the customer is not emailed.
+              </p>
+              <Checkbox name="alreadyDelivered" label="It was already delivered" defaultChecked />
+            </div>
+          )}
         </Card>
       </div>
 
@@ -474,6 +586,7 @@ export default function ManualOrderForm({
 
         <Card>
           <CardHeader title="Payment" />
+          {e.payment && <p className="mt-2 text-xs font-medium text-danger">{e.payment}</p>}
           <div className="mt-4 space-y-2">
             {PAYMENT_OPTIONS.map((option, i) => (
               <label
@@ -497,16 +610,73 @@ export default function ManualOrderForm({
         </Card>
 
         <Card>
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted">Dishes</span>
-            <span className="font-semibold tabular-nums text-heading">{formatMoney(subtotal)}</span>
+          <CardHeader title="Coupon" subtitle="Optional. Checked against the basket and the customer's email." />
+          <div className="mt-3 flex gap-2">
+            <Input
+              name="promoCode"
+              value={promoCode}
+              onChange={(ev) => {
+                setPromoCode(ev.target.value.toUpperCase());
+                setPromo(null);
+              }}
+              placeholder="WELKOM10"
+              autoComplete="off"
+              invalid={Boolean(e.promoCode)}
+            />
+            <button
+              type="button"
+              onClick={checkPromo}
+              disabled={promoChecking || !promoCode.trim() || lines.length === 0}
+              className="shrink-0 rounded-lg border border-hairline px-4 text-sm font-semibold text-body-text hover:bg-canvas disabled:opacity-50"
+            >
+              {promoChecking ? "…" : "Check"}
+            </button>
           </div>
-          <p className="mt-1 text-xs text-muted">
-            The delivery fee is added when you save, from your settings.
+          {e.promoCode && <p className="mt-2 text-xs font-medium text-danger">{e.promoCode}</p>}
+          {promo && (
+            <p className={`mt-2 text-xs font-medium ${promo.ok ? "text-success" : "text-danger"}`}>
+              {promo.ok ? `Takes ${formatMoney(promo.discount ?? 0)} off.` : promo.message}
+            </p>
+          )}
+        </Card>
+
+        <Card>
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-center justify-between">
+              <dt className="text-muted">Dishes</dt>
+              <dd className="font-semibold tabular-nums text-heading">{formatMoney(subtotal)}</dd>
+            </div>
+            {discount > 0 && (
+              <div className="flex items-center justify-between">
+                <dt className="text-muted">Coupon</dt>
+                <dd className="font-semibold tabular-nums text-success">−{formatMoney(discount)}</dd>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted">Delivery fee €</dt>
+              <dd>
+                <input
+                  name="deliveryFee"
+                  inputMode="decimal"
+                  value={feeText}
+                  onChange={(ev) => setFeeText(ev.target.value)}
+                  placeholder={autoFee.toFixed(2)}
+                  aria-label="Delivery fee"
+                  className={`h-9 w-24 rounded-lg border px-2 text-right text-sm font-semibold tabular-nums focus:border-ember-500 focus:outline-none ${
+                    feeText.trim() !== "" ? "border-ember-600 bg-ember-600/5" : "border-hairline bg-panel"
+                  }`}
+                />
+              </dd>
+            </div>
+            {e.deliveryFee && <p className="text-xs font-medium text-danger">{e.deliveryFee}</p>}
+            <div className="flex items-center justify-between border-t border-hairline pt-2">
+              <dt className="font-semibold text-heading">Total</dt>
+              <dd className="font-display text-lg font-semibold tabular-nums text-heading">{formatMoney(total)}</dd>
+            </div>
+          </dl>
+          <p className="mt-2 text-xs text-muted">
+            Leave the delivery fee empty for the usual one from your settings, or type 0 for free delivery.
           </p>
-          <div className="mt-3">
-            <Checkbox name="waiveDelivery" label="Waive the delivery fee" />
-          </div>
           <div className="mt-4">
             <SubmitButton>Create order</SubmitButton>
           </div>

@@ -14,6 +14,7 @@ import {
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
+import PaymentStatusPill from "@/components/admin/PaymentStatusPill";
 import { formatMoney } from "@/lib/admin/units";
 import { getCustomer, listOrders } from "@/lib/admin/orders-data";
 import { isOwner } from "@/lib/admin/guard";
@@ -184,8 +185,9 @@ timeZone: "Europe/Amsterdam",
                       {formatMoney(order.total)}
                     </p>
 
-                    <div className="hidden shrink-0 sm:block">
+                    <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
                       <OrderStatusPill status={order.status} />
+                      <PaymentStatusPill status={order.paymentStatus} partlyRefunded={order.refunded > 0} />
                     </div>
 
                     <ChevronRight size={18} className="shrink-0 text-faint" />

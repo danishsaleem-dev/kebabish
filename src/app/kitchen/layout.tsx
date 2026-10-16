@@ -8,6 +8,7 @@ import { signOutAction } from "@/app/logout-action";
 import { inter, bitter } from "@/lib/fonts";
 import AppShellBody from "@/components/shared/AppShellBody";
 import { FullscreenButton } from "@/components/kitchen/KitchenBoard";
+import KitchenNav from "@/components/kitchen/KitchenNav";
 import "../globals.css";
 
 export const metadata: Metadata = {
@@ -44,7 +45,8 @@ export default async function KitchenLayout({ children }: { children: ReactNode 
                   priority
                   className="h-8 w-auto"
                 />
-                <span className="font-display text-base font-semibold text-heading">Kitchen</span>
+                <span className="hidden font-display text-base font-semibold text-heading sm:inline">Kitchen</span>
+                <KitchenNav />
               </div>
               <div className="flex items-center gap-1">
                 <FullscreenButton />
