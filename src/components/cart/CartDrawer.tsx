@@ -8,6 +8,7 @@ import { Link } from "@/i18n/navigation";
 import BrandLogo from "@/components/shared/BrandLogo";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
 import CartLineNotice from "@/components/cart/CartLineNotice";
+import Suggestions from "@/components/menu/Suggestions";
 import { formatEuro } from "@/lib/money";
 
 /** Slide-in order summary. Mounted once, in the site layout. */
@@ -172,6 +173,15 @@ export default function CartDrawer() {
                   </div>
                 </li>
               ))}
+
+              {/* Something else to add while the basket is open in front of them. */}
+              <li className="py-4">
+                <Suggestions
+                  basedOn={[...new Set(lines.map((l) => l.slug))]}
+                  variant="scroll"
+                  limit={4}
+                />
+              </li>
             </ul>
 
             <footer className="border-t border-charcoal-600/10 px-5 py-4">

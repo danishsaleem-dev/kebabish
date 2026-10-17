@@ -26,6 +26,7 @@ import type {
   StoredOptionGroup,
   StoredRecipe,
 } from "@/lib/admin/store/types";
+import { PAIRS_LIMIT } from "@/lib/admin/store/types";
 
 const EMPTY: FormState = { ok: false };
 
@@ -50,6 +51,7 @@ export default function ItemForm({
   library,
   optionGroups,
   allergens,
+  dishes = [],
   recipe,
   ingredients,
   recipeAction,
@@ -60,6 +62,8 @@ export default function ItemForm({
   library: StoredMedia[];
   optionGroups: StoredOptionGroup[];
   allergens: StoredAllergen[];
+  /** The other dishes, for the "often bought with" picker. */
+  dishes?: { slug: string; name: string }[];
   recipe?: StoredRecipe;
   ingredients?: StoredIngredient[];
   recipeAction?: (prev: FormState, formData: FormData) => Promise<FormState>;
@@ -335,6 +339,28 @@ export default function ItemForm({
             ))}
           </div>
         </Card>
+
+        {dishes.length > 0 && (
+          <Card>
+            <CardHeader
+              title="Often bought with"
+              subtitle={`Pick up to ${PAIRS_LIMIT} dishes that go well with this one. They are suggested first beside it, in the basket and at checkout; what you leave out is filled in from real orders.`}
+            />
+            <div className="mt-4 max-h-64 space-y-2 overflow-y-auto pr-1">
+              {dishes.map((dish) => (
+                <Checkbox
+                  key={dish.slug}
+                  name="pairsWith"
+                  form="item-form"
+                  value={dish.slug}
+                  label={dish.name}
+                  defaultChecked={item?.pairsWith?.includes(dish.slug)}
+                />
+              ))}
+            </div>
+            {e.pairsWith && <p className="mt-2 text-xs font-medium text-danger">{e.pairsWith}</p>}
+          </Card>
+        )}
 
         <Card>
           <CardHeader title="Status" />

@@ -7,6 +7,7 @@ import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal, type CartLine } from "@/components/cart/CartProvider";
 import CartLineNotice from "@/components/cart/CartLineNotice";
+import Suggestions from "@/components/menu/Suggestions";
 import { normalizeDutchPhone } from "@/lib/phone";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
 import PostcodeField from "@/components/cart/PostcodeField";
@@ -385,6 +386,14 @@ export default function CheckoutForm({
             </li>
           ))}
         </ul>
+
+        {/* One more thing to add before paying — small cards, one tap. */}
+        <Suggestions
+          basedOn={[...new Set(lines.map((l) => l.slug))]}
+          variant="rows"
+          limit={3}
+          className="mt-5 border-t border-charcoal-600/10 pt-4"
+        />
 
         <div className="mt-5 border-t border-charcoal-600/10 pt-4">
           {promo ? (

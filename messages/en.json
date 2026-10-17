@@ -318,6 +318,8 @@
     "retryPay": "Try payment again",
     "creditNoteLine": "Refunded: {amount} — credit note",
     "invoiceDownload": "Download invoice (PDF)",
+    "lineReplaces": "Replaces: {name}",
+    "lineRegularPrice": "Regular price {regular} — compensation {saved}",
     "receiptInvoiceNumber": "Invoice number",
     "trackReceived": "Order received",
     "trackPreparing": "Being prepared",
@@ -851,5 +853,44 @@
     "unitMinute": "m",
     "unitSecond": "s",
     "hide": "Hide"
+  },
+  "suggestions": {
+    "title": "Often bought with",
+    "alternativesTitle": "Why not try one of these?",
+    "add": "Add",
+    "added": "Added",
+    "choose": "Choose",
+    "addAria": "Add {name} to your order",
+    "inBasket": "In your basket"
+  },
+  "stockRequest": {
+    "soldOutButton": "Not available right now — request it",
+    "title": "{name} isn't available right now",
+    "intro": "It's sold out for the moment, but you can ask us to make it for you. Tell us how many you'd like and when, and we'll get back to you soon.",
+    "quantity": "How many?",
+    "date": "Which day?",
+    "time": "Around what time?",
+    "optional": "optional",
+    "name": "Your name",
+    "phone": "Phone number",
+    "email": "Email",
+    "note": "Anything we should know?",
+    "submit": "Send request",
+    "sending": "Sending…",
+    "noCharge": "This is a request, not an order — nothing is charged.",
+    "successTitle": "Request received",
+    "successText": "Thank you, {name}! We'll get back to you soon, by phone on {phone}.",
+    "close": "Close",
+    "errors": {
+      "quantity": "Choose a number between 1 and 100.",
+      "name": "Please enter your name.",
+      "phone": "Please enter a valid phone number.",
+      "email": "That email address doesn't look right.",
+      "date": "Pick a day within the next 60 days.",
+      "time": "Enter a time like 18:30.",
+      "unknownDish": "That dish isn't on the menu any more.",
+      "tooMany": "You've sent a few requests already — please try again later, or message us on WhatsApp.",
+      "saveFailed": "We couldn't send your request right now. Please try again, or message us on WhatsApp."
+    }
   }
 }

@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   ChartColumnIncreasing,
   ChevronDown,
+  HandHelping,
   Images,
   LayoutDashboard,
   LogOut,
@@ -71,6 +72,7 @@ const MAIN: NavItem[] = [
   },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Feedback", href: "/admin/feedback", icon: Star },
+  { label: "Dish requests", href: "/admin/requests", icon: HandHelping },
   { label: "Reports", href: "/admin/reports", icon: ChartColumnIncreasing },
 ];
 

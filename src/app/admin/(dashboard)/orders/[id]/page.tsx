@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   Bike,
+  Pencil,
   ChefHat,
   CreditCard,
   FileText,
@@ -25,6 +26,8 @@ import OrderInvoiceHeader from "@/components/admin/OrderInvoiceHeader";
 import PrintButton from "@/components/admin/ui/PrintButton";
 import RefundPanel from "@/components/admin/RefundPanel";
 import { listRefunds } from "@/lib/refunds";
+import { listOrderEdits } from "@/lib/order-extras";
+import { editBlockedReason } from "@/lib/admin/order-edit";
 import { auth } from "@/lib/auth";
 import { formatMoney } from "@/lib/admin/units";
 import { getSettings } from "@/lib/admin/store";
@@ -76,6 +79,8 @@ export default async function OrderDetailPage({
   const vatRate = settings.vatRatePercent ?? null;
   const invoiceNumber = await getInvoiceNumber(order.reference);
   const refunds = await listRefunds(order.id);
+  const edits = await listOrderEdits(order.id);
+  const canEdit = !editBlockedReason(order);
 
   const [customer, allOrders, riders] = await Promise.all([
     order.customerId ? getCustomer(order.customerId) : Promise.resolve(null),
@@ -106,6 +111,15 @@ export default async function OrderDetailPage({
             Back to orders
           </Link>
           <div className="flex flex-wrap items-center gap-2">
+            {canEdit && (
+              <Link
+                href={`/admin/orders/${order.id}/edit`}
+                className="inline-flex items-center gap-2 rounded-lg bg-ember-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ember-500 print:hidden"
+              >
+                <Pencil size={15} />
+                Edit order
+              </Link>
+            )}
             <a
               href={`/admin/orders/${order.id}/ticket`}
               target="_blank"
@@ -279,6 +293,15 @@ timeZone: "Europe/Amsterdam",
                         <p className="text-xs text-muted">
                           {formatMoney(line.unitPrice)} each
                         </p>
+                        {line.replaces && (
+                          <p className="text-xs text-muted">Replaces: {line.replaces}</p>
+                        )}
+                        {line.listUnitPrice != null && line.listUnitPrice > line.unitPrice && (
+                          <p className="text-xs font-medium text-ember-700">
+                            Regular price {formatMoney(line.listUnitPrice)} each — compensation{" "}
+                            {formatMoney((line.listUnitPrice - line.unitPrice) * line.quantity)}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <p className="shrink-0 text-sm font-semibold text-heading">
@@ -317,6 +340,40 @@ timeZone: "Europe/Amsterdam",
                 )}
               </dl>
             </Card>
+
+            {edits.length > 0 && (
+              <Card className="print:hidden">
+                <CardHeader
+                  title="Changes to this order"
+                  subtitle="Staff changed it after it was placed. Newest first."
+                />
+                <ul className="mt-4 space-y-4">
+                  {edits.map((edit) => (
+                    <li key={edit.id} className="rounded-xl border border-hairline p-4 text-sm">
+                      <p className="font-semibold text-heading">
+                        {new Date(edit.editedAt).toLocaleString("en-GB", {
+                          timeZone: "Europe/Amsterdam",
+                          day: "numeric",
+                          month: "short",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                        {edit.editedByName ? ` · ${edit.editedByName}` : ""}
+                      </p>
+                      {edit.note && <p className="mt-1 text-body-text">“{edit.note}”</p>}
+                      <p className="mt-2 text-xs text-muted">
+                        Total {formatMoney(fromCents(edit.beforeTotalCents))} →{" "}
+                        <strong className="text-heading">{formatMoney(fromCents(edit.afterTotalCents))}</strong>
+                      </p>
+                      <p className="mt-1 text-xs text-muted">
+                        Before:{" "}
+                        {edit.beforeLines.map((l) => `${l.quantity}× ${l.name}`).join(", ") || "—"}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            )}
 
             {order.note && (
               <Card className="border-warn/30 bg-warn-soft">

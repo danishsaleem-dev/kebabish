@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Minus, Plus, ShoppingBag, Check } from "lucide-react";
 import { useCart, type CartOption } from "@/components/cart/CartProvider";
+import Suggestions from "@/components/menu/Suggestions";
+import StockRequestDialog from "@/components/menu/StockRequestDialog";
 import { formatEuro } from "@/lib/money";
 import type { PublicMenuItem } from "@/lib/public-menu";
 
@@ -26,12 +28,17 @@ export default function ItemOrderPanel({
   const t = useTranslations("item");
   const tMenu = useTranslations("menu");
   const tCart = useTranslations("cart");
+  const tRequest = useTranslations("stockRequest");
   const { add, openDrawer } = useCart();
 
   const [selected, setSelected] = useState<Record<string, string[]>>({});
   const [instructions, setInstructions] = useState("");
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  // Once something has been added the "often bought with" strip appears below the
+  // button and stays — changing an extra afterwards must not make it vanish.
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const [requestOpen, setRequestOpen] = useState(false);
 
   const orderable = item.price != null && !item.soldOut && isOpen;
 
@@ -93,6 +100,7 @@ export default function ItemOrderPanel({
       quantity
     );
     setJustAdded(true);
+    setSuggestOpen(true);
     openDrawer();
   }
 
@@ -230,6 +238,18 @@ export default function ItemOrderPanel({
                 ? t("priceOnRequestNote")
                 : t("closedNote")}
           </p>
+          {/* A sold-out dish stays on the menu; trying to order it opens a polite
+              message with a way to ask for it, instead of a dead button. */}
+          {item.soldOut && item.price != null && (
+            <button
+              type="button"
+              onClick={() => setRequestOpen(true)}
+              className="mt-4 inline-flex w-full items-center justify-center gap-2.5 rounded-full bg-ember-600 px-7 py-4 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500 sm:w-auto"
+            >
+              <ShoppingBag size={18} />
+              {tRequest("soldOutButton")}
+            </button>
+          )}
           {item.price == null && (
             <a
               href={whatsappHref}
@@ -241,6 +261,17 @@ export default function ItemOrderPanel({
             </a>
           )}
         </div>
+      )}
+
+      {suggestOpen && <Suggestions basedOn={[item.slug]} variant="cards" />}
+
+      {requestOpen && (
+        <StockRequestDialog
+          slug={item.slug}
+          name={item.name}
+          open
+          onClose={() => setRequestOpen(false)}
+        />
       )}
     </div>
   );

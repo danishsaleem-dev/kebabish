@@ -500,7 +500,7 @@ it weekly. It is a stopgap, not point-in-time recovery — up to a week of order
 the page says so and recommends **Supabase Pro (~$25/month, daily backups)** once orders flow, keeping
 this export as a second copy outside Supabase.
 
-- **`src/lib/backup/export.ts`** — `BACKUP_TABLES` lists all 14 tables **in dependency order** (a
+- **`src/lib/backup/export.ts`** — `BACKUP_TABLES` lists all 17 tables **in dependency order** (a
   row is restored after the rows it points at) with each table's primary key. The file carries
   each table's `pk`, `omit` and `restoreDefaults` inside it, so the restore script is generic and an
   old file stays restorable if this list later changes. **Add any new table to `BACKUP_TABLES`** when
@@ -864,6 +864,72 @@ migration (it's a field in the store document). No image = no popup, so a code c
   a second visit shows the *other* promotion; Escape closes, unlocks scrolling and is remembered; at phone
   width the image fits with 16px margins and the close button stays on screen; the admin form saved an image
   on a code, and removing it drops the key and the popup.
+
+### Sold-out dishes you can ask for, and "often bought with" (Oct 2026, migration `0021_requests_and_order_edits.sql`)
+
+**A sold-out dish is never hidden.** It stays on the menu; on its page the order panel shows the usual note and a
+button, **"Not available right now — request it"** (`ItemOrderPanel`), which opens `StockRequestDialog`: a polite
+message, a short form (**how many, which day and about what time — both optional —, name, phone, optional email and
+note**), and, under it, a swipeable row of other dishes to add right now. Sending it saves a row in `stock_requests`
+and emails the kitchen address (`sendStockRequestEmail`: who to ring, what, when). It reserves and charges nothing,
+and says so. **`requestDishAction` trusts nothing**: the dish is found in the real menu from its slug, quantity 1–100,
+the day must be today..+60 (Amsterdam), the phone must pass `normalizeDutchPhone`, text is trimmed, and a honeypot
+plus a per-visitor throttle (5/hour, `stock-requests/throttle.ts`) keep a script from filling the inbox.
+**Admin: *Dish requests* (`/admin/requests`, owner/staff)** — "To follow up" / "All", each card with the phone (tap to
+ring), a WhatsApp link, the note, and *I contacted them / Done / Can't do it / Reopen* and a two-step delete. Run
+migration 0021 first: until then the form says it couldn't send (and logs "run migration 0021") and the admin screen
+shows a "not set up" card; the website otherwise works. The dialog is `z-[90]` so it sits above the promotion popup
+(`z-[80]`) if both happen to be open. Wording is editable (*Website content → Header, footer & banners →
+Suggestions & dish requests*).
+
+**"Often bought with"** (`Suggestions.tsx`, `lib/suggestions.ts`, `GET /api/suggestions`): small dish cards with a
+one-tap add. Where: on a dish's page **below the add button once something has been added** (it stays, even if an
+extra is changed afterwards); in the **basket drawer** (a swipeable row under the lines); at **checkout** (rows in the
+order summary, above the promo box); and in the **sold-out popup**. What is suggested, strongest first: (1) the **owner's
+picks** — *Often bought with* in the dish editor, up to `PAIRS_LIMIT` = 4 dishes (`StoredItem.pairsWith`, no migration);
+(2) dishes that were really **in the same paid order** in the last 120 days (counted from `order_items`, cached 10 min,
+degrades to nothing if it can't be read); (3) **popular**, then featured. A dish from a *different* category scores a
+little higher than one from the same category, and **a sold-out or unpriced dish is never suggested**. The strip is
+fetched once when it appears (the dishes already in the basket are left out) and is **not refetched** as the basket
+changes, so tapping a card flips it to "Added · 1" instead of making it vanish. A dish with a *required* choice (a sauce,
+a size) can't be added in one tap, so its card links to the dish's page. The API is public and read-only: only what the
+public menu already shows.
+
+### Editing an order after it was placed — and compensation (Oct 2026)
+
+*Orders → an order → **Edit order*** (`/admin/orders/[id]/edit`, owner/staff/manager) is for the day a dish turns out to be
+unavailable and, after a call with the customer, something else goes out. Per line: quantity, **what is charged for
+one portion**, **Swap for another dish** (the customer keeps paying what they were paying) and remove; plus *Add a dish*,
+the **discount** and the **delivery fee** (both editable), and a note on why. Everything is rebuilt on the server from the real
+menu (`planEdit()` in `lib/admin/order-edit.ts` — pure, and tested: 27 checks); staff may use a dish that is sold out,
+skip a required choice and set any price.
+- **Compensation is the case it is built around:** the customer ordered €20 of food, it isn't available, and a €25 dish
+  goes out for the same €20. The line is *charged* €20 but remembers its **regular price (€25)** and **what it replaced**
+  (`order_line_extra`), and the **bill shows both**: the invoice PDF (`Vervangt: …` / `Normale prijs € 25,00 — compensatie
+  € 5,00`, in the customer's language), the order's confirmation page and the admin order page. Charging the regular price
+  again (or more) clears the compensation; a line that is already a compensation keeps measuring against its *original*
+  regular price however it is edited.
+- **History:** every save writes a row to `order_edits` (who, when, why, what the order looked like before, old and new total),
+  shown on the order page as *Changes to this order*.
+- **Money:** editing never moves money by itself. If the order was already paid and the new total differs, the form (and the
+  toast after saving) says what is *still to collect* or *due back* — the actual refund is the order page's **Refund** box, which
+  also issues the credit note.
+- **Refused:** a delivered or cancelled order, and one waiting for its **automatic online (Mollie) payment** — that payment
+  was started for the old amount, and changing the total under it would let the customer pay the wrong sum.
+- **Invoice:** an order that already has an invoice number keeps it; the PDF is built from the order, so it will show the changed
+  lines under the same number (the form warns before saving; the copy emailed earlier is unchanged). If the total changed, the
+  refund/credit note is the correction.
+- **The kitchen** sees the edited lines at once, but a ticket already printed is not reprinted — press *Kitchen ticket* on the order.
+- **Needs migration 0021** (three tables: `stock_requests`, `order_line_extra`, `order_edits` — all in `BACKUP_TABLES`). They are separate
+  tables on purpose, so no existing order query changed or can break; without the migration an edit is refused with a clear
+  message and everything else reads as before.
+- **Verified (Oct 2026):** the pricing rules by a script (swap keeps the price and records the regular one; untouched line stays
+  byte-identical; price change charges all-in with extras listed free; compensation survives other edits and clears when
+  the regular price is charged; unknown dish / foreign extra / negative or absurd price / no lines are refused; quantity capped
+  at 50); the form in the browser (swapping Chicken Biryani for Boneless Biryani kept €12.99, showed "Regular price €13.99 —
+  compensation €1.00", total unchanged) and its refusal message before the migration. **The database write path
+  (new lines → totals → delete old lines → notes) is written to undo itself on failure but has NOT been run against a database that
+  has the tables — try one edit on a test order right after running 0021.**
 
 ### SEO audit and structured data (Oct 2026)
 

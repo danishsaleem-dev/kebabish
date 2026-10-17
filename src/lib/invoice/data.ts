@@ -65,16 +65,34 @@ export async function loadInvoiceData(reference: string): Promise<InvoiceData | 
       email: order.customerEmail,
       phone: order.customerPhone,
     },
-    lines: lines.map((l) => ({
-      name: l.name,
-      quantity: l.quantity,
-      unitCents: Math.round(l.lineTotalCents / Math.max(l.quantity, 1)),
-      totalCents: l.lineTotalCents,
-      details: [
-        ...(l.options.length > 0 ? [l.options.map((o) => o.optionLabel).join(", ")] : []),
-        ...(l.instructions ? [`“${l.instructions}”`] : []),
-      ],
-    })),
+    lines: lines.map((l) => {
+      const money = (cents: number) => {
+        const text = `\u20AC ${(cents / 100).toFixed(2)}`;
+        return locale === "nl" ? text.replace(".", ",") : text;
+      };
+      // What staff changed after the order was placed: a dish swapped in for another,
+      // and — when the customer is charged less than the dish normally costs — the regular
+      // price, so the bill shows what the compensation was worth.
+      const regularTotal = l.listUnitPriceCents != null ? l.listUnitPriceCents * l.quantity : null;
+      return {
+        name: l.name,
+        quantity: l.quantity,
+        unitCents: Math.round(l.lineTotalCents / Math.max(l.quantity, 1)),
+        totalCents: l.lineTotalCents,
+        details: [
+          ...(l.options.length > 0 ? [l.options.map((o) => o.optionLabel).join(", ")] : []),
+          ...(l.instructions ? [`“${l.instructions}”`] : []),
+          ...(l.replaces ? [`${locale === "nl" ? "Vervangt" : "Replaces"}: ${l.replaces}`] : []),
+          ...(regularTotal != null && regularTotal > l.lineTotalCents
+            ? [
+                locale === "nl"
+                  ? `Normale prijs ${money(regularTotal)} \u2014 compensatie ${money(regularTotal - l.lineTotalCents)}`
+                  : `Regular price ${money(regularTotal)} \u2014 compensation ${money(regularTotal - l.lineTotalCents)}`,
+              ]
+            : []),
+        ],
+      };
+    }),
     subtotalCents: order.subtotalCents,
     discountCents: order.discountCents,
     promoCode: order.promoCode,

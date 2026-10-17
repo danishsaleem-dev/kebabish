@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
+import { PAIRS_LIMIT } from "@/lib/admin/store/types";
 import {
   createAllergen,
   createCategory,
@@ -221,6 +222,7 @@ const itemSchema = z.object({
     .default("")
     .transform((v) => v.split(",").map((s) => s.trim()).filter(Boolean)),
   allergenIds: z.array(z.string()),
+  pairsWith: z.array(z.string()).max(PAIRS_LIMIT, `Pick at most ${PAIRS_LIMIT} dishes.`),
 });
 
 function readItemForm(formData: FormData) {
@@ -246,6 +248,7 @@ function readItemForm(formData: FormData) {
       .filter(Boolean),
     tags: formData.get("tags") ?? "",
     allergenIds: formData.getAll("allergenIds").map(String).filter(Boolean),
+    pairsWith: formData.getAll("pairsWith").map(String).filter(Boolean),
   });
 }
 

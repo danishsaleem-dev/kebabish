@@ -16,6 +16,7 @@ import { getOrderSummaryById } from "@/lib/orders";
 import { notifyRefund, refundOrder } from "@/lib/refunds";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
+import { fetchLineExtras } from "@/lib/order-extras";
 
 /**
  * Real orders, customers, dashboard and report data — replaces
@@ -32,6 +33,7 @@ import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
  */
 
 interface OrderItemRow {
+  id: string;
   name: string;
   item_slug: string;
   quantity: number;
@@ -90,6 +92,7 @@ function mapOrder(row: OrderRow): AdminOrder {
       .join(" — ");
 
     return {
+      id: item.id,
       name: suffix ? `${item.name} (${suffix})` : item.name,
       baseName: item.name,
       slug: item.item_slug,
@@ -142,7 +145,7 @@ function mapOrder(row: OrderRow): AdminOrder {
 // assigned rider, and `created_by` for manual orders), and PostgREST refuses to
 // guess which one a bare `admin_users(...)` means — every order query would fail.
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, channel_note, payment_method, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users!orders_assigned_rider_id_fkey(name), order_items(name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, channel_note, payment_method, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users!orders_assigned_rider_id_fkey(name), order_items(id, name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small
@@ -168,7 +171,27 @@ export async function getOrder(id: string): Promise<AdminOrder | null> {
     .maybeSingle();
 
   if (error) throw new Error(error.message);
-  return data ? mapOrder(data as unknown as OrderRow) : null;
+  if (!data) return null;
+
+  // One order, shown whole: add what staff changed on its lines (a swapped dish, the
+  // regular price behind a compensation). Lists of orders skip this.
+  const order = mapOrder(data as unknown as OrderRow);
+  const extras = await fetchLineExtras(order.id);
+  if (extras.size === 0) return order;
+  return {
+    ...order,
+    lines: order.lines.map((l) => {
+      const extra = l.id ? extras.get(l.id) : undefined;
+      return extra
+        ? {
+            ...l,
+            replaces: extra.replaces,
+            listUnitPrice:
+              extra.listUnitPriceCents != null ? fromCents(extra.listUnitPriceCents) : null,
+          }
+        : l;
+    }),
+  };
 }
 
 /** Every order assigned to this rider, newest first — their dashboard's whole feed. */

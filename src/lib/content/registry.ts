@@ -561,6 +561,26 @@ export const GROUPS: GroupDef[] = [
         ],
       },
       {
+        id: "suggestions",
+        title: "Suggestions & dish requests",
+        where: "The \"often bought with\" cards, and the popup when a sold-out dish is tapped.",
+        fields: [
+          text("suggestions.title", "Heading above the suggested dishes", { max: 50 }),
+          text("suggestions.alternativesTitle", "Heading in the sold-out popup", { max: 60 }),
+          text("stockRequest.soldOutButton", "Button on a sold-out dish", { max: 60 }),
+          text("stockRequest.title", "Popup heading for a sold-out dish", {
+            max: 90,
+            hint: "{name} is filled in automatically — keep it.",
+          }),
+          long("stockRequest.intro", "Popup text", { max: 300 }),
+          text("stockRequest.successTitle", "Heading after a request is sent", { max: 60 }),
+          long("stockRequest.successText", "Text after a request is sent", {
+            max: 200,
+            hint: "{name} and {phone} are filled in automatically — keep them, or leave them out.",
+          }),
+        ],
+      },
+      {
         id: "status",
         title: "Orders-paused banner",
         where: "The strip under the header when orders are switched off.",

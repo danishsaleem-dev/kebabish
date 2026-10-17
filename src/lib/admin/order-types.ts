@@ -40,6 +40,12 @@ export type PaymentStatus =
   | "refunded";
 
 export interface AdminOrderLine {
+  /** The order line's id (what edits and extras are keyed on). */
+  id?: string;
+  /** What this line replaced, when staff swapped a dish after the order was placed. */
+  replaces?: string | null;
+  /** The dish's regular price per portion, when the customer is charged less (a compensation). */
+  listUnitPrice?: number | null;
   /** Display name — dish plus any chosen extras/instructions in parens. */
   name: string;
   /** The dish alone, as ordered — what Top Dishes groups by. */

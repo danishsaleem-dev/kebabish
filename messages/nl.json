@@ -318,6 +318,8 @@
     "retryPay": "Opnieuw betalen",
     "creditNoteLine": "Terugbetaald: {amount} — creditnota",
     "invoiceDownload": "Download factuur (PDF)",
+    "lineReplaces": "Vervangt: {name}",
+    "lineRegularPrice": "Normale prijs {regular} — compensatie {saved}",
     "receiptInvoiceNumber": "Factuurnummer",
     "trackReceived": "Bestelling ontvangen",
     "trackPreparing": "In de maak",
@@ -851,5 +853,44 @@
     "unitMinute": "m",
     "unitSecond": "s",
     "hide": "Verbergen"
+  },
+  "suggestions": {
+    "title": "Vaak samen besteld",
+    "alternativesTitle": "Probeer misschien een van deze",
+    "add": "Toevoegen",
+    "added": "Toegevoegd",
+    "choose": "Kies",
+    "addAria": "Voeg {name} toe aan je bestelling",
+    "inBasket": "In je mandje"
+  },
+  "stockRequest": {
+    "soldOutButton": "Nu niet beschikbaar — vraag het aan",
+    "title": "{name} is op dit moment niet beschikbaar",
+    "intro": "Het is even uitverkocht, maar je kunt het bij ons aanvragen. Laat weten hoeveel je wilt en wanneer, dan nemen we snel contact met je op.",
+    "quantity": "Hoeveel?",
+    "date": "Op welke dag?",
+    "time": "Rond hoe laat?",
+    "optional": "optioneel",
+    "name": "Je naam",
+    "phone": "Telefoonnummer",
+    "email": "E-mail",
+    "note": "Wil je ons nog iets laten weten?",
+    "submit": "Aanvraag versturen",
+    "sending": "Versturen…",
+    "noCharge": "Dit is een aanvraag, geen bestelling — er wordt niets afgeschreven.",
+    "successTitle": "Aanvraag ontvangen",
+    "successText": "Bedankt, {name}! We nemen snel contact met je op, telefonisch via {phone}.",
+    "close": "Sluiten",
+    "errors": {
+      "quantity": "Kies een aantal tussen 1 en 100.",
+      "name": "Vul je naam in.",
+      "phone": "Vul een geldig telefoonnummer in.",
+      "email": "Dit e-mailadres klopt niet.",
+      "date": "Kies een dag binnen de komende 60 dagen.",
+      "time": "Vul een tijd in, zoals 18:30.",
+      "unknownDish": "Dit gerecht staat niet meer op het menu.",
+      "tooMany": "Je hebt al een paar aanvragen gestuurd — probeer het later opnieuw, of stuur ons een bericht via WhatsApp.",
+      "saveFailed": "We konden je aanvraag nu niet versturen. Probeer het opnieuw, of stuur ons een bericht via WhatsApp."
+    }
   }
 }

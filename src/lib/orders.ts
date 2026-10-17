@@ -14,6 +14,7 @@ import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-d
 import { PAYMENT_LINK_HOLD_MINUTES } from "@/lib/payment-link";
 import { amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
 import { isFutureDelivery } from "@/lib/admin/order-types";
+import { fetchLineExtras } from "@/lib/order-extras";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -951,6 +952,7 @@ export async function markOrderPaymentFailed(id: string) {
 }
 
 export interface ReceiptLine {
+  id?: string;
   slug: string;
   name: string;
   quantity: number;
@@ -958,6 +960,10 @@ export interface ReceiptLine {
   options: PricedOption[];
   instructions: string | null;
   lineTotalCents: number;
+  /** Set when staff swapped this in for something else on the order. */
+  replaces?: string | null;
+  /** The dish's regular price per portion, when the customer is charged less (a compensation). */
+  listUnitPriceCents?: number | null;
 }
 
 export interface OrderSummary {
@@ -998,7 +1004,7 @@ const ORDER_SELECT =
   "address_street, address_postcode, address_city, notes, subtotal_cents, " +
   "discount_cents, promo_code, delivery_fee_cents, " +
   "delivery_date, delivery_slot_start, delivery_slot_end, " +
-  "order_items(item_slug, name, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "order_items(id, item_slug, name, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 interface OrderRow {
   id: string;
@@ -1029,6 +1035,7 @@ interface OrderRow {
   delivery_slot_end: string | null;
   order_items:
     | {
+        id: string;
         item_slug: string;
         name: string;
         quantity: number;
@@ -1069,6 +1076,7 @@ function mapOrderRow(row: OrderRow): OrderSummary {
     deliverySlotStart: row.delivery_slot_start,
     deliverySlotEnd: row.delivery_slot_end,
     lines: (row.order_items ?? []).map((l) => ({
+      id: l.id,
       slug: l.item_slug,
       name: l.name,
       quantity: l.quantity,
@@ -1077,6 +1085,23 @@ function mapOrderRow(row: OrderRow): OrderSummary {
       instructions: l.instructions,
       lineTotalCents: l.line_total_cents,
     })),
+  };
+}
+
+/**
+ * Adds what staff changed on the order's lines (what a line replaced, the regular
+ * price behind a compensation). Only for the places that print or show a single
+ * order to a person; a list of orders doesn't need it. No-op if there is nothing.
+ */
+async function withLineExtras(summary: OrderSummary): Promise<OrderSummary> {
+  const extras = await fetchLineExtras(summary.id);
+  if (extras.size === 0) return summary;
+  return {
+    ...summary,
+    lines: summary.lines.map((l) => {
+      const extra = l.id ? extras.get(l.id) : undefined;
+      return extra ? { ...l, replaces: extra.replaces, listUnitPriceCents: extra.listUnitPriceCents } : l;
+    }),
   };
 }
 
@@ -1089,7 +1114,7 @@ export async function getOrderSummaryById(id: string): Promise<OrderSummary | nu
 
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return mapOrderRow(data as unknown as OrderRow);
+  return withLineExtras(mapOrderRow(data as unknown as OrderRow));
 }
 
 export async function getOrderByReference(
@@ -1103,7 +1128,7 @@ export async function getOrderByReference(
 
   if (error) throw new Error(error.message);
   if (!data) return null;
-  return mapOrderRow(data as unknown as OrderRow);
+  return withLineExtras(mapOrderRow(data as unknown as OrderRow));
 }
 
 async function getOrderByMolliePaymentId(

@@ -11,6 +11,7 @@ import {
   listAllergens,
   listCategories,
   listIngredients,
+  listItems,
   listMedia,
   listOptionGroups,
 } from "@/lib/admin/store";
@@ -38,7 +39,7 @@ export default async function EditItemPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [item, categories, library, optionGroups, allergens, recipe, ingredients] =
+  const [item, categories, library, optionGroups, allergens, recipe, ingredients, items] =
     await Promise.all([
       getItem(slug),
       listCategories(),
@@ -47,6 +48,7 @@ export default async function EditItemPage({
       listAllergens(),
       getRecipe(slug),
       listIngredients(),
+      listItems(),
     ]);
   if (!item) notFound();
 
@@ -68,6 +70,7 @@ export default async function EditItemPage({
           library={library}
           optionGroups={optionGroups}
           allergens={allergens}
+          dishes={items.filter((i) => i.slug !== slug).map((i) => ({ slug: i.slug, name: i.name }))}
           recipe={recipe}
           ingredients={ingredients}
           recipeAction={saveRecipeAction}

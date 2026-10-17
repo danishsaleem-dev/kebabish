@@ -5,6 +5,7 @@ import ItemForm from "@/components/admin/ItemForm";
 import {
   listAllergens,
   listCategories,
+  listItems,
   listMedia,
   listOptionGroups,
 } from "@/lib/admin/store";
@@ -14,11 +15,12 @@ export const metadata = { title: "Add item" };
 export const dynamic = "force-dynamic";
 
 export default async function NewItemPage() {
-  const [categories, library, optionGroups, allergens] = await Promise.all([
+  const [categories, library, optionGroups, allergens, items] = await Promise.all([
     listCategories(),
     listMedia(),
     listOptionGroups(),
     listAllergens(),
+    listItems(),
   ]);
 
   return (
@@ -43,6 +45,7 @@ export default async function NewItemPage() {
           library={library}
           optionGroups={optionGroups}
           allergens={allergens}
+          dishes={items.map((i) => ({ slug: i.slug, name: i.name }))}
         />
       </div>
     </AdminShell>

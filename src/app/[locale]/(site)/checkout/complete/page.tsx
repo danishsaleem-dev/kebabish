@@ -306,6 +306,20 @@ export default async function CheckoutCompletePage({
                       {line.instructions}
                     </span>
                   )}
+                  {line.replaces && (
+                    <span className="block text-ink/50">{t("lineReplaces", { name: line.replaces })}</span>
+                  )}
+                  {line.listUnitPriceCents != null &&
+                    line.listUnitPriceCents * line.quantity > line.lineTotalCents && (
+                      <span className="block font-medium text-ember-700">
+                        {t("lineRegularPrice", {
+                          regular: formatEuro(fromCents(line.listUnitPriceCents)),
+                          saved: formatEuro(
+                            fromCents(line.listUnitPriceCents * line.quantity - line.lineTotalCents)
+                          ),
+                        })}
+                      </span>
+                    )}
                 </span>
                 <span className="shrink-0 tabular-nums text-charcoal-600">
                   {formatEuro(fromCents(line.lineTotalCents))}

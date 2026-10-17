@@ -92,7 +92,17 @@ export interface StoredItem {
    * traceable to one ingredient line.
    */
   allergenIds: string[];
+  /**
+   * Dishes the owner says go well with this one (by slug, at most PAIRS_LIMIT). They
+   * lead the "Often bought with" suggestions beside this dish and anything that has it
+   * in the basket; the rest of the strip is filled from real orders and popularity.
+   * Optional and absent on older data.
+   */
+  pairsWith?: string[];
 }
+
+/** How many "often bought with" dishes can be picked for one dish. */
+export const PAIRS_LIMIT = 4;
 
 /** One choice inside an option group, e.g. "Garlic sauce" at +€0.75. */
 export interface StoredOption {
