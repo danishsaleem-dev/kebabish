@@ -79,6 +79,7 @@ const schema = z.object({
   payment: z.enum(["mollie_link", "cash", "bank_transfer", "unpaid", "paid_cash", "paid_bank"]),
   promoCode: z.string().trim().max(40).default(""),
   deliveryFee: z.string().trim().max(10).default(""),
+  adminDiscount: z.string().trim().max(10).default(""),
   waiveDelivery: z.boolean(),
 });
 
@@ -222,6 +223,7 @@ export async function createManualOrderAction(
     payment: formData.get("payment"),
     promoCode: String(formData.get("promoCode") ?? ""),
     deliveryFee: String(formData.get("deliveryFee") ?? ""),
+    adminDiscount: String(formData.get("adminDiscount") ?? ""),
     waiveDelivery: formData.get("waiveDelivery") === "on",
   });
   if (!parsed.success) {
@@ -319,6 +321,15 @@ export async function createManualOrderAction(
     promoCode = result.code;
     discountCents = result.discountCents;
   }
+
+  // A discount staff type in themselves (a "let's say \u20AC5 off"), on top of any coupon. It is
+  // taken off the dishes, never more than they come to, so the total can't go below the delivery fee.
+  const typedDiscount = d.adminDiscount === "" ? 0 : eurosToCents(d.adminDiscount, 1000);
+  if (typedDiscount === null) {
+    await releaseSlot();
+    return { ok: false, errors: { adminDiscount: "Enter an amount like 5 or 2,50 \u2014 or leave it empty." } };
+  }
+  discountCents = Math.min(discountCents + typedDiscount, cart.subtotalCents);
 
   const typedFee = d.deliveryFee === "" ? null : eurosToCents(d.deliveryFee, 100);
   if (d.deliveryFee !== "" && typedFee === null) {

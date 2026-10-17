@@ -113,6 +113,7 @@ export default function ManualOrderForm({
   const [promo, setPromo] = useState<{ ok: boolean; discount?: number; message?: string } | null>(null);
   const [promoChecking, setPromoChecking] = useState(false);
   const [feeText, setFeeText] = useState("");
+  const [discountText, setDiscountText] = useState("");
 
   const dishBySlug = useMemo(() => new Map(dishes.map((d) => [d.slug, d])), [dishes]);
   const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
@@ -161,8 +162,10 @@ export default function ManualOrderForm({
   const autoFee = freeDeliveryOver != null && subtotal >= freeDeliveryOver ? 0 : deliveryFee;
   const typedFee = parseEuros(feeText);
   const fee = typedFee ?? autoFee;
-  const discount = promo?.ok ? (promo.discount ?? 0) : 0;
-  const total = Math.max(subtotal - discount + fee, 0);
+  const couponDiscount = promo?.ok ? (promo.discount ?? 0) : 0;
+  // The discount typed by hand comes off on top of any coupon, never past the dishes' total.
+  const adminDiscount = Math.min(parseEuros(discountText) ?? 0, Math.max(subtotal - couponDiscount, 0));
+  const total = Math.max(subtotal - couponDiscount - adminDiscount + fee, 0);
 
   /** Is every required extras group filled in for this line? */
   const missingChoice = (line: Line) =>
@@ -646,12 +649,29 @@ export default function ManualOrderForm({
               <dt className="text-muted">Dishes</dt>
               <dd className="font-semibold tabular-nums text-heading">{formatMoney(subtotal)}</dd>
             </div>
-            {discount > 0 && (
+            {couponDiscount > 0 && (
               <div className="flex items-center justify-between">
                 <dt className="text-muted">Coupon</dt>
-                <dd className="font-semibold tabular-nums text-success">−{formatMoney(discount)}</dd>
+                <dd className="font-semibold tabular-nums text-success">−{formatMoney(couponDiscount)}</dd>
               </div>
             )}
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted">Discount €</dt>
+              <dd>
+                <input
+                  name="adminDiscount"
+                  inputMode="decimal"
+                  value={discountText}
+                  onChange={(ev) => setDiscountText(ev.target.value)}
+                  placeholder="0.00"
+                  aria-label="Discount in euros"
+                  className={`h-9 w-24 rounded-lg border px-2 text-right text-sm font-semibold tabular-nums focus:border-ember-500 focus:outline-none ${
+                    discountText.trim() !== "" ? "border-ember-600 bg-ember-600/5" : "border-hairline bg-panel"
+                  }`}
+                />
+              </dd>
+            </div>
+            {e.adminDiscount && <p className="text-xs font-medium text-danger">{e.adminDiscount}</p>}
             <div className="flex items-center justify-between gap-3">
               <dt className="text-muted">Delivery fee €</dt>
               <dd>

@@ -1522,7 +1522,7 @@ booked, no email is sent, an online payment link is refused, and "It was already
 records it as delivered. A future/today day offers the slot picker as before, or **an exact time** (window = the
 usual slot length from there, no capacity reserved). (2) **A coupon**, checked on the server against the real
 basket and customer email (a "Check" button previews the discount; for a past day the code is judged as of that
-day via `validatePromoCode(…, asOfDate)`). (3) **The price actually agreed**: each dish line has an editable
+day via `validatePromoCode(…, asOfDate)`). (3) **A discount staff type in** (*Discount €* beside the totals, `adminDiscount`): taken off the dishes on top of any coupon, never more than they come to, stored in the order's `discount_cents` (the invoice labels it with the coupon code if there is one, else just "Discount"). (4) **The price actually agreed**: each dish line has an editable
 "Price each" (prefilled from the menu); a changed price replaces the line's price *including extras* (the extras
 stay listed at no extra charge) and the delivery fee is an editable box (blank = the usual rule, 0 = free).
 Everything else is still validated against the menu. Caveat for the accountant: a backdated *paid* order gets the
