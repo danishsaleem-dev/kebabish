@@ -72,6 +72,22 @@ export async function saveOrderEditAction(
   if (discountCents === null) return { ok: false, error: "Enter the discount as an amount like 2,50 — or leave it empty." };
   if (deliveryFeeCents === null) return { ok: false, error: "Enter the delivery fee as an amount like 2,50 — or leave it empty." };
 
+  // When it goes out: the form always sends the current day, and a slot or exact time.
+  // (Shapes are checked here; whether the slot exists, has room and isn't in the past is
+  // decided in applyOrderEdit.)
+  const deliveryDate = String(formData.get("deliveryDate") ?? "").trim();
+  const slot = String(formData.get("slot") ?? "").trim();
+  const deliveryTime = String(formData.get("deliveryTime") ?? "").trim();
+  if (deliveryDate && !/^\d{4}-\d{2}-\d{2}$/.test(deliveryDate)) {
+    return { ok: false, error: "That isn't a valid delivery date." };
+  }
+  if (slot && !/^\d\d:\d\d\|\d\d:\d\d$/.test(slot)) {
+    return { ok: false, error: "That slot isn't valid — reload the page and try again." };
+  }
+  if (deliveryTime && !/^([01]\d|2[0-3]):[0-5]\d$/.test(deliveryTime)) {
+    return { ok: false, error: "Enter the delivery time like 18:30." };
+  }
+
   let result;
   try {
     result = await applyOrderEdit(
@@ -81,6 +97,7 @@ export async function saveOrderEditAction(
         discountCents,
         deliveryFeeCents,
         note: String(formData.get("note") ?? ""),
+        schedule: { date: deliveryDate, slot, time: deliveryTime },
       },
       { id: session.user.id }
     );
@@ -97,6 +114,7 @@ export async function saveOrderEditAction(
 
   // Say what the change means for the money, in a line short enough for a toast.
   let message = `Order ${result.reference} updated. Total ${money(result.afterTotalCents)} (was ${money(result.beforeTotalCents)}).`;
+  if (result.scheduleText) message += ` ${result.scheduleText}`;
   if (result.paid) {
     const diff = result.afterTotalCents - result.netPaidCents;
     if (diff > 0) message += ` ${money(diff)} still to collect.`;

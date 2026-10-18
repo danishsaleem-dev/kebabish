@@ -6,7 +6,6 @@ import { getCustomerProfile } from "@/lib/customers/accounts";
 import { getTranslations } from "next-intl/server";
 import CheckoutForm from "@/components/cart/CheckoutForm";
 import { getPublicSettings } from "@/lib/admin/store";
-import { siteConfig } from "@/lib/site-config";
 import { pageMetadata } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +62,6 @@ export default async function CheckoutPage({
           deliveryFee={settings.deliveryFee}
           freeDeliveryOver={settings.freeDeliveryOver}
           minimumOrder={settings.minimumOrder}
-          deliveryTowns={siteConfig.deliveryAreaTowns.map((t) => t.name)}
           hours={effectiveHours(settings)}
           bookingWindowDays={bookingWindowDays(settings)}
           account={account}

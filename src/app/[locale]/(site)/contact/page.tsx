@@ -219,7 +219,6 @@ export default async function ContactPage({
                 {t("deliveryCheckText")}
               </p>
               <DeliveryCheck
-                towns={siteConfig.deliveryAreaTowns.map((town) => town.name)}
                 whatsappHref={whatsappOrderLink(t("deliveryCheckWhatsapp"))}
               />
             </div>

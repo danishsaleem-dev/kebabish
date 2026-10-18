@@ -4,6 +4,15 @@ import { readStore } from "@/lib/admin/store";
 import { toCents } from "@/lib/money";
 import { fetchLineExtras, type LineExtra } from "@/lib/order-extras";
 import type { StoreShape } from "@/lib/admin/store/types";
+import { isFutureDelivery } from "@/lib/admin/order-types";
+import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
+import {
+  DEFAULT_SLOT_MINUTES,
+  amsterdamNow,
+  effectiveHours,
+  generateDaySlots,
+  weekdayForDateKey,
+} from "@/lib/delivery-slots";
 
 /**
  * Editing an order after it was placed — a dish turned out to be unavailable, or
@@ -58,6 +67,18 @@ export interface EditInput {
   discountCents: number;
   deliveryFeeCents: number;
   note: string;
+  /** A new delivery day and time, when staff changed it. */
+  schedule?: ScheduleRequest;
+}
+
+/** What the form says about when the order goes out. */
+export interface ScheduleRequest {
+  /** "YYYY-MM-DD". Empty = leave the delivery time alone. */
+  date: string;
+  /** "HH:MM|HH:MM" — a slot offered that day. */
+  slot: string;
+  /** "HH:MM" — an exact time, used when no slot is picked. */
+  time: string;
 }
 
 interface Option {
@@ -78,7 +99,7 @@ export interface ItemRow {
 }
 
 const ORDER_COLUMNS =
-  "id, reference, status, payment_status, payment_method, subtotal_cents, discount_cents, delivery_fee_cents, total_cents, refunded_cents";
+  "id, reference, status, payment_status, payment_method, subtotal_cents, discount_cents, delivery_fee_cents, total_cents, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end";
 
 const extrasCents = (options: Option[] | null) => (options ?? []).reduce((n, o) => n + o.priceCents, 0);
 
@@ -110,6 +131,10 @@ export interface EditableOrder {
   totalCents: number;
   refundedCents: number;
   invoiced: boolean;
+  /** When it is due: a calendar day (Amsterdam) and the window, if it has one. */
+  deliveryDate: string | null;
+  deliverySlotStart: string | null;
+  deliverySlotEnd: string | null;
   lines: EditableLine[];
 }
 
@@ -157,6 +182,9 @@ export async function loadOrderForEdit(orderId: string): Promise<EditableOrder |
     totalCents: order.total_cents,
     refundedCents: order.refunded_cents ?? 0,
     invoiced: Boolean(invoice.data?.invoice_number),
+    deliveryDate: order.delivery_date ?? null,
+    deliverySlotStart: order.delivery_slot_start ?? null,
+    deliverySlotEnd: order.delivery_slot_end ?? null,
     lines: ((items ?? []) as ItemRow[]).map((row, index) => ({
       index,
       slug: row.item_slug,
@@ -291,6 +319,101 @@ export function planEdit(
   return { built, subtotal, discount, fee, total, note };
 }
 
+/* ------------------------------------------------------------ the delivery day and time */
+
+type DayLike = { closed: boolean; opens: string; closes: string; slotMinutes?: number } | undefined;
+
+export interface ScheduleChange {
+  date: string;
+  start: string;
+  end: string;
+  /** A real slot was picked, so a seat has to be taken in it (capacity is enforced). */
+  reserve: boolean;
+  /** The old time was a real slot, so its seat goes back into the pool. */
+  releaseOld: boolean;
+  /** One line for the order's history: "Delivery moved from … to …". */
+  text: string;
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function describeWhen(date: string, start: string | null, end: string | null): string {
+  const day = new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+  return start ? `${day} ${start}${end ? `–${end}` : ""}` : day;
+}
+
+/**
+ * Work out what a change of delivery day/time means — or null when nothing changed. Pure:
+ * the caller supplies today's date and the opening hours of the old and new day.
+ *
+ * Staff may use any slot that exists that day (the customer-facing cutoff is not applied —
+ * they can fit someone into a slot that is already running, as with a manual order), or an
+ * exact time, which books nothing. A day that has already passed is refused: this order
+ * hasn't been delivered yet, so that would just be a typo.
+ */
+export function planSchedule(
+  current: { date: string | null; start: string | null; end: string | null },
+  request: ScheduleRequest | undefined,
+  ctx: { today: string; newDay: DayLike; oldDay: DayLike }
+): ScheduleChange | null {
+  if (!request || !request.date) return null;
+  const date = request.date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
+    throw new OrderEditError("That isn't a valid delivery date.");
+  }
+
+  // Nothing moved (same day, same start): leave it alone — before any other check, so an order
+  // that is already overdue, or has an exact off-grid time, can still have its dishes edited.
+  const requestedStart = request.slot ? request.slot.split("|")[0] : request.time;
+  if (requestedStart && current.date === date && current.start === requestedStart) return null;
+
+  if (date < ctx.today) {
+    throw new OrderEditError("Choose today or a later day — this order hasn't been delivered yet.");
+  }
+
+  let start: string;
+  let end: string;
+  let reserve = false;
+
+  if (request.slot) {
+    const [s, e] = request.slot.split("|");
+    const offered = ctx.newDay ? generateDaySlots(ctx.newDay).some((w) => w.start === s && w.end === e) : false;
+    if (!offered) throw new OrderEditError("That slot isn't offered on that day.");
+    start = s;
+    end = e;
+    reserve = true;
+  } else if (request.time) {
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(request.time)) throw new OrderEditError("Enter the time like 18:30.");
+    const [h, m] = request.time.split(":").map(Number);
+    const length = ctx.newDay?.slotMinutes ?? DEFAULT_SLOT_MINUTES;
+    const endMinutes = Math.min(h * 60 + m + length, 24 * 60 - 1);
+    start = request.time;
+    end = `${pad(Math.floor(endMinutes / 60))}:${pad(endMinutes % 60)}`;
+  } else {
+    throw new OrderEditError("Pick a slot for that day, or enter an exact time.");
+  }
+
+  const wasSlot =
+    current.date && current.start && ctx.oldDay
+      ? generateDaySlots(ctx.oldDay).some((w) => w.start === current.start)
+      : false;
+  const before = current.date ? describeWhen(current.date, current.start, current.end) : "no set time";
+
+  return {
+    date,
+    start,
+    end,
+    reserve,
+    releaseOld: Boolean(wasSlot),
+    text: `Delivery moved from ${before} to ${describeWhen(date, start, end)}.`,
+  };
+}
+
 export interface EditResult {
   reference: string;
   beforeTotalCents: number;
@@ -298,6 +421,8 @@ export interface EditResult {
   /** Cents the customer has actually paid and not had back (0 for an unpaid order). */
   netPaidCents: number;
   paid: boolean;
+  /** Set when the delivery day/time was changed. */
+  scheduleText: string | null;
 }
 
 export async function applyOrderEdit(
@@ -339,7 +464,28 @@ export async function applyOrderEdit(
 
   const store = await readStore();
 
-  const { built, subtotal, discount, fee, total, note } = planEdit(input, oldRows, oldExtras, store);
+  const { built, subtotal, discount, fee, total, note: lineNote } = planEdit(input, oldRows, oldExtras, store);
+
+  // ---- the delivery day and time, if staff changed them -------------------------------
+  const hours = effectiveHours(store.settings);
+  const dayFor = (date: string | null) => (date ? hours.find((h) => h.day === weekdayForDateKey(date)) : undefined);
+  const schedule = planSchedule(
+    { date: order.delivery_date ?? null, start: order.delivery_slot_start ?? null, end: order.delivery_slot_end ?? null },
+    input.schedule,
+    {
+      today: amsterdamNow().dateKey,
+      newDay: dayFor(input.schedule?.date || null),
+      oldDay: dayFor(order.delivery_date ?? null),
+    }
+  );
+  // An order whose payment failed or lapsed already gave its seat back; don't take or return one.
+  const holdsSeat = !["failed", "expired", "cancelled"].includes(order.payment_status);
+  // Accepted and being prepared, but now due on a later day: it goes back to "scheduled" so
+  // nobody cooks it early. (Needs migration 0020; without it the status is simply left alone.)
+  const newStatus =
+    schedule && order.status === "preparing" && isFutureDelivery(schedule.date) ? "scheduled" : null;
+  // The change is written into the history line so "Changes to this order" says what moved.
+  const note = [schedule?.text, lineNote].filter(Boolean).join(" — ").slice(0, 500);
 
   // ---- write: new lines first, so a failure can still be undone --------------------
   const snapshot = oldRows.map((r) => ({
@@ -364,10 +510,28 @@ export async function applyOrderEdit(
     .single();
   if (editError) throw new Error(editError.message);
 
+  let reservedNew = false;
   const undo = async (newIds: string[]) => {
     if (newIds.length) await db.from("order_items").delete().in("id", newIds);
     await db.from("order_edits").delete().eq("id", editRow.id);
+    if (reservedNew && schedule) await releaseDeliverySlot(schedule.date, schedule.start);
   };
+
+  // Take the seat in the new slot first: if it is full, nothing else has been touched yet.
+  if (schedule?.reserve && holdsSeat) {
+    let ok = false;
+    try {
+      ok = await reserveDeliverySlot(schedule.date, weekdayForDateKey(schedule.date), schedule.start);
+    } catch (err) {
+      await undo([]);
+      throw err;
+    }
+    if (!ok) {
+      await undo([]);
+      throw new OrderEditError("That slot is full or switched off — pick another slot, or enter an exact time.");
+    }
+    reservedNew = true;
+  }
 
   const { data: inserted, error: insertError } = await db
     .from("order_items")
@@ -380,16 +544,25 @@ export async function applyOrderEdit(
   }
   const newIds = inserted.map((r) => r.id as string);
 
-  const { error: updateError } = await db
+  const patch: Record<string, unknown> = {
+    subtotal_cents: subtotal,
+    discount_cents: discount,
+    delivery_fee_cents: fee,
+    total_cents: total,
+    updated_at: new Date().toISOString(),
+    ...(schedule
+      ? { delivery_date: schedule.date, delivery_slot_start: schedule.start, delivery_slot_end: schedule.end }
+      : {}),
+  };
+  let { error: updateError } = await db
     .from("orders")
-    .update({
-      subtotal_cents: subtotal,
-      discount_cents: discount,
-      delivery_fee_cents: fee,
-      total_cents: total,
-      updated_at: new Date().toISOString(),
-    })
+    .update(newStatus ? { ...patch, status: newStatus } : patch)
     .eq("id", orderId);
+  if (updateError && newStatus && updateError.code === "23514") {
+    // The database doesn't know "scheduled" yet (migration 0020): save everything else.
+    console.error("[order-edit] status 'scheduled' refused — run migration 0020. Leaving the status as it was.");
+    ({ error: updateError } = await db.from("orders").update(patch).eq("id", orderId));
+  }
   if (updateError) {
     await undo(newIds);
     throw new Error(updateError.message);
@@ -411,6 +584,10 @@ export async function applyOrderEdit(
         discount_cents: order.discount_cents,
         delivery_fee_cents: order.delivery_fee_cents,
         total_cents: order.total_cents,
+        delivery_date: order.delivery_date,
+        delivery_slot_start: order.delivery_slot_start,
+        delivery_slot_end: order.delivery_slot_end,
+        status: order.status,
       })
       .eq("id", orderId);
     await undo(newIds);
@@ -439,6 +616,11 @@ export async function applyOrderEdit(
     }
   }
 
+  // The old slot has its seat back (best effort — a failure here is logged, never thrown).
+  if (schedule?.releaseOld && holdsSeat) {
+    await releaseDeliverySlot(order.delivery_date ?? null, order.delivery_slot_start ?? null);
+  }
+
   const settled = order.payment_status === "paid" || order.payment_status === "refunded";
   return {
     reference: order.reference,
@@ -446,5 +628,6 @@ export async function applyOrderEdit(
     afterTotalCents: total,
     netPaidCents: settled ? Math.max(order.total_cents - (order.refunded_cents ?? 0), 0) : 0,
     paid: settled,
+    scheduleText: schedule?.text ?? null,
   };
 }

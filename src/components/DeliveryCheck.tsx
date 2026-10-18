@@ -1,30 +1,36 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CheckCircle2, MessageCircle, XCircle } from "lucide-react";
-import PostcodeField, { type ResolvedAddress } from "@/components/cart/PostcodeField";
+import PostcodeField from "@/components/cart/PostcodeField";
+import { checkDeliveryAction } from "@/app/[locale]/(site)/delivery-actions";
 
 /**
- * "Do you deliver to me?" — the postcode box on the contact page. It is the
- * same lookup checkout uses (PDOK, pick a suggestion) and the same rule: delivery
- * is decided by the town the postcode belongs to, matched against the towns on
- * the delivery list (`isDeliverableTown()` on the server does this at checkout).
+ * "Do you deliver to me?" — the postcode box on the contact page. Same lookup as checkout
+ * (PDOK, pick a suggestion) and the same rule: the server measures how far that postcode is
+ * from the kitchen and compares it with the delivery radius (`assessDelivery()`), instead of
+ * checking the town against a list — a village that simply isn't on the list is still
+ * deliverable if it is close enough.
  */
-export default function DeliveryCheck({
-  towns,
-  whatsappHref,
-}: {
-  towns: string[];
-  whatsappHref: string;
-}) {
+export default function DeliveryCheck({ whatsappHref }: { whatsappHref: string }) {
   const t = useTranslations("contact");
-  const [address, setAddress] = useState<ResolvedAddress | null>(null);
+  const locale = useLocale();
+  const [result, setResult] = useState<{ city: string; deliverable: boolean; km: number | null } | null>(null);
+  const [failed, setFailed] = useState(false);
 
-  const normalise = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
-  const deliverable = address
-    ? towns.some((town) => normalise(town) === normalise(address.city))
-    : null;
+  async function check(postcode: string, city: string) {
+    setFailed(false);
+    try {
+      const r = await checkDeliveryAction({ postcode });
+      if (r.ok) setResult({ city: r.city || city, deliverable: r.deliverable, km: r.km });
+      else setFailed(true);
+    } catch {
+      setFailed(true);
+    }
+  }
+
+  const km = (value: number) => new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
 
   return (
     <div className="mt-4">
@@ -35,29 +41,41 @@ export default function DeliveryCheck({
         id="delivery-check-postcode"
         name="deliveryCheckPostcode"
         placeholder={t("deliveryCheckPlaceholder")}
-        onResolved={setAddress}
-        onEdit={() => setAddress(null)}
+        onResolved={({ postcode, city }) => void check(postcode, city)}
+        onEdit={() => {
+          setResult(null);
+          setFailed(false);
+        }}
       />
 
-      {address && deliverable !== null && (
+      {failed && (
+        <p role="status" className="mt-4 rounded-2xl bg-ember-600/25 px-4 py-3.5 text-sm text-cream-50">
+          {t("deliveryCheckFailed")}
+        </p>
+      )}
+
+      {result && (
         <div
           role="status"
           className={`mt-4 flex items-start gap-3 rounded-2xl px-4 py-3.5 text-sm leading-relaxed ${
-            deliverable ? "bg-cream-50/10 text-cream-50" : "bg-ember-600/25 text-cream-50"
+            result.deliverable ? "bg-cream-50/10 text-cream-50" : "bg-ember-600/25 text-cream-50"
           }`}
         >
-          {deliverable ? (
+          {result.deliverable ? (
             <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-cream-50" />
           ) : (
             <XCircle size={20} className="mt-0.5 shrink-0 text-ember-400" />
           )}
           <div>
             <p className="font-semibold">
-              {deliverable
-                ? t("deliveryCheckYes", { town: address.city })
-                : t("deliveryCheckNo", { town: address.city })}
+              {result.deliverable
+                ? t("deliveryCheckYes", { town: result.city })
+                : t("deliveryCheckNo", { town: result.city })}
             </p>
-            {!deliverable && (
+            {result.km != null && (
+              <p className="mt-0.5 text-cream-200/75">{t("deliveryCheckDistance", { km: km(result.km) })}</p>
+            )}
+            {!result.deliverable && (
               <a
                 href={whatsappHref}
                 target="_blank"

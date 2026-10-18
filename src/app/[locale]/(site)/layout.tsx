@@ -7,6 +7,8 @@ import CartProvider from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
 import PromoPopup from "@/components/PromoPopup";
 import PromoWidget from "@/components/PromoWidget";
+import LocationProvider from "@/components/location/LocationProvider";
+import LocationDialog from "@/components/location/LocationDialog";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { getReviews } from "@/lib/content/site";
@@ -38,6 +40,7 @@ export default async function SiteLayout({
   const [reviews, promos] = await Promise.all([getReviews(), getPromoPopups()]);
 
   return (
+    <LocationProvider>
     <CartProvider>
       <Header
         isOpen={status.isOpen}
@@ -50,8 +53,10 @@ export default async function SiteLayout({
       />
       <WhatsAppButton isOpen={status.isOpen} />
       <CartDrawer />
+      <LocationDialog />
       <PromoPopup promos={promos} />
       <PromoWidget promos={promos} lifted={status.isOpen} />
     </CartProvider>
+    </LocationProvider>
   );
 }

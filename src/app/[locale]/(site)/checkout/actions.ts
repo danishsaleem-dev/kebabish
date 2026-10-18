@@ -23,7 +23,6 @@ import {
   markOrderPaymentFailed,
   restoreOrderPaymentStatus,
   deliveryFeeCents,
-  isDeliverableTown,
   priceCart,
   validatePromoCode,
   type SubmittedLine,
@@ -31,6 +30,7 @@ import {
   getOrderSummaryById,
 } from "@/lib/orders";
 import { readStore } from "@/lib/admin/store";
+import { assessDelivery } from "@/lib/delivery-area";
 import { toCents } from "@/lib/money";
 import {
   generateDaySlots,
@@ -160,7 +160,14 @@ export async function checkoutAction(
     return { ok: false, error: "emptyCart" };
   }
 
-  if (!isDeliverableTown(details.city)) {
+  // Decided on the server from the postcode and house number alone — by how far the address
+  // is from the kitchen (see lib/delivery-area.ts) — never by the town name the browser sent.
+  const area = await assessDelivery({
+    postcode: details.postcode,
+    houseNumber: details.houseNumber,
+    city: details.city,
+  });
+  if (!area.deliverable) {
     return { ok: false, error: "outsideArea" };
   }
 

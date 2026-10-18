@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, Minus, Plus, Repeat, Trash2 } from "lucide-react";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
-import { FormError, Select, SubmitButton, Textarea } from "@/components/admin/ui/Form";
+import { Field, FormError, Input, Select, SubmitButton, Textarea } from "@/components/admin/ui/Form";
 import { saveOrderEditAction, type OrderEditState } from "@/app/admin/(dashboard)/orders/[id]/edit/actions";
 import { formatMoney } from "@/lib/admin/units";
 import type { EditableOrder } from "@/lib/admin/order-edit";
@@ -49,6 +49,21 @@ interface Line {
 }
 
 const EMPTY: OrderEditState = { ok: false };
+
+interface SlotOption {
+  start: string;
+  end: string;
+  status: "available" | "full" | "disabled" | "past";
+}
+
+function amsterdamToday(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
 
 const euros = (cents: number) => cents / 100;
 function parseEuros(text: string): number | null {
@@ -95,6 +110,50 @@ export default function OrderEditForm({
   const [discount, setDiscount] = useState(euros(order.discountCents).toFixed(2));
   const [fee, setFee] = useState(euros(order.deliveryFeeCents).toFixed(2));
   const [replacing, setReplacing] = useState<number | null>(null);
+
+  // ---- when it goes out ---------------------------------------------------------------
+  // Starts on what the order says now. Slots for the chosen day come from the same public
+  // endpoint the customer's checkout uses; the slot the order already holds is always
+  // offered (it may be "full" only because this very order is in it).
+  const [date, setDate] = useState(order.deliveryDate ?? "");
+  const currentSlot =
+    order.deliverySlotStart && order.deliverySlotEnd ? `${order.deliverySlotStart}|${order.deliverySlotEnd}` : "";
+  const [slot, setSlot] = useState(currentSlot);
+  const [time, setTime] = useState(order.deliverySlotStart ?? "");
+  const [slots, setSlots] = useState<SlotOption[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const today = amsterdamToday();
+
+  useEffect(() => {
+    if (!date) return;
+    let cancelled = false;
+    fetch(`/api/delivery-slots?date=${date}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { slots: [] }))
+      .then((data) => {
+        if (!cancelled) setSlots(data.slots ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSlots([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date]);
+
+  const changeDate = (value: string) => {
+    setDate(value);
+    setSlots([]);
+    setSlotsLoading(Boolean(value));
+    // A slot belongs to a day; keep the old one only if the day didn't change.
+    setSlot(value === order.deliveryDate ? currentSlot : "");
+    setTime(value === order.deliveryDate ? (order.deliverySlotStart ?? "") : "");
+  };
+  const scheduleChanged =
+    date !== (order.deliveryDate ?? "") ||
+    (slot ? slot.split("|")[0] : time) !== (order.deliverySlotStart ?? "");
 
   const patch = (key: number, change: Partial<Line>) =>
     setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...change } : l)));
@@ -390,6 +449,85 @@ export default function OrderEditForm({
               {dishOptions}
             </Select>
           </div>
+        </Card>
+
+        <Card>
+          <CardHeader
+            title="Delivery date & time"
+            subtitle="Move the order to another day or time. The kitchen and rider see it at once; the customer isn't emailed, so tell them yourself."
+          />
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <Field label="Date">
+              <Input
+                name="deliveryDate"
+                type="date"
+                min={today}
+                value={date}
+                onChange={(ev) => changeDate(ev.target.value)}
+              />
+            </Field>
+            <Field
+              label="Slot"
+              hint={date && !slotsLoading && slots.length === 0 ? "Closed that day — no slots. Enter an exact time instead." : undefined}
+            >
+              <Select
+                name="slot"
+                value={slot}
+                onChange={(ev) => {
+                  setSlot(ev.target.value);
+                  if (ev.target.value) setTime("");
+                }}
+                disabled={!date || slotsLoading}
+              >
+                <option value="">No set slot</option>
+                {/* The slot this order already has stays selectable even if the day looks full. */}
+                {currentSlot && date === order.deliveryDate && !slots.some((s) => `${s.start}|${s.end}` === currentSlot) && (
+                  <option value={currentSlot}>
+                    {order.deliverySlotStart}–{order.deliverySlotEnd} (current)
+                  </option>
+                )}
+                {slots.map((s) => {
+                  const value = `${s.start}|${s.end}`;
+                  const isCurrent = value === currentSlot && date === order.deliveryDate;
+                  return (
+                    <option key={s.start} value={value} disabled={s.status !== "available" && !isCurrent}>
+                      {s.start}–{s.end}
+                      {isCurrent
+                        ? " (current)"
+                        : s.status === "full"
+                          ? " (full)"
+                          : s.status === "disabled"
+                            ? " (off)"
+                            : s.status === "past"
+                              ? " (past)"
+                              : ""}
+                    </option>
+                  );
+                })}
+              </Select>
+            </Field>
+            <Field
+              label="Or an exact time"
+              hint="Optional. Used when no slot is picked. Books nothing — the window is the usual slot length from then."
+            >
+              <Input
+                name="deliveryTime"
+                type="time"
+                step={300}
+                value={slot ? "" : time}
+                onChange={(ev) => {
+                  setTime(ev.target.value);
+                  if (ev.target.value) setSlot("");
+                }}
+              />
+            </Field>
+          </div>
+          {scheduleChanged && date && (
+            <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs font-medium text-warn">
+              The delivery time will change when you save.
+              {order.status === "preparing" && date > today && " It is being prepared, so it goes back to “Scheduled” until that day."}
+            </p>
+          )}
         </Card>
 
         <Card>

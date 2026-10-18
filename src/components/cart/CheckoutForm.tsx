@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useFormStatus } from "react-dom";
 import { Tag, X } from "lucide-react";
@@ -11,6 +11,8 @@ import Suggestions from "@/components/menu/Suggestions";
 import { normalizeDutchPhone } from "@/lib/phone";
 import { formatEuro, toCents, fromCents } from "@/lib/money";
 import PostcodeField from "@/components/cart/PostcodeField";
+import { useLocation, type SavedLocation } from "@/components/location/LocationProvider";
+import { checkDeliveryAction } from "@/app/[locale]/(site)/delivery-actions";
 import DeliverySlotPicker, {
   type DeliverySlotValue,
 } from "@/components/cart/DeliverySlotPicker";
@@ -43,19 +45,10 @@ function cartPayloadFor(lines: CartLine[]): string {
   );
 }
 
-export default function CheckoutForm({
-  deliveryFee,
-  freeDeliveryOver,
-  minimumOrder,
-  deliveryTowns,
-  hours,
-  bookingWindowDays,
-  account,
-}: {
+interface CheckoutFormProps {
   deliveryFee: number;
   freeDeliveryOver: number | null;
   minimumOrder: number;
-  deliveryTowns: string[];
   hours: StoredSettings["hours"];
   /** How many days ahead a delivery slot can be booked. */
   bookingWindowDays: number;
@@ -73,7 +66,28 @@ export default function CheckoutForm({
       city: string;
     } | null;
   };
-}) {
+}
+
+/**
+ * Waits until the address the visitor gave on arrival (the location dialog) has been read
+ * from this device, so the form below starts out already filled in. Without the wait it
+ * would build its fields from "no address" and ignore it.
+ */
+export default function CheckoutForm(props: CheckoutFormProps) {
+  const { ready, location } = useLocation();
+  if (!ready) return <div className="min-h-[40vh]" aria-hidden="true" />;
+  return <CheckoutFormInner {...props} location={location} />;
+}
+
+function CheckoutFormInner({
+  deliveryFee,
+  freeDeliveryOver,
+  minimumOrder,
+  hours,
+  bookingWindowDays,
+  account,
+  location,
+}: CheckoutFormProps & { location: SavedLocation | null }) {
   const t = useTranslations("checkout");
   const tCart = useTranslations("cart");
   const locale = useLocale();
@@ -108,21 +122,40 @@ export default function CheckoutForm({
     });
   }, [ready, lines, promoCode, promo]);
 
-  const saved = account?.address ?? null;
+  // What the visitor told us on arrival wins over the address on their account: it is the
+  // one they gave most recently, for this order.
+  const saved = location ?? account?.address ?? null;
+  const prefilledFromDialog = Boolean(location);
   const [resolvedStreet, setResolvedStreet] = useState(saved?.street ?? "");
   const [resolvedCity, setResolvedCity] = useState(saved?.city ?? "");
+  const [resolvedPostcode, setResolvedPostcode] = useState(saved?.postcode ?? "");
   const [houseNumber, setHouseNumber] = useState(saved?.houseNumber ?? "");
   const [addition, setAddition] = useState(saved?.addition ?? "");
   const [slot, setSlot] = useState<DeliverySlotValue | null>(null);
 
-  // Same matching rule as the server's isDeliverableTown() (orders.ts) —
-  // duplicated rather than shared because that module is server-only.
-  const deliverable = useMemo(() => {
-    if (!resolvedCity) return true; // nothing picked yet, nothing to warn about
-    const normalise = (v: string) => v.toLowerCase().replace(/[^a-z]/g, "");
-    const target = normalise(resolvedCity);
-    return deliveryTowns.some((town) => normalise(town) === target);
-  }, [resolvedCity, deliveryTowns]);
+  // Whether we deliver to this address is measured on the server (distance from the kitchen),
+  // as soon as there is a postcode and a house number. The answer is filed under the address
+  // it was for, so a stale one is never shown against a newer address; until it arrives,
+  // nothing is blocked (the server checks again when the order is placed).
+  const areaKey = `${resolvedPostcode}|${houseNumber.trim()}`;
+  const [area, setArea] = useState<{ key: string; deliverable: boolean } | null>(null);
+  useEffect(() => {
+    if (!resolvedPostcode || !houseNumber.trim()) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const r = await checkDeliveryAction({ postcode: resolvedPostcode, houseNumber });
+        if (!cancelled && r.ok) setArea({ key: areaKey, deliverable: r.deliverable });
+      } catch {
+        // No answer: the server decides at checkout.
+      }
+    }, 450);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [resolvedPostcode, houseNumber, areaKey]);
+  const deliverable = area?.key === areaKey ? area.deliverable : true;
 
   const combinedStreet = [resolvedStreet, houseNumber, addition]
     .filter(Boolean)
@@ -256,9 +289,10 @@ export default function CheckoutForm({
                     ? { street: saved.street, postcode: saved.postcode, city: saved.city }
                     : undefined
                 }
-                onResolved={({ street, city }) => {
+                onResolved={({ street, city, postcode }) => {
                   setResolvedStreet(street);
                   setResolvedCity(city);
+                  setResolvedPostcode(postcode);
                 }}
               />
             </Field>
@@ -302,8 +336,9 @@ export default function CheckoutForm({
               />
             </Field>
           </div>
-          {resolvedCity && !deliverable && (
-            <p className="mt-3 text-sm text-red-700">{t("outsideArea")}</p>
+          {!deliverable && <p className="mt-3 text-sm text-red-700">{t("outsideArea")}</p>}
+          {prefilledFromDialog && deliverable && (
+            <p className="mt-3 text-xs text-ink/55">{t("addressPrefilled")}</p>
           )}
           {account && (
             <label className="mt-4 flex cursor-pointer items-start gap-2.5 text-sm text-ink/75">
@@ -519,7 +554,7 @@ export default function CheckoutForm({
           <PayButton
             label={t("payNow", { amount: formatEuro(total) })}
             pendingLabel={t("paying")}
-            disabled={!slot || blocked}
+            disabled={!slot || blocked || !deliverable}
           />
         )}
       </aside>

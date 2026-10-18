@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { Check, Tag, X } from "lucide-react";
 import { Link, usePathname } from "@/i18n/navigation";
 import { useCart } from "@/components/cart/CartProvider";
+import { useLocation } from "@/components/location/LocationProvider";
 import type { PromoPopup as PromoPopupData } from "@/lib/public-promos";
 
 /**
@@ -67,6 +68,8 @@ export default function PromoPopup({ promos }: { promos: PromoPopupData[] }) {
   const t = useTranslations("promoPopup");
   const pathname = usePathname();
   const { ready, promoCode, setPromoCode, drawerOpen, count } = useCart();
+  // The "where should we deliver?" question comes first; this waits until it is answered or put off.
+  const { dialogOpen: locationDialogOpen } = useLocation();
 
   // The promotion chosen for this visit, once the delay has passed and its image
   // has loaded — three independent facts, so "open" is simply all of them at once.
@@ -80,7 +83,7 @@ export default function PromoPopup({ promos }: { promos: PromoPopupData[] }) {
   const returnFocus = useRef<HTMLElement | null>(null);
 
   const quiet = QUIET_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  const open = Boolean(candidate && delayDone && imageReady && !closed && !quiet && !drawerOpen);
+  const open = Boolean(candidate && delayDone && imageReady && !closed && !quiet && !drawerOpen && !locationDialogOpen);
 
   // Choose a promotion once the basket has been read (the visitor may already
   // hold a code). Set from a timer callback, not the effect body.

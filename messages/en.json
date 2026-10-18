@@ -196,6 +196,8 @@
     "deliveryCheckNo": "Sorry, {town} is outside our delivery area.",
     "deliveryCheckAsk": "Ask us on WhatsApp",
     "deliveryCheckWhatsapp": "Hi Kebabish, can you deliver to my postcode?",
+    "deliveryCheckDistance": "About {km} km from our kitchen.",
+    "deliveryCheckFailed": "We couldn't find that postcode. Please check it, or message us instead.",
     "socialsTitle": "Follow us"
   },
   "cart": {
@@ -337,6 +339,7 @@
     "allergenNote": "Allergens are listed on each dish. If you have an allergy or are unsure, please contact us before you order.",
     "paying": "Taking you to payment…",
     "outsideArea": "We don't deliver to that town yet — message us instead.",
+    "addressPrefilled": "Filled in with the address you gave us earlier — change it if you like.",
     "belowMinimum": "Minimum order for delivery is {amount}.",
     "emptyCart": "Your cart is empty.",
     "failed": "Something went wrong starting the payment. Nothing has been charged — please try again.",
@@ -862,6 +865,28 @@
     "choose": "Choose",
     "addAria": "Add {name} to your order",
     "inBasket": "In your basket"
+  },
+  "location": {
+    "title": "Where should we deliver?",
+    "intro": "Enter your address. We'll check straight away that we can reach you, and fill it in for you at checkout.",
+    "submit": "Check my address",
+    "checking": "Checking…",
+    "notNow": "Not now",
+    "close": "Close",
+    "yesTitle": "We deliver to you!",
+    "yesText": "{address} is about {km} km from our kitchen. We've remembered it, so it's already filled in at checkout.",
+    "yesTextNoKm": "{address} is inside our delivery area. We've remembered it, so it's already filled in at checkout.",
+    "continue": "Continue ordering",
+    "noTitle": "Sorry, we don't deliver there",
+    "noText": "{address} is about {km} km from our kitchen and we deliver within {radius} km. Just outside? Message us and we'll see what's possible.",
+    "noTextNoKm": "{address} is outside our {radius} km delivery area. Just outside? Message us and we'll see what's possible.",
+    "noAsk": "Ask us on WhatsApp",
+    "whatsapp": "Hi Kebabish, can you deliver to me? My address: {address}",
+    "errors": {
+      "invalidPostcode": "We couldn't find that postcode. Please check it.",
+      "busy": "Too many requests for a moment. Please try again in a minute.",
+      "failed": "Something went wrong. Please try again."
+    }
   },
   "stockRequest": {
     "soldOutButton": "Not available right now — request it",

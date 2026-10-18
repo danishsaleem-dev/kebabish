@@ -196,6 +196,8 @@
     "deliveryCheckNo": "Helaas, {town} valt buiten ons bezorggebied.",
     "deliveryCheckAsk": "Vraag het ons via WhatsApp",
     "deliveryCheckWhatsapp": "Hoi Kebabish, kunnen jullie bij mij bezorgen?",
+    "deliveryCheckDistance": "Ongeveer {km} km van onze keuken.",
+    "deliveryCheckFailed": "We konden die postcode niet vinden. Controleer hem even of stuur ons een appje.",
     "socialsTitle": "Volg ons"
   },
   "cart": {
@@ -337,6 +339,7 @@
     "allergenNote": "Allergenen staan bij elk gerecht vermeld. Twijfel je of heb je een allergie? Neem contact met ons op voordat je bestelt.",
     "paying": "Je wordt doorgestuurd naar de betaling…",
     "outsideArea": "We bezorgen daar helaas nog niet — stuur ons een appje.",
+    "addressPrefilled": "Ingevuld met het adres dat je eerder opgaf — pas het gerust aan.",
     "belowMinimum": "Minimale bestelling voor bezorging is {amount}.",
     "emptyCart": "Je winkelwagen is leeg.",
     "failed": "Er ging iets mis bij het starten van de betaling. Er is niets afgeschreven — probeer het opnieuw.",
@@ -862,6 +865,28 @@
     "choose": "Kies",
     "addAria": "Voeg {name} toe aan je bestelling",
     "inBasket": "In je mandje"
+  },
+  "location": {
+    "title": "Waar mogen we bezorgen?",
+    "intro": "Vul je adres in. We controleren meteen of we bij je langskomen en vullen het straks bij het afrekenen voor je in.",
+    "submit": "Controleer mijn adres",
+    "checking": "Even kijken…",
+    "notNow": "Nu niet",
+    "close": "Sluiten",
+    "yesTitle": "We bezorgen bij je!",
+    "yesText": "{address} ligt ongeveer {km} km van onze keuken. We hebben het onthouden, dus bij het afrekenen staat het al voor je klaar.",
+    "yesTextNoKm": "{address} valt binnen ons bezorggebied. We hebben het onthouden, dus bij het afrekenen staat het al voor je klaar.",
+    "continue": "Verder met bestellen",
+    "noTitle": "Helaas, daar bezorgen we niet",
+    "noText": "{address} ligt ongeveer {km} km van onze keuken en we bezorgen binnen {radius} km. Vlak buiten het gebied? Stuur ons een appje, dan kijken we wat mogelijk is.",
+    "noTextNoKm": "{address} valt buiten ons bezorggebied van {radius} km. Vlak erbuiten? Stuur ons een appje, dan kijken we wat mogelijk is.",
+    "noAsk": "Vraag het ons via WhatsApp",
+    "whatsapp": "Hoi Kebabish, kunnen jullie bij mij bezorgen? Mijn adres: {address}",
+    "errors": {
+      "invalidPostcode": "We kunnen die postcode niet vinden. Controleer hem even.",
+      "busy": "Er zijn even te veel aanvragen. Probeer het over een minuutje opnieuw.",
+      "failed": "Er ging iets mis. Probeer het opnieuw."
+    }
   },
   "stockRequest": {
     "soldOutButton": "Nu niet beschikbaar — vraag het aan",

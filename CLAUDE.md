@@ -909,6 +909,18 @@ skip a required choice and set any price.
   € 5,00`, in the customer's language), the order's confirmation page and the admin order page. Charging the regular price
   again (or more) clears the compensation; a line that is already a compensation keeps measuring against its *original*
   regular price however it is edited.
+- **Delivery date and time** (*Delivery date & time* card on the same form): move the order to another day, to a slot offered that day
+  (taken from the same public `/api/delivery-slots` list checkout uses; the slot the order already holds stays selectable), or to an
+  **exact time** (books nothing; window = the usual slot length from then). Rules, in the pure `planSchedule()` (`order-edit.ts`, 20 checks):
+  untouched = no change (even for an overdue order or an off-grid exact time, so those can still have their dishes edited); a **past
+  day is refused**; the slot must really exist that day; the customer-facing cutoff is *not* applied (staff may use a running slot) but
+  **capacity is** — a full or switched-off slot is refused and nothing else is changed. The new seat is taken before anything is
+  written and given back if the save fails; the old seat is returned after it succeeds (only if the old time was a real slot, and
+  not for an order whose payment already failed/lapsed). An order that was **preparing** and is now due on a later day goes back to
+  **scheduled** (needs migration 0020; without it the status is left alone, logged). The move is written into the history line
+  (*Delivery moved from Thu 22 Oct 18:15–19:00 to Fri 23 Oct 19:00–19:45.*). **The customer is not emailed** — staff tell them.
+  Verified against the real database with a throwaway order: move + status change + counters + history, a full slot refused with
+  no leftovers, then removed.
 - **History:** every save writes a row to `order_edits` (who, when, why, what the order looked like before, old and new total),
   shown on the order page as *Changes to this order*.
 - **Money:** editing never moves money by itself. If the order was already paid and the new total differs, the form (and the
@@ -1057,10 +1069,51 @@ for why positional zipping of FormData arrays is a trap.
 `src/components/DeliveryCheck.tsx`: the card used to be a heading and a sentence telling people to "enter your
 postcode" with **no input at all** (and the heading was invisible — the global `h2` colour is charcoal, on a
 charcoal card; it now sets `text-cream-50`). It now reuses checkout's `PostcodeField` (PDOK suggestions, pick one)
-and the same rule as `isDeliverableTown()`: delivery is decided by the **town** the postcode belongs to, matched
-against `siteConfig.deliveryAreaTowns`, not by measuring km. Yes → "we deliver to {town}"; no → "{town} is outside
-our delivery area" plus a pre-filled WhatsApp link. Typing over a picked postcode clears the answer (`onEdit`).
+and the same rule as checkout (see "Where we deliver" below — **distance from the kitchen**, measured on the server
+by `checkDeliveryAction`, no longer the town list). Yes → "we deliver to {town}" plus "about X km from our kitchen";
+no → "{town} is outside our delivery area" plus a pre-filled WhatsApp link. Typing over a picked postcode clears the answer (`onEdit`).
 Wording is `contact.deliveryCheck*` in `messages/*.json`. Verified: 1616… → Hoogkarspel yes; 1012… → Amsterdam no.
+
+### Where we deliver: distance, not a town list — and the arrival dialog (Oct 2026)
+
+**The bug:** a customer 6 km from the kitchen couldn't order, because checkout accepted a delivery only if the address's
+*town name* was one of the 14 in `siteConfig.deliveryAreaTowns`; his village wasn't on the list. **Now delivery is decided
+by how far the address is from the kitchen** (`src/lib/delivery-area.ts`, `assessDelivery()`; server-only):
+- The postcode (+ house number when there is one) is looked up in PDOK/BAG (`…/search/v3_1/free`, filtered by
+  `postcode:` and `huisnummer:`, falling back to the postcode's own centroid), and the point is measured with `distanceKm()`
+  (`lib/geo.ts`, haversine, straight-line) against `siteConfig.coordinates`. Deliverable when **km ≤ the delivery radius**
+  (`settings.deliveryRadiusKm`, editable in Settings; 10 by default) **or the town is still on the list** — the list is now
+  only a second way *in* (Wognum sits at 10.3 km and is advertised, so it is always accepted), never a way out.
+- **Straight-line, not driving distance** — the same measure the radius was always advertised in. A lookup is retried once;
+  if PDOK can't be reached at all, `assessDelivery` falls back to the town list (so a hiccup never blocks a listed town) and
+  the action says "something went wrong, try again" rather than "no".
+- **The browser's answer is only advice.** `checkoutAction` calls `assessDelivery` itself from the posted postcode + house
+  number (it ignores what the browser concluded), so a forged form can't get an out-of-area order through. Checked: the pay
+  button is disabled with the "we don't deliver there" line for Amsterdam, and a forced submit is refused server-side.
+- **`checkDeliveryAction`** (`(site)/delivery-actions.ts`) is the public, read-only door the page uses (location dialog,
+  checkout, contact box). Per-instance cap of 90 calls/minute so it can't be used to hammer PDOK through us.
+- Real examples (live PDOK): 1606AA Venhuizen 5.0 km → yes (not on the old list); 1601AA Enkhuizen 7.9 → yes;
+  1687AA Wognum 10.1 → yes (list); 1012AB Amsterdam 40 km → no. The copy on the site still says "within 10 km" and lists towns
+  as *examples* — it was not rewritten.
+
+**The arrival dialog** (`components/location/`, mounted in `(site)/layout.tsx`): on a normal public page, ~1.2 s after load,
+when this device has no delivery address yet, a small centred dialog asks "Where should we deliver?" — the **same fields as
+checkout** (postcode with PDOK suggestions, street/town fill themselves, house number, addition). Submitting calls
+`checkDeliveryAction`: yes → "We deliver to you! … about X km from our kitchen" and the address is **saved**; no → says so
+with the distance and radius plus a WhatsApp link, and saves nothing.
+- **Remembered on the device only**, in localStorage (`kebabish-location-v1`, expires after 90 days; `LocationProvider`,
+  read via `useSyncExternalStore` so server and first paint agree) — never sent anywhere until an order is placed. Stored data is
+  untrusted like the basket: `readLocation()` re-validates every field. A browser that refuses storage still remembers it for the visit.
+- **Checkout uses it:** `CheckoutForm` waits for the location to be read, then starts with postcode, street, town, house number
+  and addition filled in (shown with "Filled in with the address you gave us earlier"), and it wins over the address on a signed-in
+  customer's account. It is still editable like before.
+- **Restrained:** not on `/cart`, `/checkout`, `/feedback`; "Not now" / Escape / backdrop is remembered for the rest of the visit
+  (`sessionStorage`), so it never nags but asks again next visit until an address was given; the **promotion popup waits** until
+  the dialog is closed (`PromoPopup` reads `dialogOpen`); client-only, so a crawler never sees it. **SEO note for Danish:** Google
+  can discount pages that show a popup over the content straight after arriving from search — this one is small, dismissible and
+  delayed, but if rankings dip, the first thing to try is switching it off (remove `<LocationDialog />` from the layout).
+- No header chip / "change address" link yet: the address can be changed at checkout, and the dialog reopens via `openDialog()` if one is added.
+- Wording: `location.*` in `messages/*.json` (not in the editable-content registry).
 
 ### The delivery-area map
 
@@ -1113,10 +1166,7 @@ types the postcode, house number, and an optional addition
 `orders.address_street` is still one combined column, so the three are
 joined client-side (`"{straat} {huisnummer} {toevoeging}"`) into a
 single hidden `street` field on submit — no DB/schema change needed for
-this. Town still goes through the same `isDeliverableTown()` check as
-before (duplicated client-side, in `CheckoutForm.tsx`, for an inline
-warning the moment an out-of-area postcode is picked, since it's no
-longer a closed `<select>` that made an invalid town unselectable).
+this. Whether we deliver there is decided by **distance, not town name** — see "Where we deliver" below.
 
 This replaced Google Places Autocomplete (`useAddressAutocomplete.ts`,
 now deleted): it needed the Places API enabled on
