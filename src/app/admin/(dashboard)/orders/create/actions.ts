@@ -33,6 +33,8 @@ import {
   weekdayForDateKey,
 } from "@/lib/delivery-slots";
 import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
+import { consumeOrderStock } from "@/lib/stock";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 export interface ManualOrderState {
   ok: boolean;
@@ -61,6 +63,8 @@ const PAYMENT_CHOICES = {
 } as const;
 
 const schema = z.object({
+  /** The registered customer picked in the form, if any (checked against the database below). */
+  customerId: z.union([z.literal(""), z.string().uuid()]).default(""),
   customerName: z.string().trim().min(2, "Enter the customer's name."),
   phone: z.string().trim().min(6, "Enter a phone number."),
   email: z.union([z.literal(""), z.string().trim().email("That doesn't look like an email address.")]),
@@ -205,6 +209,7 @@ export async function createManualOrderAction(
   const session = await requireRole(OWNER_STAFF_MANAGER);
 
   const parsed = schema.safeParse({
+    customerId: String(formData.get("customerId") ?? "").trim(),
     customerName: formData.get("customerName"),
     phone: formData.get("phone"),
     email: String(formData.get("email") ?? "").trim(),
@@ -239,6 +244,19 @@ export async function createManualOrderAction(
     return { ok: false, errors: { deliveryDate: "Pick the date." } };
   }
 
+  // A returning customer picked in the form: only a real account is linked (never trust the id).
+  let linkedCustomerId: string | null = null;
+  if (d.customerId) {
+    const { data: found } = await supabaseAdmin().from("customers").select("id").eq("id", d.customerId).maybeSingle();
+    if (!found) {
+      return {
+        ok: false,
+        errors: { customerName: "That customer account no longer exists — press Change and pick again, or fill the details in by hand." },
+      };
+    }
+    linkedCustomerId = found.id as string;
+  }
+
   const submitted = parseCart(formData.get("cart"));
   if (submitted.length === 0) {
     return { ok: false, error: "Add at least one dish." };
@@ -249,6 +267,9 @@ export async function createManualOrderAction(
     cart = applyPriceOverrides(await priceCart(submitted as SubmittedLine[]), submitted);
   } catch (error) {
     if (error instanceof CartPricingError) {
+      if (error.message === "insufficient") {
+        return { ok: false, error: "There isn't enough stock of one of those dishes for that quantity." };
+      }
       return {
         ok: false,
         error:
@@ -341,7 +362,7 @@ export async function createManualOrderAction(
   let order;
   try {
     order = await createOrder({
-      customerId: null,
+      customerId: linkedCustomerId,
       customerName: d.customerName,
       customerEmail: d.email,
       customerPhone: d.phone,
@@ -373,6 +394,10 @@ export async function createManualOrderAction(
     console.error("[manual-order] could not create the order:", error);
     return { ok: false, error: "Couldn't save the order — nothing was created. Please try again." };
   }
+
+  // Staff took this order themselves, so its dishes come out of stock now — unless it is
+  // still waiting for an online payment (taken when that lands) or is a day that already passed.
+  if (choice.accepted && !isPast) await consumeOrderStock(order.id);
 
   // An online payment link: made now, shown to staff to send to the customer.
   if (d.payment === "mollie_link") {

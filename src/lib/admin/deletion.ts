@@ -1,6 +1,7 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
+import { releaseOrderStock } from "@/lib/stock";
 
 /**
  * Permanently deleting orders and customers.
@@ -176,6 +177,12 @@ export async function deleteOrders(rawIds: unknown, confirmed: boolean): Promise
       r.delivery_date !== null &&
       r.delivery_date >= today;
     if (heldSlot) await releaseDeliverySlot(r.delivery_date, r.delivery_slot_start);
+  }
+
+  // Portions a deleted order still held go back into stock (not for delivered ones — that food
+  // was eaten — and a no-op for an order that never took any).
+  for (const r of rows) {
+    if (r.status !== "delivered") await releaseOrderStock(r.id);
   }
 
   const { error } = await db.from("orders").delete().in("id", rows.map((r) => r.id));

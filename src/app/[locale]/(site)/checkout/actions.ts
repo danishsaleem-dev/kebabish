@@ -243,6 +243,9 @@ export async function checkoutAction(
       if (reason === "soldOut" || reason === "missing" || reason === "unpriced") {
         return { ok: false, error: "itemUnavailable" };
       }
+      if (reason === "insufficient") {
+        return { ok: false, error: "notEnoughStock" };
+      }
       if (reason === "badOption" || reason === "missingChoice") {
         return { ok: false, error: "optionsChanged" };
       }

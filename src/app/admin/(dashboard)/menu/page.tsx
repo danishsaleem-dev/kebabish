@@ -5,16 +5,18 @@ import Card from "@/components/admin/ui/Card";
 import ItemsTable, { type ItemRow } from "@/components/admin/ItemsTable";
 import { listCategories, listIngredients, listItems, listRecipes } from "@/lib/admin/store";
 import { analyseRecipe, indexIngredients } from "@/lib/admin/recipe-math";
+import { readStockMap } from "@/lib/stock";
 
 export const metadata = { title: "Menu" };
 export const dynamic = "force-dynamic";
 
 export default async function MenuPage() {
-  const [categories, items, recipes, ingredients] = await Promise.all([
+  const [categories, items, recipes, ingredients, stock] = await Promise.all([
     listCategories(),
     listItems(),
     listRecipes(),
     listIngredients(),
+    readStockMap(),
   ]);
 
   const lookup = indexIngredients(ingredients);
@@ -28,6 +30,7 @@ export default async function MenuPage() {
       item,
       categoryLabel: categoryLabel.get(item.categoryId) ?? "Uncategorised",
       costPerPortion: analysis?.costPerPortion ?? null,
+      stock: stock?.get(item.slug) ?? null,
     };
   });
 
@@ -78,7 +81,7 @@ export default async function MenuPage() {
             </Link>
           </Card>
         ) : (
-          <ItemsTable rows={rows} categories={categories} />
+          <ItemsTable rows={rows} categories={categories} stockSetUp={stock !== null} />
         )}
       </div>
     </AdminShell>

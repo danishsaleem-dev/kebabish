@@ -24,21 +24,31 @@ import {
   toggleItemVisibilityAction,
 } from "@/app/admin/(dashboard)/menu/actions";
 import type { StoredCategory, StoredItem } from "@/lib/admin/store/types";
+import StockCell from "@/components/admin/StockCell";
+import { stockLevel, type StockEntry } from "@/lib/stock-status";
 
 export interface ItemRow {
   item: StoredItem;
   categoryLabel: string;
   costPerPortion: number | null;
+  /** Null = the dish doesn't track stock. */
+  stock: StockEntry | null;
 }
 
-type SortKey = "order" | "name" | "category" | "price" | "cost";
+type SortKey = "order" | "name" | "category" | "price" | "cost" | "stock";
+
+/** Worst first: out, then low, then ok, then untracked. */
+const STOCK_RANK = { out: 0, low: 1, ok: 2, untracked: 3 } as const;
 
 export default function ItemsTable({
   rows,
   categories,
+  stockSetUp = true,
 }: {
   rows: ItemRow[];
   categories: StoredCategory[];
+  /** False until migration 0022 has been run — the column then explains itself instead of offering edits. */
+  stockSetUp?: boolean;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -50,6 +60,7 @@ export default function ItemsTable({
   // sort the up/down arrows make sense in.
   const [sort, setSort] = useState<SortKey>("order");
   const [desc, setDesc] = useState(false);
+  const [stockFilter, setStockFilter] = useState<"all" | "attention">("all");
 
   // Position in the store's array = position on the public menu, within a
   // category. First/last per category decides which arrows are live.
@@ -74,10 +85,14 @@ export default function ItemsTable({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
 
-    const rowsFiltered = rows.filter(({ item }) => {
+    const rowsFiltered = rows.filter(({ item, stock }) => {
       if (categoryId !== "all" && item.categoryId !== categoryId) return false;
       if (visibility === "visible" && !item.visible) return false;
       if (visibility === "hidden" && item.visible) return false;
+      if (stockFilter === "attention") {
+        const level = stockLevel(stock);
+        if (level !== "low" && level !== "out") return false;
+      }
       if (!q) return true;
       return (
         item.name.toLowerCase().includes(q) ||
@@ -101,11 +116,14 @@ export default function ItemsTable({
           return ((a.item.price ?? -1) - (b.item.price ?? -1)) * dir;
         case "cost":
           return ((a.costPerPortion ?? -1) - (b.costPerPortion ?? -1)) * dir;
+        case "stock":
+          return (STOCK_RANK[stockLevel(a.stock)] - STOCK_RANK[stockLevel(b.stock)] ||
+            (a.stock?.quantity ?? 0) - (b.stock?.quantity ?? 0)) * dir;
         default:
           return a.item.name.localeCompare(b.item.name) * dir;
       }
     });
-  }, [rows, query, categoryId, visibility, sort, desc, categoryPosition, orderIndex]);
+  }, [rows, query, categoryId, visibility, stockFilter, sort, desc, categoryPosition, orderIndex]);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDesc((d) => !d);
@@ -162,6 +180,16 @@ export default function ItemsTable({
               { value: "hidden", label: "Hidden" },
             ]}
           />
+
+          <Dropdown
+            label="Stock"
+            value={stockFilter}
+            onChange={setStockFilter}
+            options={[
+              { value: "all", label: "All" },
+              { value: "attention", label: "Low or out" },
+            ]}
+          />
         </div>
       </div>
 
@@ -181,6 +209,9 @@ export default function ItemsTable({
               <Th sortKey="price" {...{ sort, desc, toggleSort }}>
                 Price
               </Th>
+              <Th sortKey="stock" {...{ sort, desc, toggleSort }}>
+                Stock
+              </Th>
               <Th sortKey="cost" {...{ sort, desc, toggleSort }}>
                 Recipe
               </Th>
@@ -192,7 +223,7 @@ export default function ItemsTable({
           </thead>
 
           <tbody className="divide-y divide-hairline">
-            {filtered.map(({ item, categoryLabel, costPerPortion }) => (
+            {filtered.map(({ item, categoryLabel, costPerPortion, stock }) => (
               <tr
                 key={item.slug}
                 onClick={() => router.push(`/admin/menu/items/${item.slug}/edit`)}
@@ -266,6 +297,15 @@ export default function ItemsTable({
                     formatMoney(item.price)
                   ) : (
                     <span className="font-normal text-warn">Not set</span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap px-4 py-4" onClick={(ev) => ev.stopPropagation()}>
+                  {stockSetUp ? (
+                    <StockCell item={item} stock={stock} />
+                  ) : (
+                    <span className="text-xs text-faint" title="Run migration 0022 to turn stock tracking on">
+                      Not set up
+                    </span>
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4 text-sm text-body-text">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Minus, Plus, ShoppingBag, Check } from "lucide-react";
+import { Minus, Plus, ShoppingBag, Check, Flame } from "lucide-react";
 import { useCart, type CartOption } from "@/components/cart/CartProvider";
 import Suggestions from "@/components/menu/Suggestions";
 import StockRequestDialog from "@/components/menu/StockRequestDialog";
@@ -187,6 +187,14 @@ export default function ItemOrderPanel({
         />
         <p className="mt-1.5 text-sm text-ink/50">{t("instructionsHint")}</p>
       </div>
+
+      {orderable && item.lowStock && (
+        // Nearly gone: a nudge to be quick. Deliberately no number.
+        <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-ember-700">
+          <Flame size={16} aria-hidden="true" />
+          {tMenu("lowStockNote")}
+        </p>
+      )}
 
       {orderable ? (
         <div className="flex flex-wrap items-center gap-3">

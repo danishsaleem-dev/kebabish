@@ -23,10 +23,11 @@ export async function POST(request: Request) {
   }
 
   const clean = lines.map((l) => {
-    const line = l as { slug?: unknown; options?: unknown };
+    const line = l as { slug?: unknown; quantity?: unknown; options?: unknown };
     const options = Array.isArray(line.options) ? line.options : [];
     return {
       slug: typeof line.slug === "string" ? line.slug : "",
+      quantity: typeof line.quantity === "number" && Number.isFinite(line.quantity) ? line.quantity : 1,
       options: options
         .filter(
           (o): o is { groupId: string; optionId: string } =>

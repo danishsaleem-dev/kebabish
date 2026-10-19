@@ -15,6 +15,8 @@ import { PAYMENT_LINK_HOLD_MINUTES } from "@/lib/payment-link";
 import { amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
 import { isFutureDelivery } from "@/lib/admin/order-types";
 import { fetchLineExtras } from "@/lib/order-extras";
+import { consumeOrderStock, readStockMap } from "@/lib/stock";
+import { stockLevel } from "@/lib/stock-status";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -66,8 +68,10 @@ export async function priceCart(
 ): Promise<PricedCart> {
   if (submitted.length === 0) throw new CartPricingError("empty");
 
-  const store = await readStore();
+  const [store, stock] = await Promise.all([readStore(), readStockMap()]);
   const lines: PricedLine[] = [];
+  // Portions of each dish asked for so far, so two lines of one dish can't together exceed the stock.
+  const asked = new Map<string, number>();
 
   for (const line of submitted) {
     const item = store.items.find((i) => i.slug === line.slug);
@@ -78,12 +82,21 @@ export async function priceCart(
     const category = store.categories.find((c) => c.id === item.categoryId);
     if (!category?.visible) throw new CartPricingError("missing");
     if (item.soldOut) throw new CartPricingError("soldOut");
+    const entry = stock?.get(item.slug);
+    if (stockLevel(entry) === "out") throw new CartPricingError("soldOut");
     // A dish with no price can't be checked out — the UI never offers it,
     // so reaching here means the cart is stale or hand-edited.
     // The floor also keeps a €0.01 placeholder from being bought.
     if (!isSellablePrice(item.price)) throw new CartPricingError("unpriced");
 
     const quantity = Math.min(Math.max(Math.trunc(line.quantity), 1), 50);
+    // More than the kitchen has left of a dish that tracks stock: refuse (the customer is told
+    // there aren't enough, never how many are left).
+    if (entry) {
+      const total = (asked.get(item.slug) ?? 0) + quantity;
+      if (total > entry.quantity) throw new CartPricingError("insufficient");
+      asked.set(item.slug, total);
+    }
     const options: PricedOption[] = [];
 
     for (const chosen of line.options) {
@@ -147,7 +160,7 @@ export type CartLineStatus =
       /** Current photo, so the cart can show (and backfill) it. */
       image?: string;
     }
-  | { status: "soldOut" | "unavailable" | "optionsChanged" };
+  | { status: "soldOut" | "unavailable" | "optionsChanged" | "insufficient" };
 
 /**
  * Check each cart line against the live menu — the friendly counterpart to
@@ -160,9 +173,10 @@ export type CartLineStatus =
  * *current* prices so the cart can quietly catch up with a price change.
  */
 export async function inspectCart(
-  submitted: { slug: string; options: SubmittedOption[] }[]
+  submitted: { slug: string; quantity?: number; options: SubmittedOption[] }[]
 ): Promise<CartLineStatus[]> {
-  const store = await readStore();
+  const [store, stock] = await Promise.all([readStore(), readStockMap()]);
+  const asked = new Map<string, number>();
 
   return submitted.map((line) => {
     const item = store.items.find((i) => i.slug === line.slug);
@@ -171,6 +185,13 @@ export async function inspectCart(
       return { status: "unavailable" as const };
     }
     if (item.soldOut) return { status: "soldOut" as const };
+    const entry = stock?.get(item.slug);
+    if (stockLevel(entry) === "out") return { status: "soldOut" as const };
+    if (entry) {
+      const total = (asked.get(item.slug) ?? 0) + Math.min(Math.max(Math.trunc(line.quantity ?? 1), 1), 50);
+      asked.set(item.slug, total);
+      if (total > entry.quantity) return { status: "insufficient" as const };
+    }
 
     const optionPrices: Record<string, number> = {};
     for (const chosen of line.options) {
@@ -604,6 +625,8 @@ export async function syncPaymentStatus(
     // email that's still mid-flight. after() keeps it alive to completion
     // without holding up the response.
     if (order) {
+      // The paid dishes come out of stock now (once, however often this runs).
+      await consumeOrderStock(order.id);
       after(() => sendNewOrderEmail(order));
       after(() => sendOrderConfirmationEmail(order, locale));
     }
@@ -788,6 +811,9 @@ export async function markOrderPaid(orderId: string): Promise<boolean> {
       console.error("[orders] could not re-reserve the slot for a late payment:", error);
     }
   }
+
+  // Committed now: take its dishes out of stock (a no-op if a phone order already did at creation).
+  await consumeOrderStock(orderId);
 
   const order = await getOrderSummaryById(orderId);
   if (order) {

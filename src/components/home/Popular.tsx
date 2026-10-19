@@ -46,6 +46,7 @@ export default async function Popular({
               priceOnRequestLabel={t("menu.priceOnRequest")}
               vegetarianLabel={t("menu.vegetarian")}
               soldOutLabel={t("menu.soldOut")}
+              lowStockLabel={t("menu.lowStock")}
               isOpen={isOpen}
               unavailableLabel={t("status.menuUnavailable")}
             />

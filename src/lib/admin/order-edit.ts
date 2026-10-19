@@ -5,6 +5,7 @@ import { toCents } from "@/lib/money";
 import { fetchLineExtras, type LineExtra } from "@/lib/order-extras";
 import type { StoreShape } from "@/lib/admin/store/types";
 import { isFutureDelivery } from "@/lib/admin/order-types";
+import { resyncOrderStock } from "@/lib/stock";
 import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
 import {
   DEFAULT_SLOT_MINUTES,
@@ -615,6 +616,10 @@ export async function applyOrderEdit(
       );
     }
   }
+
+  // The dishes changed: give the old lines back to stock and take the new ones (only if the
+  // order had taken its stock already).
+  await resyncOrderStock(orderId);
 
   // The old slot has its seat back (best effort — a failure here is logged, never thrown).
   if (schedule?.releaseOld && holdsSeat) {

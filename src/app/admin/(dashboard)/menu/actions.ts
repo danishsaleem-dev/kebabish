@@ -35,6 +35,8 @@ import { MIN_DISH_PRICE } from "@/lib/money";
 import { FEATURED_LIMIT } from "@/lib/featured";
 import { flashRedirect } from "@/lib/admin/flash";
 import { deleteVideoByUrl, isOwnVideoUrl } from "@/lib/admin/videos";
+import { readStockMap, setItemStock } from "@/lib/stock";
+import { DEFAULT_LOW_THRESHOLD, type StockEntry } from "@/lib/stock-status";
 
 /**
  * Server actions for everything under /admin/menu.
@@ -253,6 +255,27 @@ function readItemForm(formData: FormData) {
 }
 
 /**
+ * The "Stock" card of the dish editor. Read apart from the dish itself because stock lives in its own
+ * table (lib/stock.ts), not in the menu document. `present: false` = the card wasn't on the form
+ * (stock isn't set up yet), so nothing is touched.
+ */
+function readStockForm(
+  formData: FormData
+): { present: false } | { present: true; entry: StockEntry | null } | { errors: Record<string, string> } {
+  if (formData.get("stockPresent") !== "1") return { present: false };
+  if (formData.get("stockTrack") !== "on") return { present: true, entry: null };
+
+  const whole = /^\d{1,6}$/;
+  const qty = String(formData.get("stockQty") ?? "").trim();
+  const low = String(formData.get("stockLow") ?? "").trim() || String(DEFAULT_LOW_THRESHOLD);
+  const errors: Record<string, string> = {};
+  if (!whole.test(qty)) errors.stockQty = "Enter how many are in stock — a whole number, 0 or more.";
+  if (!whole.test(low)) errors.stockLow = "Enter a whole number, 0 or more (0 = never warn).";
+  if (Object.keys(errors).length > 0) return { errors };
+  return { present: true, entry: { quantity: Number(qty), lowThreshold: Number(low) } };
+}
+
+/**
  * At most FEATURED_LIMIT dishes can be featured — the homepage has room for
  * that many. Counted over every *other* dish, so re-saving an already
  * featured dish never trips it.
@@ -281,8 +304,17 @@ export async function createItemAction(
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
   const tooMany = await featuredLimitError(parsed.data.featured);
   if (tooMany) return { ok: false, errors: tooMany };
+  const stockForm = readStockForm(formData);
+  if ("errors" in stockForm) return { ok: false, errors: stockForm.errors };
 
   const item = await createItem(parsed.data);
+  if (stockForm.present && stockForm.entry) {
+    try {
+      await setItemStock(item.slug, stockForm.entry);
+    } catch (error) {
+      console.error("[menu] the dish was added but its stock couldn't be saved:", error);
+    }
+  }
   refreshMenu();
   redirect(
     flashRedirect(`/admin/menu/items/${item.slug}/edit`, `“${item.name}” added to the menu.`)
@@ -299,9 +331,19 @@ export async function updateItemAction(
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
   const tooMany = await featuredLimitError(parsed.data.featured, slug);
   if (tooMany) return { ok: false, errors: tooMany };
+  const stockForm = readStockForm(formData);
+  if ("errors" in stockForm) return { ok: false, errors: stockForm.errors };
 
   const previous = await getItem(slug);
   const item = await updateItem(slug, parsed.data);
+  if (stockForm.present) {
+    try {
+      await setItemStock(slug, stockForm.entry);
+    } catch (error) {
+      console.error("[menu] the dish was saved but its stock couldn't be saved:", error);
+      return { ok: false, message: "The dish was saved, but its stock couldn't be — please try the stock again." };
+    }
+  }
   // The video was replaced or removed — drop the file it was using.
   if (previous?.videoUrl && previous.videoUrl !== parsed.data.videoUrl) {
     await deleteVideoByUrl(previous.videoUrl);
@@ -322,6 +364,7 @@ export async function deleteItemAction(
   const previous = await getItem(slug);
   await deleteItem(slug);
   await deleteVideoByUrl(previous?.videoUrl);
+  await setItemStock(slug, null).catch(() => {});
   refreshMenu();
   redirect(flashRedirect("/admin/menu", "Dish deleted."));
 }
@@ -343,6 +386,28 @@ export async function toggleItemVisibilityAction(
   const slug = String(formData.get("slug") ?? "");
   const visible = formData.get("visible") === "true";
   await updateItem(slug, { visible: !visible });
+  refreshMenu();
+}
+
+/**
+ * Quick stock edit in the items table. "set" makes the number exactly N; "add" puts a new batch on
+ * top of what is there. A dish that doesn't track stock yet starts tracking (warning level 5).
+ */
+export async function setStockAction(formData: FormData): Promise<void> {
+  await requireRole(OWNER_STAFF_MANAGER);
+  const slug = String(formData.get("slug") ?? "");
+  const mode = formData.get("mode") === "add" ? "add" : "set";
+  const raw = String(formData.get("quantity") ?? "").trim();
+  if (!/^\d{1,6}$/.test(raw)) return;
+  const amount = Number(raw);
+
+  const [item, stock] = await Promise.all([getItem(slug), readStockMap()]);
+  if (!item || !stock) return; // unknown dish, or stock tracking isn't set up yet
+  const current = stock.get(slug);
+  await setItemStock(slug, {
+    quantity: mode === "add" ? (current?.quantity ?? 0) + amount : amount,
+    lowThreshold: current?.lowThreshold ?? DEFAULT_LOW_THRESHOLD,
+  });
   refreshMenu();
 }
 

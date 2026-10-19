@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Scale } from "lucide-react";
+import { Boxes, Scale } from "lucide-react";
 import {
   Checkbox,
   Field,
@@ -27,6 +27,8 @@ import type {
   StoredRecipe,
 } from "@/lib/admin/store/types";
 import { PAIRS_LIMIT } from "@/lib/admin/store/types";
+import { DEFAULT_LOW_THRESHOLD, stockLevel, type StockEntry } from "@/lib/stock-status";
+import StockBadge from "@/components/admin/StockBadge";
 
 const EMPTY: FormState = { ok: false };
 
@@ -55,6 +57,7 @@ export default function ItemForm({
   recipe,
   ingredients,
   recipeAction,
+  stock,
 }: {
   action: (prev: FormState, formData: FormData) => Promise<FormState>;
   categories: StoredCategory[];
@@ -67,9 +70,21 @@ export default function ItemForm({
   recipe?: StoredRecipe;
   ingredients?: StoredIngredient[];
   recipeAction?: (prev: FormState, formData: FormData) => Promise<FormState>;
+  /**
+   * Stock for this dish: `setUp` is false until migration 0022 has been run (the card then says so),
+   * `entry` is its quantity and warning level, or null when it doesn't track stock.
+   */
+  stock?: { setUp: boolean; entry: StockEntry | null };
 }) {
   const [state, formAction] = useActionState(action, EMPTY);
   const e = state.errors ?? {};
+  const [trackStock, setTrackStock] = useState(Boolean(stock?.entry));
+  const [stockQty, setStockQty] = useState(String(stock?.entry?.quantity ?? ""));
+  const [stockLow, setStockLow] = useState(String(stock?.entry?.lowThreshold ?? DEFAULT_LOW_THRESHOLD));
+  const liveStock =
+    trackStock && /^\d+$/.test(stockQty) && /^\d+$/.test(stockLow)
+      ? { quantity: Number(stockQty), lowThreshold: Number(stockLow) }
+      : null;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
@@ -399,6 +414,64 @@ export default function ItemForm({
               defaultChecked={item?.soldOut}
             />
           </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Stock" />
+          {stock && !stock.setUp ? (
+            <p className="mt-3 rounded-lg bg-warn-soft px-3 py-2 text-xs text-warn">
+              Stock tracking isn&apos;t set up yet — run <code>supabase/migrations/0022_stock.sql</code> in the
+              Supabase SQL editor, then reload.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-3">
+              <input type="hidden" name="stockPresent" value="1" form="item-form" />
+              <Checkbox
+                name="stockTrack"
+                form="item-form"
+                label="Track stock for this dish"
+                checked={trackStock}
+                onChange={(ev) => setTrackStock(ev.target.checked)}
+              />
+              {trackStock && (
+                <>
+                  <Field label="In stock now" hint="Portions, or the size of today's batch." error={e.stockQty}>
+                    <Input
+                      name="stockQty"
+                      form="item-form"
+                      inputMode="numeric"
+                      value={stockQty}
+                      onChange={(ev) => setStockQty(ev.target.value)}
+                      invalid={Boolean(e.stockQty)}
+                    />
+                  </Field>
+                  <Field
+                    label="Warn me when it gets down to"
+                    hint="At or below this, customers see “Selling fast” and you get an alert. 0 = no warning."
+                    error={e.stockLow}
+                  >
+                    <Input
+                      name="stockLow"
+                      form="item-form"
+                      inputMode="numeric"
+                      value={stockLow}
+                      onChange={(ev) => setStockLow(ev.target.value)}
+                      invalid={Boolean(e.stockLow)}
+                    />
+                  </Field>
+                  <p className="flex items-center gap-2 text-xs text-muted">
+                    <Boxes size={14} aria-hidden="true" />
+                    <StockBadge level={stockLevel(liveStock)} quantity={liveStock?.quantity} />
+                  </p>
+                </>
+              )}
+              <p className="text-xs leading-relaxed text-muted">
+                Every paid order takes its portions off the number, and a cancelled one puts them back. At 0 the
+                dish shows as sold out — it stays on the menu and customers can ask for it. Customers never see
+                the number.
+              </p>
+            </div>
+          )}
         </Card>
       </aside>
     </div>

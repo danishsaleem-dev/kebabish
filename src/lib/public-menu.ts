@@ -3,6 +3,8 @@ import { isSellablePrice } from "@/lib/money";
 import { FEATURED_LIMIT } from "@/lib/featured";
 import { buildSeed } from "@/lib/admin/store/seed";
 import { dishImage } from "@/lib/dish-images";
+import { readStockMap, type StockMap } from "@/lib/stock";
+import { stockLevel } from "@/lib/stock-status";
 import type { StoreShape, StoredOptionGroup } from "@/lib/admin/store/types";
 
 /**
@@ -38,7 +40,16 @@ export interface PublicMenuItem {
   variants: string[];
   vegetarian: boolean;
   spicy: boolean;
+  /**
+   * Can't be ordered right now: marked sold out by hand, **or its stock quantity has run out**
+   * (see lib/stock.ts). Either way the dish stays on the menu and offers the "request it" form.
+   */
   soldOut: boolean;
+  /**
+   * Still orderable but nearly gone (at or below the dish's warning level): the page shows a
+   * "selling fast" hint. The quantity itself is never sent to the browser.
+   */
+  lowStock: boolean;
   image?: string;
   /**
    * Every uploaded photo of the dish, in admin order (the first is the
@@ -98,6 +109,12 @@ async function read(): Promise<StoreShape> {
   }
 }
 
+/** The menu plus the stock quantities (null when stock tracking isn't set up — nothing is then limited). */
+async function readWithStock(): Promise<{ data: StoreShape; stock: StockMap | null }> {
+  const [data, stock] = await Promise.all([read(), readStockMap()]);
+  return { data, stock };
+}
+
 /**
  * Allergens a dish contains: the ones flagged by hand on the dish, unioned
  * with whatever its recipe's ingredients carry. Both on purpose — a manual
@@ -131,9 +148,12 @@ function toPublicItem(
   item: StoreShape["items"][number],
   groups: StoredOptionGroup[],
   data: StoreShape,
-  locale: string
+  locale: string,
+  stock: StockMap | null = null
 ): PublicMenuItem {
   const media = data.media ?? [];
+  const level = stockLevel(stock?.get(item.slug));
+  const soldOut = item.soldOut || level === "out";
   // An uploaded photo wins; otherwise the stock placeholder keyed by slug.
   const uploaded = (item.imageIds ?? []).flatMap((id) => {
     const url = media.find((m) => m.id === id)?.url;
@@ -151,7 +171,8 @@ function toPublicItem(
     variants: item.variants ?? [],
     vegetarian: item.vegetarian,
     spicy: item.spicy,
-    soldOut: item.soldOut,
+    soldOut,
+    lowStock: !soldOut && level === "low",
     image: uploaded[0] ?? fallback,
     images: uploaded.length > 0 ? uploaded : fallback ? [fallback] : [],
     description: pick(locale, item.description ?? "", item.descriptionEn),
@@ -176,7 +197,7 @@ function toPublicItem(
 }
 
 export async function getPublicMenu(locale = "nl"): Promise<PublicMenuCategory[]> {
-  const data = await read();
+  const { data, stock } = await readWithStock();
 
   return [...data.categories]
     .filter((c) => c.visible)
@@ -188,7 +209,7 @@ export async function getPublicMenu(locale = "nl"): Promise<PublicMenuCategory[]
       description: category.description,
       items: data.items
         .filter((i) => i.categoryId === category.id && i.visible)
-        .map((i) => toPublicItem(i, data.optionGroups ?? [], data, locale)),
+        .map((i) => toPublicItem(i, data.optionGroups ?? [], data, locale, stock)),
     }))
     .filter((c) => c.items.length > 0);
 }
@@ -198,7 +219,7 @@ export async function getPublicItem(slug: string, locale = "nl"): Promise<{
   /** `translated` is false on /en when only the Dutch name exists. */
   category: { id: string; label: string; translated: boolean };
 } | null> {
-  const data = await read();
+  const { data, stock } = await readWithStock();
   const item = data.items.find((i) => i.slug === slug);
   if (!item || !item.visible) return null;
 
@@ -206,7 +227,7 @@ export async function getPublicItem(slug: string, locale = "nl"): Promise<{
   if (!category?.visible) return null;
 
   return {
-    item: toPublicItem(item, data.optionGroups ?? [], data, locale),
+    item: toPublicItem(item, data.optionGroups ?? [], data, locale, stock),
     category: {
       id: category.id,
       label: pick(locale, category.label, category.labelEn),

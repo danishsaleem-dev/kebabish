@@ -10,17 +10,19 @@ import {
   listOptionGroups,
 } from "@/lib/admin/store";
 import { createItemAction } from "@/app/admin/(dashboard)/menu/actions";
+import { stockIsSetUp } from "@/lib/stock";
 
 export const metadata = { title: "Add item" };
 export const dynamic = "force-dynamic";
 
 export default async function NewItemPage() {
-  const [categories, library, optionGroups, allergens, items] = await Promise.all([
+  const [categories, library, optionGroups, allergens, items, stockSetUp] = await Promise.all([
     listCategories(),
     listMedia(),
     listOptionGroups(),
     listAllergens(),
     listItems(),
+    stockIsSetUp(),
   ]);
 
   return (
@@ -46,6 +48,7 @@ export default async function NewItemPage() {
           optionGroups={optionGroups}
           allergens={allergens}
           dishes={items.map((i) => ({ slug: i.slug, name: i.name }))}
+          stock={{ setUp: stockSetUp, entry: null }}
         />
       </div>
     </AdminShell>

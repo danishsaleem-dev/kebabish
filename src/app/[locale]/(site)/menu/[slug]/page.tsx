@@ -108,6 +108,7 @@ export default async function ItemPage({
     spicyLabel: t("menu.spicy"),
     priceOnRequestLabel: t("menu.priceOnRequest"),
     soldOutLabel: t("menu.soldOut"),
+    lowStockLabel: t("menu.lowStock"),
     allergens: allergenLabels,
     allergensTitle: t("item.allergens"),
     allergensContains: t("item.allergensContains"),
@@ -241,6 +242,7 @@ export default async function ItemPage({
                   priceOnRequestLabel={t("menu.priceOnRequest")}
                   vegetarianLabel={t("menu.vegetarian")}
                   soldOutLabel={t("menu.soldOut")}
+                  lowStockLabel={t("menu.lowStock")}
                   isOpen={isOpen}
                   unavailableLabel={t("status.menuUnavailable")}
                   reveal={false}
@@ -262,6 +264,7 @@ function ItemHeading({
   spicyLabel,
   priceOnRequestLabel,
   soldOutLabel,
+  lowStockLabel,
   allergens,
   allergensTitle,
   allergensContains,
@@ -274,6 +277,7 @@ function ItemHeading({
   spicyLabel: string;
   priceOnRequestLabel: string;
   soldOutLabel: string;
+  lowStockLabel: string;
   allergens: string[];
   allergensTitle: string;
   allergensContains: string;
@@ -312,6 +316,12 @@ function ItemHeading({
           </Tag>
         )}
         {item.soldOut && <Tag muted>{soldOutLabel}</Tag>}
+        {item.lowStock && (
+          <Tag>
+            <Flame size={13} aria-hidden="true" />
+            {lowStockLabel}
+          </Tag>
+        )}
       </div>
 
       {allergens.length > 0 && (

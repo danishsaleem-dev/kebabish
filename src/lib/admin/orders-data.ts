@@ -16,7 +16,9 @@ import { getOrderSummaryById } from "@/lib/orders";
 import { notifyRefund, refundOrder } from "@/lib/refunds";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
+import { listStockAlerts, releaseOrderStock } from "@/lib/stock";
 import { fetchLineExtras } from "@/lib/order-extras";
+import { parseAddressLine } from "@/lib/address-parse";
 
 /**
  * Real orders, customers, dashboard and report data — replaces
@@ -353,6 +355,8 @@ export async function cancelOrder(
   // Give the seat back — a cancelled order shouldn't go on shrinking that
   // slot's real capacity for everyone else.
   await releaseDeliverySlot(row.delivery_date, row.delivery_slot_start);
+  // And the portions: what it took out of stock goes back in.
+  await releaseOrderStock(orderId);
 
   // The customer already paid for something we're not going to make — the
   // money goes back automatically rather than leaving a cancelled order
@@ -675,6 +679,91 @@ export async function getCustomer(id: string): Promise<AdminCustomer | null> {
   return buildCustomers([data as CustomerRow], orders)[0];
 }
 
+/**
+ * A returning customer as the "Create order" form needs them: contact details and the address to
+ * start from, ready to drop into its boxes.
+ */
+export interface CustomerOption {
+  /** Stable key for the picker (the account id, or `guest:<email|tel>`). */
+  key: string;
+  /** Set only for a registered account — the order is then linked to it. */
+  customerId: string | null;
+  kind: "registered" | "guest";
+  name: string;
+  phone: string;
+  email: string;
+  street: string;
+  houseNumber: string;
+  addition: string;
+  postcode: string;
+  city: string;
+  orderCount: number;
+  lastOrderAt: string | null;
+}
+
+/**
+ * Everyone staff might be taking an order from: registered customers (with the address they saved,
+ * else the one on their latest delivery) and guests (people who ordered without an account, grouped
+ * by email or phone like the Customers screen does). Most recent first.
+ */
+export async function listCustomerOptions(): Promise<CustomerOption[]> {
+  const [{ data, error }, orders] = await Promise.all([
+    supabaseAdmin()
+      .from("customers")
+      .select("id, name, phone, email, created_at, saved_street, saved_house_number, saved_addition, saved_postcode, saved_city"),
+    listOrders(),
+  ]);
+  if (error) throw new Error(error.message);
+
+  type SavedRow = CustomerRow & {
+    saved_street: string | null;
+    saved_house_number: string | null;
+    saved_addition: string | null;
+    saved_postcode: string | null;
+    saved_city: string | null;
+  };
+  const rows = (data ?? []) as SavedRow[];
+  const savedById = new Map(rows.map((r) => [r.id, r]));
+
+  const toOption = (c: AdminCustomer): CustomerOption => {
+    const saved = c.accountType === "registered" ? savedById.get(c.id) : undefined;
+    const parts =
+      saved?.saved_street && saved.saved_postcode && saved.saved_city
+        ? {
+            street: saved.saved_street,
+            houseNumber: saved.saved_house_number ?? "",
+            addition: saved.saved_addition ?? "",
+            postcode: saved.saved_postcode,
+            city: saved.saved_city,
+          }
+        : parseAddressLine(c.address);
+    return {
+      key: c.id,
+      customerId: c.accountType === "registered" ? c.id : null,
+      kind: c.accountType,
+      name: c.name,
+      phone: c.phone === "—" ? "" : c.phone,
+      email: c.email,
+      street: parts?.street ?? "",
+      houseNumber: parts?.houseNumber ?? "",
+      addition: parts?.addition ?? "",
+      postcode: parts?.postcode ?? "",
+      city: parts?.city ?? "",
+      orderCount: c.orderCount,
+      lastOrderAt: c.lastOrderAt,
+    };
+  };
+
+  return [...buildCustomers(rows, orders), ...buildGuestCustomers(orders)]
+    .map(toOption)
+    .sort(
+      (a, b) =>
+        Date.parse(b.lastOrderAt ?? "1970-01-01") - Date.parse(a.lastOrderAt ?? "1970-01-01") ||
+        a.name.localeCompare(b.name)
+    )
+    .slice(0, 3000);
+}
+
 export function ordersForCustomer(
   orders: AdminOrder[],
   customerId: string
@@ -708,7 +797,19 @@ export async function getRecentNotifications(): Promise<AdminNotification[]> {
 
   const now = Date.now();
 
-  return (data ?? []).map((row) => {
+  // Stock first: a dish that is out or running low stays here for as long as it is true (not just
+  // at the moment it happened), so the owner sees it every time they open the admin.
+  const stockAlerts: AdminNotification[] = (await listStockAlerts().catch(() => [])).map((s) => ({
+    id: `stock:${s.slug}`,
+    kind: "system" as const,
+    title: s.level === "out" ? `Out of stock — ${s.name}` : `Running low — ${s.name}`,
+    body: s.level === "out" ? "Shows as sold out on the website. Add a batch." : `${s.quantity} left. Add a batch soon.`,
+    minutesAgo: 0,
+    read: false,
+    href: "/admin/menu",
+  }));
+
+  const orderNotes = (data ?? []).map((row) => {
     const minutesAgo = Math.max(
       0,
       Math.round((now - Date.parse(row.created_at)) / 60_000)
@@ -729,4 +830,6 @@ export async function getRecentNotifications(): Promise<AdminNotification[]> {
       href: "/admin/orders",
     };
   });
+
+  return [...stockAlerts, ...orderNotes];
 }

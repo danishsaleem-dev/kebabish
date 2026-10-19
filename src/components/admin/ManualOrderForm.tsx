@@ -13,7 +13,9 @@ import {
   SubmitButton,
   Textarea,
 } from "@/components/admin/ui/Form";
-import PostcodeField from "@/components/cart/PostcodeField";
+import PostcodeField, { type ResolvedAddress } from "@/components/cart/PostcodeField";
+import CustomerPicker from "@/components/admin/CustomerPicker";
+import type { CustomerOption } from "@/lib/admin/orders-data";
 import {
   checkManualPromoAction,
   createManualOrderAction,
@@ -88,7 +90,10 @@ export default function ManualOrderForm({
   groups,
   deliveryFee,
   freeDeliveryOver,
+  customers,
 }: {
+  /** Returning customers staff can pick instead of typing everything again. */
+  customers: CustomerOption[];
   categories: { id: string; label: string }[];
   dishes: ManualMenuDish[];
   groups: ManualMenuGroup[];
@@ -104,6 +109,14 @@ export default function ManualOrderForm({
   const [channel, setChannel] = useState("phone");
   const [street, setStreet] = useState("");
   const [city, setCity] = useState("");
+  // The customer fields are controlled so picking a returning customer can fill them in.
+  const [picked, setPicked] = useState<CustomerOption | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [houseNumber, setHouseNumber] = useState("");
+  const [addition, setAddition] = useState("");
+  // Changing `n` remounts the postcode box, which is how a picked address is pushed into it.
+  const [postcodeSeed, setPostcodeSeed] = useState<{ n: number; initial?: ResolvedAddress }>({ n: 0 });
   const [date, setDate] = useState("");
   const [slots, setSlots] = useState<SlotOption[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -114,6 +127,21 @@ export default function ManualOrderForm({
   const [promoChecking, setPromoChecking] = useState(false);
   const [feeText, setFeeText] = useState("");
   const [discountText, setDiscountText] = useState("");
+
+  function pickCustomer(c: CustomerOption) {
+    setPicked(c);
+    setCustomerName(c.name);
+    setPhone(c.phone);
+    setEmail(c.email);
+    setHouseNumber(c.houseNumber);
+    setAddition(c.addition);
+    setStreet(c.street);
+    setCity(c.city);
+    setPostcodeSeed((s) => ({
+      n: s.n + 1,
+      initial: c.postcode ? { street: c.street, postcode: c.postcode, city: c.city } : undefined,
+    }));
+  }
 
   const dishBySlug = useMemo(() => new Map(dishes.map((d) => [d.slug, d])), [dishes]);
   const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups]);
@@ -428,11 +456,35 @@ export default function ManualOrderForm({
         <Card>
           <CardHeader title="Customer" />
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <input type="hidden" name="customerId" value={picked?.customerId ?? ""} />
+              <CustomerPicker
+                customers={customers}
+                selected={picked}
+                onPick={pickCustomer}
+                onClear={() => setPicked(null)}
+              />
+            </div>
             <Field label="Name" error={e.customerName}>
-              <Input name="customerName" autoComplete="off" required invalid={Boolean(e.customerName)} />
+              <Input
+                name="customerName"
+                autoComplete="off"
+                required
+                value={customerName}
+                onChange={(ev) => setCustomerName(ev.target.value)}
+                invalid={Boolean(e.customerName)}
+              />
             </Field>
             <Field label="Phone" error={e.phone}>
-              <Input name="phone" type="tel" autoComplete="off" required invalid={Boolean(e.phone)} />
+              <Input
+                name="phone"
+                type="tel"
+                autoComplete="off"
+                required
+                value={phone}
+                onChange={(ev) => setPhone(ev.target.value)}
+                invalid={Boolean(e.phone)}
+              />
             </Field>
             <Field
               label="Email"
@@ -460,6 +512,8 @@ export default function ManualOrderForm({
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field label="Postcode" error={e.postcode} >
               <PostcodeField
+                key={postcodeSeed.n}
+                initial={postcodeSeed.initial}
                 name="postcode"
                 required
                 placeholder="1616RK"
@@ -489,10 +543,16 @@ export default function ManualOrderForm({
             </Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label="House no." error={e.houseNumber}>
-                <Input name="houseNumber" required invalid={Boolean(e.houseNumber)} />
+                <Input
+                  name="houseNumber"
+                  required
+                  value={houseNumber}
+                  onChange={(ev) => setHouseNumber(ev.target.value)}
+                  invalid={Boolean(e.houseNumber)}
+                />
               </Field>
               <Field label="Addition" error={e.addition}>
-                <Input name="addition" />
+                <Input name="addition" value={addition} onChange={(ev) => setAddition(ev.target.value)} />
               </Field>
             </div>
           </div>

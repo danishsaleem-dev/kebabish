@@ -309,6 +309,7 @@ export default function MenuBrowser({
                       priceOnRequestLabel={t("priceOnRequest")}
                       vegetarianLabel={t("vegetarian")}
                       soldOutLabel={t("soldOut")}
+                      lowStockLabel={t("lowStock")}
                       isOpen={isOpen}
                       unavailableLabel={tStatus("menuUnavailable")}
                       reveal={false}

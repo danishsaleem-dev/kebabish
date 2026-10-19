@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Leaf, Plus } from "lucide-react";
+import { Flame, Leaf, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { formatEuro } from "@/lib/money";
 import type { PublicMenuItem } from "@/lib/public-menu";
@@ -22,6 +22,7 @@ export default function FeaturedDishCard({
   priceOnRequestLabel,
   vegetarianLabel,
   soldOutLabel,
+  lowStockLabel,
   isOpen,
   unavailableLabel,
   reveal = true,
@@ -31,6 +32,8 @@ export default function FeaturedDishCard({
   priceOnRequestLabel: string;
   vegetarianLabel: string;
   soldOutLabel: string;
+  /** "Selling fast" — shown on a dish that is nearly gone (never a number). */
+  lowStockLabel?: string;
   isOpen: boolean;
   unavailableLabel: string;
   /**
@@ -83,6 +86,13 @@ export default function FeaturedDishCard({
             {/* The leaf alone carries it on a narrow card; the word would
                 crowd the photo. `title` keeps it reachable either way. */}
             <span className="hidden @min-[16rem]:inline">{vegetarianLabel}</span>
+          </span>
+        )}
+
+        {item.lowStock && lowStockLabel && (
+          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ember-600 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-cream-50 shadow-sm @min-[16rem]:bottom-3 @min-[16rem]:left-3">
+            <Flame size={12} aria-hidden="true" />
+            {lowStockLabel}
           </span>
         )}
       </div>

@@ -121,7 +121,7 @@ function sanitizeLines(raw: unknown): CartLine[] {
 }
 
 /** Why a line can't be ordered any more (it is simply absent when it can). */
-export type CartIssue = "soldOut" | "unavailable" | "optionsChanged";
+export type CartIssue = "soldOut" | "unavailable" | "optionsChanged" | "insufficient";
 
 interface CartValue {
   lines: CartLine[];
@@ -247,6 +247,7 @@ export default function CartProvider({ children }: { children: ReactNode }) {
           body: JSON.stringify({
             lines: snapshot.map((l) => ({
               slug: l.slug,
+              quantity: l.quantity,
               options: l.options.map((o) => ({ groupId: o.groupId, optionId: o.optionId })),
             })),
           }),

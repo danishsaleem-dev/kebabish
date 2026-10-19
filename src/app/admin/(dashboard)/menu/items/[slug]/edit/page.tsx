@@ -15,6 +15,7 @@ import {
   listMedia,
   listOptionGroups,
 } from "@/lib/admin/store";
+import { readStockMap } from "@/lib/stock";
 import {
   deleteItemAction,
   saveRecipeAction,
@@ -39,7 +40,7 @@ export default async function EditItemPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const [item, categories, library, optionGroups, allergens, recipe, ingredients, items] =
+  const [item, categories, library, optionGroups, allergens, recipe, ingredients, items, stockMap] =
     await Promise.all([
       getItem(slug),
       listCategories(),
@@ -49,6 +50,7 @@ export default async function EditItemPage({
       getRecipe(slug),
       listIngredients(),
       listItems(),
+      readStockMap(),
     ]);
   if (!item) notFound();
 
@@ -74,6 +76,7 @@ export default async function EditItemPage({
           recipe={recipe}
           ingredients={ingredients}
           recipeAction={saveRecipeAction}
+          stock={{ setUp: stockMap !== null, entry: stockMap?.get(slug) ?? null }}
         />
 
         <Card className="flex flex-wrap items-center justify-between gap-4">

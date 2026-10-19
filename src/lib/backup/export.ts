@@ -69,6 +69,8 @@ export const BACKUP_TABLES: BackupTableSpec[] = [
   { name: "order_edits", pk: ["id"] },
   { name: "order_refunds", pk: ["id"] },
   { name: "stock_requests", pk: ["id"] },
+  { name: "item_stock", pk: ["item_slug"] },
+  { name: "order_stock_holds", pk: ["order_id", "item_slug"] },
   { name: "feedback", pk: ["id"] },
   { name: "site_content", pk: ["key", "locale"] },
   { name: "site_content_history", pk: ["id"] },

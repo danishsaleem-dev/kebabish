@@ -4,15 +4,18 @@ import { listCustomers, listOrders } from "@/lib/admin/orders-data";
 import { auth } from "@/lib/auth";
 import { getSettings } from "@/lib/admin/store";
 import BackupReminder from "@/components/admin/BackupReminder";
+import StockAlertsCard from "@/components/admin/StockAlertsCard";
+import { listStockAlerts } from "@/lib/stock";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const [orders, customers, session, settings] = await Promise.all([
+  const [orders, customers, session, settings, stockAlerts] = await Promise.all([
     listOrders(),
     listCustomers(),
     auth(),
     getSettings(),
+    listStockAlerts().catch(() => []),
   ]);
 
   return (
@@ -24,6 +27,7 @@ export default async function AdminDashboardPage() {
           hasPaidOrders={orders.some((o) => o.paymentStatus === "paid")}
         />
       )}
+      <StockAlertsCard alerts={stockAlerts} />
       <DashboardView
         orders={orders}
         customerJoinDates={customers.map((c) => c.joinedAt)}

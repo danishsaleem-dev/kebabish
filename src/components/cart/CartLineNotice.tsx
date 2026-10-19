@@ -23,9 +23,11 @@ export default function CartLineNotice({
     const label =
       issue === "soldOut"
         ? t("soldOutBadge")
-        : issue === "optionsChanged"
-          ? t("optionsChangedBadge")
-          : t("unavailableBadge");
+        : issue === "insufficient"
+          ? t("insufficientBadge")
+          : issue === "optionsChanged"
+            ? t("optionsChangedBadge")
+            : t("unavailableBadge");
     return (
       <p
         role="alert"
@@ -35,7 +37,11 @@ export default function CartLineNotice({
         <span>
           {label}
           <span className="block font-normal">
-            {issue === "soldOut" ? t("soldOutHint") : t("removeToContinue")}
+            {issue === "soldOut"
+              ? t("soldOutHint")
+              : issue === "insufficient"
+                ? t("insufficientHint")
+                : t("removeToContinue")}
           </span>
         </span>
       </p>

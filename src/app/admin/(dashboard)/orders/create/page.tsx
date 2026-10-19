@@ -4,16 +4,25 @@ import AdminShell from "@/components/admin/AdminShell";
 import ManualOrderForm from "@/components/admin/ManualOrderForm";
 import { getSettings, listCategories, listItems, listOptionGroups } from "@/lib/admin/store";
 import { isSellablePrice } from "@/lib/money";
+import { listCustomerOptions } from "@/lib/admin/orders-data";
+import { readStockMap } from "@/lib/stock";
+import { stockLevel } from "@/lib/stock-status";
 
 export const metadata = { title: "Create order" };
 export const dynamic = "force-dynamic";
 
 export default async function CreateOrderPage() {
-  const [categories, items, optionGroups, settings] = await Promise.all([
+  const [categories, items, optionGroups, settings, customers, stock] = await Promise.all([
     listCategories(),
     listItems(),
     listOptionGroups(),
     getSettings(),
+    // A failure here shouldn't stop phone orders being taken — the form just has no picker list.
+    listCustomerOptions().catch((error) => {
+      console.error("[create-order] couldn't load customers:", error);
+      return [];
+    }),
+    readStockMap(),
   ]);
 
   // Only what can actually be ordered — the server refuses the rest anyway
@@ -23,7 +32,14 @@ export default async function CreateOrderPage() {
     .sort((a, b) => a.position - b.position);
   const categoryIds = new Set(visibleCategories.map((c) => c.id));
   const dishes = items
-    .filter((i) => i.visible && !i.soldOut && isSellablePrice(i.price) && categoryIds.has(i.categoryId))
+    .filter(
+      (i) =>
+        i.visible &&
+        !i.soldOut &&
+        stockLevel(stock?.get(i.slug)) !== "out" &&
+        isSellablePrice(i.price) &&
+        categoryIds.has(i.categoryId)
+    )
     .map((i) => ({
       slug: i.slug,
       name: i.name,
@@ -51,6 +67,7 @@ export default async function CreateOrderPage() {
         <ManualOrderForm
           deliveryFee={settings.deliveryFee}
           freeDeliveryOver={settings.freeDeliveryOver ?? null}
+          customers={customers}
           categories={visibleCategories.map((c) => ({ id: c.id, label: c.label }))}
           dishes={dishes}
           groups={optionGroups.map((g) => ({

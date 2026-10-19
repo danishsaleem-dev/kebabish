@@ -500,7 +500,7 @@ it weekly. It is a stopgap, not point-in-time recovery — up to a week of order
 the page says so and recommends **Supabase Pro (~$25/month, daily backups)** once orders flow, keeping
 this export as a second copy outside Supabase.
 
-- **`src/lib/backup/export.ts`** — `BACKUP_TABLES` lists all 17 tables **in dependency order** (a
+- **`src/lib/backup/export.ts`** — `BACKUP_TABLES` lists all 19 tables **in dependency order** (a
   row is restored after the rows it points at) with each table's primary key. The file carries
   each table's `pk`, `omit` and `restoreDefaults` inside it, so the restore script is generic and an
   old file stays restorable if this list later changes. **Add any new table to `BACKUP_TABLES`** when
@@ -894,6 +894,51 @@ fetched once when it appears (the dishes already in the basket are left out) and
 changes, so tapping a card flips it to "Added · 1" instead of making it vanish. A dish with a *required* choice (a sauce,
 a size) can't be added in one tap, so its card links to the dish's page. The API is public and read-only: only what the
 public menu already shows.
+
+### Stock / batch quantities (Oct 2026, migration `0022_stock.sql`)
+
+A dish can **track stock**: *Menu → a dish → Stock* ("Track stock", **In stock now**, **Warn me when it gets down to**, default 5), or click the
+stock pill in the items table (*Set* = exactly N, *Add batch* = on top of what is left). **No row = untracked = behaves as before.**
+- **Where it lives:** `item_stock` (+ `order_stock_holds`), tables of their own — *not* a field in the menu document, because that document is read
+  and written whole, so two orders at once would overwrite each other's stock. `src/lib/stock.ts` (server-only) is the one module; `stock-status.ts` is
+  the pure rule (`stockLevel`: `untracked | ok | low | out`) shared with the browser. **Until 0022 is run nothing is tracked and nothing breaks**:
+  `readStockMap()` returns null (logged once a minute), the editor card and the table column say "not set up".
+- **At 0 the dish is sold out — derived, never hidden:** `public-menu.ts` sets `soldOut = manual flag || stock is 0`, so every existing sold-out
+  behaviour applies at once (the "Not available — request it" form, schema `OutOfStock`, never suggested, cart refuses it). Adding a batch brings it
+  back by itself. The manual *Sold out* tick still works on top.
+- **Low = "Bijna uitverkocht / Selling fast":** `PublicMenuItem.lowStock` (at or below the warning level, still orderable) shows an ember tag on the
+  dish card's photo, a tag on the dish page and a "Only a few left — be quick!" line above the add button. **The number is never sent to the browser**
+  (checked: the public data has no quantity field). Wording: `menu.lowStock*` (not in the editable-content registry).
+- **Ordering is enforced on the server:** `priceCart` refuses a dish at 0 (`soldOut`) and more portions than are left (`insufficient`, counted across
+  lines of the same dish); `inspectCart` / the basket flag it ("Niet genoeg beschikbaar — verlaag het aantal", no number); checkout says
+  `notEnoughStock`. Manual orders go through the same `priceCart`.
+- **When portions leave stock (and come back):** `consume_order_stock(order)` runs when an order is **committed** — an online payment lands
+  (`syncPaymentStatus`), staff press *Mark as paid* (`markOrderPaid`), or staff create a phone order that is accepted (not for a day that already
+  passed, not for an online-link order still waiting for payment). `release_order_stock` runs on **cancel** (`cancelOrder`, which a declined paid order
+  uses) and when an undelivered order is **deleted**. **Editing an order** (swap a dish, change a quantity) calls `resync_order_stock`: old lines go
+  back, new lines are taken. All three read the order's own lines in SQL and are **idempotent** (`order_stock_holds`: a repeated Mollie webhook can't take twice,
+  a double cancel can't return twice); stock never goes below 0 (an oversell clamps, and only what was really taken is given back).
+  Bookkeeping never fails an order that was already paid (errors are logged only).
+- **The owner is told three ways:** (1) an **email** to the order-notification address (`email/stock-alert.ts`) at the moment a dish crosses its warning
+  level or hits 0 — once, on the crossing (`crossings()`); (2) the **dashboard** card at the top (`StockAlertsCard`, out first, with the stock pill
+  right there to add a batch); (3) the **notification bell** lists each out/low dish for as long as it is true. The items table shows a colour-coded pill
+  (green in stock / amber low / red out / grey not tracked, `StockBadge`), is sortable by stock health and has a *Stock → Low or out* filter.
+- **Tested:** the SQL on a throwaway local Postgres (take once, repeat = no-op, clamp at 0, release gives back only what was taken, edit resync, deleting an
+  order removes its holds, re-runnable migration); the app logic against a fake PostgREST + temporary menu (32 checks: public flags, no quantity leaks to the browser,
+  `priceCart`/`inspectCart` limits incl. two lines of one dish, alert crossings, the right SQL functions called); the admin screens in the browser before the migration
+  ("Not set up") and with made-up numbers (alert card, pills, inline *Set/Add batch*, editor card, customer badges). **Not run against the live database — it has no
+  stock tables until you run 0022. After running it: give one dish a stock, order it through checkout, and watch the number drop.**
+- **Not built:** per-order reservation while a customer is still paying (stock is taken when paid, so two people paying for the last portion at once can oversell by one —
+  the clamp keeps it from going negative and the kitchen handles the overlap), stock per extra/variant, scheduled auto-restock.
+
+### Create order: pick a returning customer (Oct 2026)
+
+*Orders → Create order → Customer* starts with **Existing customer**: type a name, phone number or email, pick the person, and name, phone, email and
+**last address** fill the form (`CustomerPicker`, data from `listCustomerOptions()` in `orders-data.ts`: registered accounts with their saved address, else
+the address of their latest delivery; guests grouped by email/phone exactly as on the Customers screen). A picked **registered** customer sets `customerId`, so
+the order is **linked to their account** (it shows on their dashboard and Customers page) — the server checks the id really is a customer. A **guest** has no
+account, so the order is matched by the same email/phone the Customers screen groups by. Everything stays editable, and "Change" drops the link. Stored addresses
+are one line, so `lib/address-parse.ts` (13 checks) splits them back into street / number / addition / postcode / town as a head start.
 
 ### Editing an order after it was placed — and compensation (Oct 2026)
 
