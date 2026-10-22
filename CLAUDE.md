@@ -1160,6 +1160,22 @@ with the distance and radius plus a WhatsApp link, and saves nothing.
 - No header chip / "change address" link yet: the address can be changed at checkout, and the dialog reopens via `openDialog()` if one is added.
 - Wording: `location.*` in `messages/*.json` (not in the editable-content registry).
 
+**No automatic location, anywhere (audited Oct 2026).** The site never asks the browser for the visitor's position and never guesses from their IP:
+no `navigator.geolocation`, no IP/geo-header lookup, no Google Places/Geocoding call (the only Google Maps use is the static map *image* on the homepage), and
+`next.config.ts` sends `Permissions-Policy: geolocation=()`, so the browser would refuse it even if someone added it. The only addresses the site uses are the
+ones a person **typed and picked** (the arrival dialog, checkout, the contact box), plus — only for a signed-in customer who ticked "save this address" — the one
+on their account (the dialog's address wins over it). The `autoComplete` attributes in the forms are the browser's own form-fill of things the visitor typed before.
+
+### The opening-hours panel in the hero (Oct 2026)
+
+`Hero` shows a glass panel right under the order button: **"Donderdag t/m zondag open"** and one line per run of days with the same hours (*Do – Vr 16:00 – 23:59 · Za – Zo 14:00 – 23:59*).
+It is **read from Settings → opening hours** (`summariseHours()` in `lib/opening-hours.ts`: closed days dropped, consecutive days with equal hours merged, a "Thursday to Sunday"
+headline only when the open days are one unbroken run, otherwise "Openingstijden"), so it can never disagree with the checkout slots and updates when the hours are changed
+(the homepage revalidates; saving settings revalidates at once). Nothing renders when every day is closed. Phones: a stacked card, fully above the fold at 390×780; from `sm` a
+single-row strip so it also clears the fold on a 1280×720 laptop. It joins the hero's load animation as `data-hero-hours` in `Motion.tsx` (an element with only `data-reveal` inside the
+hero is primed hidden and never revealed — the hero timeline lists its elements by name). Wording: `hero.hoursOpen/hoursThrough/hoursLabel` (not in the editable registry).
+The slim "order notice" strip above the header (Settings → notice) can carry the same text; with this panel it is redundant and can be cleared.
+
 ### The delivery-area map
 
 `src/lib/map-projection.ts` holds the shared centre/zoom/size and the Web

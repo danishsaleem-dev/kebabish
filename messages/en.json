@@ -12,6 +12,9 @@
     "subtitle": "Kebabish — The Taste of Home",
     "description": "Fresh, homemade Pakistani dishes — delivered within 10 km of Hoogkarspel.",
     "ctaOrder": "View menu & order",
+    "hoursOpen": "Open {days}",
+    "hoursThrough": "to",
+    "hoursLabel": "Opening hours",
     "badge": "Delivery only — no dine-in",
     "scrollCue": "Scroll"
   },

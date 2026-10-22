@@ -195,6 +195,7 @@ export default function Motion() {
           .to(q("[data-hero-sub]"), { opacity: 1, y: 0 }, 0.75)
           .to(q("[data-hero-desc]"), { opacity: 1, y: 0 }, 0.85)
           .to(q("[data-hero-cta]"), { opacity: 1, y: 0, stagger: 0.09 }, 0.95)
+          .to(q("[data-hero-hours]"), { opacity: 1, y: 0 }, 1.05)
           .to(q("[data-hero-badge]"), { opacity: 1, y: 0 }, 1.1)
           .to(q("[data-hero-cue]"), { opacity: 1, y: 0 }, 1.25);
 

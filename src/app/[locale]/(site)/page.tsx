@@ -60,6 +60,7 @@ export default async function HomePage({
       <Hero
         locale={locale}
         media={{ web: media.heroWeb, mobile: media.heroMobile }}
+        hours={settings.hours}
         showBadge={settings.showLaunchBadge ?? true}
       />
     ),

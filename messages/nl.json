@@ -12,6 +12,9 @@
     "subtitle": "Kebabish — De Smaak van Thuis",
     "description": "Verse, huisgemaakte Pakistaanse gerechten — bezorgd binnen 10 km van Hoogkarspel.",
     "ctaOrder": "Bekijk menu & bestel",
+    "hoursOpen": "{days} open",
+    "hoursThrough": "t/m",
+    "hoursLabel": "Openingstijden",
     "badge": "Alleen bezorgen — geen dine-in",
     "scrollCue": "Scroll"
   },

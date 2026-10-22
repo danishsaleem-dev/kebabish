@@ -1,22 +1,43 @@
 import { getTranslations } from "next-intl/server";
-import { ArrowDown, UtensilsCrossed } from "lucide-react";
+import { ArrowDown, Clock, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import MaskedWords from "@/components/motion/MaskedWords";
 import HeroVideo from "@/components/home/HeroVideo";
 import type { VideoMedia } from "@/lib/content/site";
+import type { StoredSettings } from "@/lib/admin/store/types";
+import { dayName, summariseHours } from "@/lib/opening-hours";
 
 export default async function Hero({
   locale,
   media,
+  hours,
   showBadge = true,
 }: {
   locale: string;
+  /** Opening hours from Settings — shown right under the order button so nobody has to hunt for them. */
+  hours: StoredSettings["hours"];
   /** The clips and stills — the owner's uploads, or the bundled ones (lib/content/site.ts). */
   media: { web: VideoMedia; mobile: VideoMedia };
   showBadge?: boolean;
 }) {
   const hasVideo = Boolean(media.web.video || media.mobile.video);
   const t = await getTranslations({ locale });
+
+  // "Donderdag t/m zondag open" + one line per run of days that share hours. Read from Settings, so
+  // it is always what checkout actually offers; nothing is shown when every day is closed.
+  const summary = summariseHours(hours);
+  const spanText = summary.span
+    ? t("hero.hoursOpen", {
+        days:
+          summary.span.from === summary.span.to
+            ? dayName(summary.span.from, locale, "long")
+            : `${dayName(summary.span.from, locale, "long")} ${t("hero.hoursThrough")} ${dayName(summary.span.to, locale, "long", locale !== "nl")}`,
+      })
+    : t("hero.hoursLabel");
+  const groupLabel = (days: number[]) =>
+    days.length === 1
+      ? dayName(days[0], locale, "short")
+      : `${dayName(days[0], locale, "short")} – ${dayName(days[days.length - 1], locale, "short")}`;
 
   return (
     <section
@@ -127,6 +148,37 @@ export default async function Hero({
           </Link>
 
         </div>
+
+        {summary.groups.length > 0 && (
+          // The question customers kept asking — "when are you open?" — answered before they scroll.
+          // A glass panel like the secondary buttons elsewhere, so it reads on bright or dark footage.
+          <div
+            data-hero-hours
+            data-reveal
+            className="mx-auto mt-6 w-full max-w-md rounded-3xl border border-cream-100/25 bg-charcoal-950/55 p-4 shadow-[0_18px_40px_-14px_rgba(10,8,6,0.8)] backdrop-blur-md sm:mt-7 sm:flex sm:max-w-3xl sm:items-center sm:gap-6 sm:px-6 sm:py-4"
+          >
+            <p className="flex items-center justify-center gap-2 font-display text-base font-semibold text-cream-50 sm:shrink-0 sm:justify-start sm:text-lg">
+              <Clock size={17} className="shrink-0 text-ember-400" aria-hidden="true" />
+              {spanText}
+            </p>
+            <ul
+              className={`mt-3 grid gap-3 border-t border-cream-100/15 pt-3 text-center sm:mt-0 sm:flex-1 sm:border-l sm:border-t-0 sm:pl-6 sm:pt-0 ${
+                summary.groups.length > 1 ? "grid-cols-2 divide-x divide-cream-100/15" : "grid-cols-1"
+              }`}
+            >
+              {summary.groups.map((g) => (
+                <li key={`${g.days.join("-")}-${g.opens}`} className="px-2">
+                  <span className="block text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-ember-400 sm:text-xs">
+                    {groupLabel(g.days)}
+                  </span>
+                  <span className="mt-0.5 block font-display text-lg font-semibold tabular-nums text-cream-50 sm:text-xl">
+                    {g.opens} – {g.closes}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <p
           data-hero-badge
