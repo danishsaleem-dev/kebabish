@@ -2124,6 +2124,24 @@ Danish runs `/kitchen` on a **laptop**, not the wall tablet it was first drawn f
 - Checked with a throwaway preview page + mock JSON covering all five sections (both deleted afterwards). Note for
   next time: a folder named `_preview` **404s** — Next treats a leading underscore as a private folder.
 
+**The card's visual pass (same round).** The first cut was the old vertical card turned on its side; Danish asked for a
+clean, modern card, so it was redrawn **inside the agreed admin palette** (canvas / panel / hairline / heading /
+body-text / muted / faint, ember accent, semantic success-warn-danger) — no new colours were invented:
+- **A 6 px status rail down the left edge** replaces the 2 px coloured box around the whole card. Loud colour is kept
+  for the two things that need an eye — an order still waiting (ember → warn → danger as it ages) and one that is done
+  (success) — while *Preparing* gets a plain `hairline` rail and *Coming up* a `faint` one, so a kitchen mid-rush is calm.
+- Section headings became a quiet uppercase label + count with a hairline rule running off to the right; the cards carry
+  the weight now, not the headings.
+- The delivery window is a small **DELIVER** block (label, day, time stacked) instead of a pill that wrapped mid-phrase.
+  `first-letter:uppercase`, **not** `capitalize` — the latter made Dutch dates read "Za 25 Okt".
+- Quantities are soft ember chips, the customer note lost its 2 px border for a `border-l-4` bar, and "not paid" /
+  "later day" became small meta chips instead of stacked paragraphs. The contact column dropped its grey fill.
+- **`violet-50/700` was deliberately left alone**: it is the admin's established colour for *scheduled*
+  (`OrderStatusPill`), so it is part of the system rather than a stray Tailwind default.
+- **Button labels are short enough never to wrap** — Danish rejected a two-line "Accept — for zo 25 okt". They are now
+  "Accept order" / "Start preparing" / "Mark as ready", and the day it is for moved to the violet chip beside it
+  ("For zo 25 okt — accepting only schedules it"), which the card already repeats in its DELIVER block.
+
 ### Kitchen: rider, history, auto-print (Oct 2026)
 
 - **Phone and address on every card** (tap to call / open in Maps) and a **rider dropdown** (kitchen assigns

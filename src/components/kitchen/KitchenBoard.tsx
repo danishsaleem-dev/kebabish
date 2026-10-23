@@ -14,6 +14,7 @@ import {
   Printer,
   StickyNote,
   Volume2,
+  Wallet,
   WifiOff,
 } from "lucide-react";
 import { advanceKitchenOrderAction, assignKitchenRiderAction } from "@/app/kitchen/actions";
@@ -98,9 +99,10 @@ function dayLabel(deliveryDate: string, long = false): string {
   }).format(new Date(y, m - 1, d));
 }
 
-function slotLabel(o: BoardOrder): string | null {
+/** The delivery window split in two, so a card can show the day above the time. */
+function slotParts(o: BoardOrder): { day: string; time: string } | null {
   if (!o.deliveryDate || !o.slotStart) return null;
-  return `${dayLabel(o.deliveryDate)} · ${o.slotStart}–${o.slotEnd}`;
+  return { day: dayLabel(o.deliveryDate), time: `${o.slotStart}–${o.slotEnd}` };
 }
 
 /** Sort key for "which one is due soonest": date + slot start; no slot sorts last. */
@@ -342,11 +344,11 @@ export default function KitchenBoard({ endpoint = "/api/kitchen/orders" }: { end
                     tone={seconds >= URGENT_AFTER ? "danger" : seconds >= WARN_AFTER ? "warn" : "new"}
                     clock={`Waiting ${mmss(seconds)}`}
                     action={{
-                      label: later && o.deliveryDate ? `Accept — for ${dayLabel(o.deliveryDate)}` : "Accept order",
+                      label: "Accept order",
                       onClick: () => advance(o, "preparing"),
                       busy: busyId === o.id,
                     }}
-                    hint={later ? "For a later day: accepting it schedules it, it won't show as being cooked." : undefined}
+                    hint={later && o.deliveryDate ? `For ${dayLabel(o.deliveryDate)} — accepting only schedules it` : undefined}
                     {...cardProps}
                   />
                 );
@@ -364,7 +366,7 @@ export default function KitchenBoard({ endpoint = "/api/kitchen/orders" }: { end
                     order={o}
                     tone="prep"
                     clock={since != null ? `Accepted ${mmss(since)} ago` : undefined}
-                    action={{ label: "Mark ready for the rider", onClick: () => advance(o, "ready"), busy: busyId === o.id }}
+                    action={{ label: "Mark as ready", onClick: () => advance(o, "ready"), busy: busyId === o.id }}
                     {...cardProps}
                   />
                 );
@@ -528,11 +530,22 @@ function Section({
   const dot = { ember: "bg-ember-600", danger: "bg-danger", warn: "bg-warn", ok: "bg-success", muted: "bg-faint" }[tone];
   return (
     <section>
-      <h2 className="mb-3 flex items-center gap-2.5 font-display text-lg font-semibold text-heading">
-        {icon === "calendar" ? <CalendarClock size={18} className="text-muted" /> : <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />}
-        {title}
-        <span className="rounded-full bg-hairline px-2.5 py-0.5 text-sm font-semibold text-body-text">{count}</span>
-      </h2>
+      {/* A quiet label with a rule running off to the right, rather than a heavy heading --
+          the cards below are what should carry the weight. */}
+      <div className="mb-3 flex items-center gap-3">
+        <h2 className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.12em] text-muted">
+          {icon === "calendar" ? (
+            <CalendarClock size={15} className="text-faint" />
+          ) : (
+            <span className={`h-2 w-2 rounded-full ${dot}`} />
+          )}
+          {title}
+          <span className="rounded-full bg-hairline px-2 py-0.5 text-[0.7rem] font-bold tabular-nums text-body-text">
+            {count}
+          </span>
+        </h2>
+        <span aria-hidden="true" className="h-px flex-1 bg-hairline" />
+      </div>
       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1">{children}</div>
     </section>
   );
@@ -559,13 +572,16 @@ function Card({
   riders: BoardRider[];
   onAssign: (order: BoardOrder, riderId: string) => void;
 }) {
-  const border = {
-    new: "border-ember-600",
-    warn: "border-warn",
-    danger: "border-danger",
-    prep: "border-hairline",
-    ready: "border-success",
-    later: "border-hairline border-dashed",
+  // One rail of colour down the left edge carries the status, instead of a heavy coloured
+  // box around the whole card. Loud colours are kept for the two things that need an eye --
+  // an order still waiting, and one that is done -- so a kitchen mid-rush is calm.
+  const rail = {
+    new: "bg-ember-600",
+    warn: "bg-warn",
+    danger: "bg-danger",
+    prep: "bg-hairline",
+    ready: "bg-success",
+    later: "bg-faint",
   }[tone];
   const clockTone = {
     new: "bg-canvas text-muted",
@@ -575,153 +591,179 @@ function Card({
     ready: "",
     later: "bg-canvas text-muted",
   }[tone];
-  const slot = slotLabel(order);
+  const slot = slotParts(order);
   const unpaid = order.paymentStatus !== "paid";
   const telHref = `tel:${order.phone.replace(/[^\d+]/g, "")}`;
   const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address)}`;
+  const label = "text-[0.65rem] font-bold uppercase tracking-[0.12em] text-faint";
 
   return (
     // Below lg (a phone, or the tablet on the wall) the card stacks, as it always did. From lg
-    // — the laptop the kitchen actually uses — it turns on its side: who it is for, what to
+    // -- the laptop the kitchen actually uses -- it turns on its side: who it is for, what to
     // cook, where it goes and the next step, side by side. Each order is then one short row
     // rather than a tall tile, so far more of the board fits on screen at once.
-    <article
-      className={`flex flex-col gap-4 rounded-2xl border-2 bg-panel p-4 shadow-sm lg:flex-row lg:items-stretch lg:gap-5 lg:p-5 ${border}`}
-    >
-      {/* ---- who it is for, and when it is due ---- */}
-      <div className="flex flex-col gap-2.5 lg:w-52 lg:shrink-0 xl:w-56">
-        <div className="flex items-start justify-between gap-3 lg:flex-col lg:gap-2.5">
-          <div className="min-w-0">
-            <p className="font-display text-2xl font-semibold leading-none text-heading lg:whitespace-nowrap lg:text-xl xl:text-2xl">
-              {order.reference}
-            </p>
-            <p className="mt-1 truncate text-sm font-semibold text-body-text">{order.customerName}</p>
+    <article className="relative overflow-hidden rounded-2xl border border-hairline bg-panel shadow-sm transition-shadow hover:shadow-md">
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 ${rail}`} />
+
+      <div className="flex flex-col gap-4 py-4 pl-6 pr-4 lg:flex-row lg:items-stretch lg:gap-6 lg:py-5 lg:pl-7 lg:pr-5">
+        {/* ---- who it is for, and when it is due ---- */}
+        <div className="flex flex-col gap-3 lg:w-52 lg:shrink-0 xl:w-56">
+          <div className="flex items-start justify-between gap-3 lg:flex-col lg:gap-2">
+            <div className="min-w-0">
+              <p className="font-display text-xl font-semibold leading-tight tracking-tight text-heading lg:whitespace-nowrap">
+                {order.reference}
+              </p>
+              <p className="mt-1 truncate text-sm font-medium text-muted">{order.customerName}</p>
+            </div>
+            {clock && (
+              <span
+                className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums ${clockTone}`}
+              >
+                {tone === "danger" ? <AlertTriangle size={13} /> : <Clock size={13} />}
+                {clock}
+              </span>
+            )}
           </div>
-          {clock && (
-            <span
-              className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold tabular-nums ${clockTone}`}
-            >
-              {tone === "danger" ? <AlertTriangle size={14} /> : <Clock size={14} />}
-              {clock}
-            </span>
+
+          {banner && (
+            <p className="flex items-start gap-1.5 rounded-lg bg-violet-50 px-2.5 py-2 text-xs font-semibold leading-snug text-violet-700">
+              <CalendarClock size={14} className="mt-px shrink-0" />
+              {banner}
+            </p>
+          )}
+
+          {slot && (
+            <div className="rounded-lg bg-canvas px-3 py-2">
+              <p className={label}>Deliver</p>
+              <p className="mt-0.5 text-sm font-semibold text-heading first-letter:uppercase">{slot.day}</p>
+              <p className="font-display text-base font-semibold tabular-nums text-heading">{slot.time}</p>
+            </div>
           )}
         </div>
 
-        {banner && (
-          <p className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-violet-50 px-2.5 py-1.5 text-sm font-semibold text-violet-700">
-            <CalendarClock size={14} className="shrink-0" />
-            {banner}
-          </p>
-        )}
+        {/* ---- what to cook: the point of the card, so it takes the room that is left ---- */}
+        <div className="min-w-0 lg:flex-1 lg:border-x lg:border-hairline lg:px-6">
+          <ul className="space-y-1.5">
+            {order.lines.map((l, i) => (
+              <li key={i} className="flex items-baseline gap-3 text-lg leading-snug">
+                <span className="inline-flex min-w-8 shrink-0 justify-center rounded-md bg-ember-600/10 px-1.5 py-0.5 font-display text-base font-bold tabular-nums text-ember-700">
+                  {l.quantity}
+                </span>
+                <span className="font-medium text-heading">{l.name}</span>
+              </li>
+            ))}
+          </ul>
 
-        {slot && (
-          <p className="inline-flex w-fit items-center gap-1.5 rounded-lg bg-canvas px-2.5 py-1.5 text-sm font-semibold text-heading">
-            <Clock size={14} className="shrink-0 text-muted" />
-            Deliver {slot}
-          </p>
-        )}
-      </div>
+          {order.note && (
+            <div className="mt-3 rounded-lg border-l-4 border-warn bg-warn-soft px-3 py-2.5">
+              <p className="flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-warn">
+                <StickyNote size={13} />
+                Note — check for allergies
+              </p>
+              <p className="mt-1 text-base font-semibold leading-snug text-heading">{order.note}</p>
+            </div>
+          )}
 
-      {/* ---- what to cook: the point of the card, so it takes the room that is left ---- */}
-      <div className="min-w-0 lg:flex-1 lg:border-x lg:border-hairline lg:px-5">
-        <ul className="space-y-2">
-          {order.lines.map((l, i) => (
-            <li key={i} className="flex gap-3 text-lg leading-snug">
-              <span className="w-9 shrink-0 text-right font-display font-semibold text-ember-700">{l.quantity}&times;</span>
-              <span className="text-heading">{l.name}</span>
-            </li>
-          ))}
-        </ul>
+          {(unpaid || hint) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {unpaid && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-canvas px-2 py-1 text-xs font-semibold text-muted">
+                  <Wallet size={12} />
+                  {order.paymentMethod === "cash"
+                    ? "Collect cash"
+                    : order.paymentMethod === "bank_transfer"
+                      ? "Bank transfer – not in yet"
+                      : order.paymentMethod === "payment_link"
+                        ? "Payment link – not confirmed"
+                        : "Pay later"}
+                </span>
+              )}
+              {hint && (
+                <span className="inline-flex items-center gap-1.5 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700">
+                  <CalendarClock size={12} />
+                  {hint}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
 
-        {order.note && (
-          <div className="mt-4 rounded-xl border-2 border-warn bg-warn-soft p-3">
-            <p className="mb-1 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-warn">
-              <StickyNote size={14} />
-              Customer note &mdash; check for allergies
-            </p>
-            <p className="text-base font-semibold text-heading">{order.note}</p>
-          </div>
-        )}
+        {/* ---- where it goes: to ring about an allergy, or point a rider ---- */}
+        <div className="flex flex-col gap-2.5 text-sm lg:w-56 lg:shrink-0 xl:w-64">
+          <a
+            href={telHref}
+            className="flex items-center gap-2.5 font-semibold tabular-nums text-heading transition-colors hover:text-ember-700"
+          >
+            <Phone size={15} className="shrink-0 text-faint" />
+            {order.phone}
+          </a>
+          <a
+            href={mapsHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-start gap-2.5 leading-snug text-body-text transition-colors hover:text-ember-700"
+          >
+            <MapPin size={15} className="mt-0.5 shrink-0 text-faint" />
+            {order.address}
+          </a>
+          {riders.length > 0 && (
+            <label className="mt-auto flex items-center gap-2.5 pt-1">
+              <Bike size={15} className="shrink-0 text-faint" />
+              <span className="sr-only">Rider for {order.reference}</span>
+              <select
+                value={order.assignedRiderId ?? ""}
+                onChange={(e) => onAssign(order, e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-panel px-2 text-sm font-semibold text-heading transition-colors hover:border-faint focus:border-ember-500 focus:outline-none"
+              >
+                <option value="">No rider yet</option>
+                {riders.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
 
-        {unpaid && (
-          <p className="mt-3 text-xs font-semibold text-muted">
-            Not paid yet ({order.paymentMethod === "cash" ? "cash on delivery" : order.paymentMethod === "bank_transfer" ? "bank transfer" : order.paymentMethod === "payment_link" ? "payment link, not confirmed yet" : "pay later"}) &mdash; the rider handles payment.
-          </p>
-        )}
-        {hint && <p className="mt-3 text-xs font-semibold text-violet-700">{hint}</p>}
-      </div>
-
-      {/* ---- where it goes: to ring about an allergy, or point a rider ---- */}
-      <div className="space-y-2 rounded-xl bg-canvas p-3 text-sm lg:w-56 lg:shrink-0 xl:w-64">
-        <a href={telHref} className="flex items-center gap-2.5 font-semibold text-heading hover:text-ember-700">
-          <Phone size={16} className="shrink-0 text-muted" />
-          <span className="tabular-nums">{order.phone}</span>
-        </a>
-        <a
-          href={mapsHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-start gap-2.5 text-body-text hover:text-ember-700"
-        >
-          <MapPin size={16} className="mt-0.5 shrink-0 text-muted" />
-          <span className="leading-snug">{order.address}</span>
-        </a>
-        {riders.length > 0 && (
-          <label className="flex items-center gap-2.5">
-            <Bike size={16} className="shrink-0 text-muted" />
-            <span className="sr-only">Rider for {order.reference}</span>
-            <select
-              value={order.assignedRiderId ?? ""}
-              onChange={(e) => onAssign(order, e.target.value)}
-              className="h-10 min-w-0 flex-1 rounded-lg border border-hairline bg-panel px-2 text-sm font-semibold text-heading focus:border-ember-500 focus:outline-none"
+        {/* ---- the next step ---- */}
+        <div className="mt-auto flex items-center gap-2 lg:mt-0 lg:w-44 lg:shrink-0 lg:flex-col lg:items-stretch lg:justify-center xl:w-48">
+          {action ? (
+            <button
+              type="button"
+              onClick={action.onClick}
+              disabled={action.busy}
+              className="inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-xl bg-ember-600 px-4 py-3 text-center text-base font-semibold leading-tight text-white shadow-sm transition-colors hover:bg-ember-500 disabled:opacity-60 lg:w-full lg:flex-none"
             >
-              <option value="">No rider yet</option>
-              {riders.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-      </div>
-
-      {/* ---- the next step ---- */}
-      <div className="mt-auto flex flex-wrap items-center gap-2 lg:mt-0 lg:w-48 lg:shrink-0 lg:flex-col lg:items-stretch lg:justify-center xl:w-56">
-        {action ? (
-          <button
-            type="button"
-            onClick={action.onClick}
-            disabled={action.busy}
-            className="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl bg-ember-600 px-4 text-center text-lg font-semibold leading-tight text-white transition-colors hover:bg-ember-500 disabled:opacity-60 lg:w-full lg:flex-none lg:py-3"
+              <Check size={18} className="shrink-0" />
+              {action.busy ? "\u2026" : action.label}
+            </button>
+          ) : secondaryAction ? (
+            <button
+              type="button"
+              onClick={secondaryAction.onClick}
+              disabled={secondaryAction.busy}
+              className="inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-xl border border-hairline px-4 py-3 text-center text-sm font-semibold leading-tight text-body-text transition-colors hover:bg-canvas disabled:opacity-60 lg:w-full lg:flex-none"
+            >
+              {secondaryAction.busy ? "\u2026" : secondaryAction.label}
+            </button>
+          ) : (
+            <span className="inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-xl bg-success-soft px-4 py-3 text-center text-sm font-semibold leading-tight text-success lg:w-full lg:flex-none">
+              <Check size={16} className="shrink-0" />
+              Waiting for rider
+            </span>
+          )}
+          <a
+            href={`/admin/orders/${order.id}/ticket`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted transition-colors hover:bg-canvas hover:text-heading lg:min-h-0 lg:w-full lg:py-2"
+            aria-label={`Print kitchen ticket for ${order.reference}`}
           >
-            <Check size={20} className="shrink-0" />
-            {action.busy ? "\u2026" : action.label}
-          </button>
-        ) : secondaryAction ? (
-          <button
-            type="button"
-            onClick={secondaryAction.onClick}
-            disabled={secondaryAction.busy}
-            className="inline-flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl border border-hairline px-4 text-center text-base font-semibold leading-tight text-body-text transition-colors hover:bg-canvas disabled:opacity-60 lg:w-full lg:flex-none lg:py-3"
-          >
-            {secondaryAction.busy ? "\u2026" : secondaryAction.label}
-          </button>
-        ) : (
-          <span className="inline-flex min-h-14 flex-1 items-center justify-center rounded-xl bg-success-soft px-4 text-center text-base font-semibold leading-tight text-success lg:w-full lg:flex-none lg:py-3">
-            Ready &mdash; rider will collect
-          </span>
-        )}
-        <a
-          href={`/admin/orders/${order.id}/ticket`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl border border-hairline px-4 text-sm font-semibold text-body-text hover:bg-canvas lg:min-h-11 lg:w-full"
-          aria-label={`Print kitchen ticket for ${order.reference}`}
-        >
-          <Printer size={18} />
-          Ticket
-        </a>
+            <Printer size={16} />
+            Ticket
+          </a>
+        </div>
       </div>
     </article>
   );
