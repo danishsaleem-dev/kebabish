@@ -2102,6 +2102,28 @@ dashed cards, "don't start yet", a small "Start now anyway"). Verified: a future
 `updateOrderStatus` attempted `scheduled` (and, on the live database that has not had 0020 yet, fell back); the
 board's sections were checked with a mocked API; a same-day order stays "preparing".
 
+### Kitchen board: laptop layout and the order of the sections (Oct 2026)
+
+Danish runs `/kitchen` on a **laptop**, not the wall tablet it was first drawn for, and asked for two things.
+
+- **Sections follow an order's own life, so the work in hand is on top:** *Waiting to be accepted* → *Preparing*
+  → *Ready* → *Scheduled, due today* → *Coming up (a later day)*. Scheduled-due-today used to sit second, above
+  Preparing, which is what he hit: the board opened on work that hasn't started while food was actually cooking.
+  Anything not yet started now sits below the live work.
+- **The card turns horizontal from `lg`.** Four columns — who it is for + when it is due · what to cook (takes the
+  room that is left) · where it goes (phone, address, rider) · the next step — with the dish column separated by
+  `lg:border-x`. Below `lg` it stacks exactly as before, so the phone and the tablet are untouched (checked at
+  820 px and 390 px, no sideways scroll). Sections are `md:grid-cols-2 lg:grid-cols-1`: two tiles on a tablet, one
+  full-width row per order on a laptop. The board and the header both widen to `max-w-[1600px]`.
+- **Measured on the same seven mock orders at 1280×800:** cards went from **408–519 px tall to 162–215 px**, and the
+  page from **2929 px to 1965 px** — roughly three orders visible at once instead of one.
+- Two things the first cut got wrong, both caught in the browser: the order number wrapped mid-word in a narrow
+  identity column (now `lg:whitespace-nowrap` + `lg:text-xl`, and **only** from `lg` — applying it at every width
+  clipped the number on a tablet), and "Accept — for zo 25 okt" wrapped to three lines in a 10rem action column
+  (the identity and action columns are now `lg:w-52`/`lg:w-48`, `xl:w-56`).
+- Checked with a throwaway preview page + mock JSON covering all five sections (both deleted afterwards). Note for
+  next time: a folder named `_preview` **404s** — Next treats a leading underscore as a private folder.
+
 ### Kitchen: rider, history, auto-print (Oct 2026)
 
 - **Phone and address on every card** (tap to call / open in Maps) and a **rider dropdown** (kitchen assigns

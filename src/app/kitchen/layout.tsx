@@ -35,7 +35,7 @@ export default async function KitchenLayout({ children }: { children: ReactNode 
       <body className="min-h-screen bg-canvas font-sans text-body-text antialiased">
         <AppShellBody>
           <header className="sticky top-0 z-10 border-b border-hairline bg-panel">
-            <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6">
+            <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-4 sm:px-6">
               <div className="flex items-center gap-3">
                 <Image
                   src="/logo/Kebabish-light.png"
