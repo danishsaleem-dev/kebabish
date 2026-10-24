@@ -13,7 +13,7 @@ import {
   estimateStraightLine,
   parseOdometer,
   shiftKm,
-} from "../src/lib/rider-mileage.ts";
+} from "../src/lib/rider-mileage";
 
 let pass = 0;
 const fails: string[] = [];
@@ -36,11 +36,11 @@ eq("NaN", shiftKm(Number.NaN, 10), null);
 eq("no deliveries", estimateStraightLine([]), null);
 eq("one at 5km", estimateStraightLine([5]), { lowKm: 10, highKm: 10, stops: 1, unlocated: 0 });
 eq("three", estimateStraightLine([2, 5, 3]), { lowKm: 10, highKm: 20, stops: 3, unlocated: 0 });
-eq("low is furthest*2", estimateStraightLine([1, 1, 9]).lowKm, 18);
-eq("high is sum*2", estimateStraightLine([1, 1, 9]).highKm, 22);
+eq("low is furthest*2", estimateStraightLine([1, 1, 9])!.lowKm, 18);
+eq("high is sum*2", estimateStraightLine([1, 1, 9])!.highKm, 22);
 eq("rounds to 1dp", estimateStraightLine([1.23]), { lowKm: 2.5, highKm: 2.5, stops: 1, unlocated: 0 });
-eq("unlocated carried", estimateStraightLine([4], 3).unlocated, 3);
-eq("junk dropped", estimateStraightLine([Number.NaN, -1, 4]).stops, 1);
+eq("unlocated carried", estimateStraightLine([4], 3)!.unlocated, 3);
+eq("junk dropped", estimateStraightLine([Number.NaN, -1, 4])!.stops, 1);
 eq("all junk", estimateStraightLine([Number.NaN, -1]), null);
 eq("zero distance counts", estimateStraightLine([0]), { lowKm: 0, highKm: 0, stops: 1, unlocated: 0 });
 
