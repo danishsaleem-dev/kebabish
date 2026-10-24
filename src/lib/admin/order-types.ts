@@ -74,6 +74,12 @@ export interface AdminOrder {
   fulfilment: Fulfilment;
   town: string;
   address: string;
+  /**
+   * The postcode on its own. `address` already contains it, but the rider mileage
+   * cross-check has to look it up, and re-splitting a joined line to get it back would be
+   * guesswork.
+   */
+  postcode: string | null;
   lines: AdminOrderLine[];
   subtotal: number;
   deliveryFee: number;

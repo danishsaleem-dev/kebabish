@@ -126,6 +126,7 @@ function mapOrder(row: OrderRow): AdminOrder {
       fulfilment === "delivery"
         ? `${row.address_street}, ${row.address_postcode} ${row.address_city}`
         : PICKUP_ADDRESS,
+    postcode: fulfilment === "delivery" ? (row.address_postcode ?? null) : null,
     lines,
     subtotal: fromCents(row.subtotal_cents),
     deliveryFee: fromCents(row.delivery_fee_cents),

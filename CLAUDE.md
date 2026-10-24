@@ -2164,6 +2164,60 @@ body-text / muted / faint, ember accent, semantic success-warn-danger) — no ne
   "Accept order" / "Start preparing" / "Mark as ready", and the day it is for moved to the violet chip beside it
   ("For zo 25 okt — accepting only schedules it"), which the card already repeats in its DELIVER block.
 
+### Rider mileage (Oct 2026, migration `0023_rider_shifts.sql`)
+
+**The odometer is the record, and manual entry is the primary way in** (Danish's call). The rider
+reads the number off their own dashboard before they set off and again when they get back; the
+kilometres driven are the difference, and nothing else. That figure covers the whole round — wrong
+turns, a second trip for a forgotten drink, the ride home — which nothing derived from delivery
+addresses can reconstruct, and it needs no tracking of anybody's phone.
+
+**No money is calculated anywhere.** Danish explicitly asked for the €0.23/km tax allowance *not*
+to be worked out, so no rate per kilometre exists in the code. If one is ever wanted it belongs in
+the accountant's spreadsheet, not here.
+
+- **Where:** a card at the top of `/rider` (`components/rider/MileageCard.tsx`) — "Start my round"
+  / "Finish my round", a number pad, and "Correct a reading" to fix either number afterwards. Below
+  the deliveries, their last fortnight of rounds. Admin: **Riders** in the sidebar
+  (`/admin/riders`, owner/staff) with 7/30/90-day presets, a total, a per-rider table and a Print
+  button.
+- **The automatic check, and what it is not.** `estimateForDeliveries()` measures each of that
+  day's delivered orders from the kitchen (postcode centroid via the same PDOK register checkout
+  uses; `postcodeDistanceKm()` in `delivery-area.ts` caches by postcode for the life of the
+  instance) and reports **two straight-line bounds**: `low` = out to the furthest delivery and
+  back (the round cannot have been shorter), `high` = every delivery as its own trip. Real roads
+  are longer than straight lines, so a sound reading sits **at or above `low`**. The *only* thing
+  flagged is a round **below** `low`, which is physically impossible and means a number wants
+  looking at. There is deliberately **no "too high"** — a detour or a diversion is ordinary, and
+  flagging it would turn a sanity check into a performance measure. Addresses that can't be placed
+  are counted and shown, never silently dropped, or the estimate would understate the round.
+- **The maths is pure and tested:** `src/lib/rider-mileage.ts` (`shiftKm`, `estimateStraightLine`,
+  `compareToEstimate`, `parseOdometer`), checked by `npx tsx scripts/check-mileage.mts` — 32
+  checks, no database. Run it after touching that file.
+- **Storage:** `rider_shifts`, one row per rider per day (unique on `rider_id, shift_date`), so
+  pressing "start" twice corrects the reading instead of opening a second round. `start_at` /
+  `end_at` are stamped once and a later correction does not rewrite them. **Driven km is never
+  stored** — `end_km - start_km` is the whole rule, and a stored copy could disagree with it after
+  a correction. The table itself refuses an end below the start, and a negative or absurd reading.
+  Added to `BACKUP_TABLES`.
+- **Guards:** `saveMileageAction` is a server action, so it checks the session itself. A rider may
+  only ever write **their own** round (the id comes from the session, the form's value is ignored);
+  owner/staff may correct someone else's; a manager or kitchen user is refused. A reading can be
+  written up late but never for a future day.
+- **Degrades, never fails, without the migration:** every read returns "not set up" and the rider's
+  deliveries list below it works as normal (taking orders matters, a mileage log does not). Only a
+  *write* reports the missing table. Verified in the browser against the live database, which has
+  not had 0023 run.
+- **Tested:** the SQL on a throwaway local Postgres (11 checks: re-runnable, the upsert corrects
+  rather than duplicating, end-before-start refused both ways round, negative/absurd readings
+  refused, two riders on one day, removing a rider cascades); the arithmetic by script (32); all
+  five states of the card in the browser at 900 px and 375 px, including the correction panel and
+  the below-straight-line warning, via a throwaway preview page deleted afterwards. **Not run
+  against the live database — it has no `rider_shifts` table until you run 0023. After running it:
+  log a start and an end on `/rider` and check the round appears in `/admin/riders`.**
+- **Not built:** GPS or any automatic position tracking, a rate per kilometre, per-vehicle
+  tracking, and fuel or maintenance costs.
+
 ### Kitchen: rider, history, auto-print (Oct 2026)
 
 - **Phone and address on every card** (tap to call / open in Maps) and a **rider dropdown** (kitchen assigns

@@ -1,6 +1,15 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Clock, LogOut, MapPin, MessageCircle, Navigation, Phone, StickyNote, User } from "lucide-react";
+import MileageCard from "@/components/rider/MileageCard";
+import {
+  deliveriesOnDay,
+  estimateForDeliveries,
+  getShift,
+  listShiftsForRider,
+  todayKey,
+} from "@/lib/rider-shifts";
+import { formatKm } from "@/lib/rider-mileage";
 import { mapsDirectionsHref, telHref, whatsappDigits } from "@/lib/phone";
 import { auth } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
@@ -41,6 +50,18 @@ export default async function RiderPage() {
   const user = session.user;
   const orders = await listOrdersForRider(user.id);
 
+  // Today's round: the two odometer readings, and the straight-line cross-check built from
+  // what they have actually delivered today. The log is a convenience, so a failure to read
+  // it renders a "not set up" card rather than taking the deliveries list down with it.
+  const today = todayKey();
+  const deliveredToday = deliveriesOnDay(orders, today);
+  const [{ ready: logReady, shift }, { shifts }, estimate] = await Promise.all([
+    getShift(user.id, today).catch(() => ({ ready: false as const, shift: null })),
+    listShiftsForRider(user.id).catch(() => ({ ready: false as const, shifts: [] })),
+    estimateForDeliveries(deliveredToday).catch(() => null),
+  ]);
+  const pastShifts = shifts.filter((s) => s.shiftDate !== today && s.drivenKm !== null);
+
   const active = orders.filter((o) => o.status !== "delivered" && o.status !== "cancelled");
   // Newest delivery first — this is the rider's own timeline of what they've
   // actually delivered, so a cancelled order (never delivered) doesn't belong.
@@ -79,6 +100,16 @@ export default async function RiderPage() {
           </h1>
           <p className="mt-1 text-sm text-muted">Your deliveries.</p>
         </div>
+
+        <MileageCard
+          ready={logReady}
+          shiftDate={today}
+          startKm={shift?.startKm ?? null}
+          endKm={shift?.endKm ?? null}
+          drivenKm={shift?.drivenKm ?? null}
+          estimate={estimate}
+          deliveries={deliveredToday.length}
+        />
 
         <div>
           <h2 className="font-display text-lg font-semibold text-heading">
@@ -211,6 +242,32 @@ export default async function RiderPage() {
                 </li>
               ))}
             </ol>
+          </div>
+        )}
+        {pastShifts.length > 0 && (
+          <div>
+            <h2 className="font-display text-lg font-semibold text-heading">Your kilometres</h2>
+            <Card className="mt-3" padded={false}>
+              <ul className="divide-y divide-hairline">
+                {pastShifts.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="flex items-center justify-between gap-3 px-5 py-3 text-sm"
+                  >
+                    <span className="text-body-text">
+                      {new Date(`${entry.shiftDate}T00:00:00`).toLocaleDateString("en-GB", {
+                        weekday: "short",
+                        day: "numeric",
+                        month: "short",
+                      })}
+                    </span>
+                    <span className="font-semibold tabular-nums text-heading">
+                      {formatKm(entry.drivenKm ?? 0)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
           </div>
         )}
       </main>

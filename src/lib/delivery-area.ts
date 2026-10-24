@@ -83,6 +83,37 @@ async function search(params: Record<string, string | string[]>): Promise<PdokDo
   throw lastError;
 }
 
+const postcodeKmCache = new Map<string, number>();
+
+/**
+ * Straight-line km from the kitchen to a postcode's own centre — no house number, no delivery
+ * verdict. The rider mileage cross-check needs a whole day's addresses at once, so this is
+ * deliberately the cheap version: the postcode centroid is accurate enough for a sanity check
+ * and repeats across orders, which the cache then serves for free (a postcode doesn't move, so
+ * it is kept for the life of the server instance). A failed lookup is *not* cached — a hiccup
+ * shouldn't leave an address permanently unmeasurable.
+ */
+export async function postcodeDistanceKm(postcode: string): Promise<number | null> {
+  const clean = cleanPostcode(postcode);
+  if (!clean) return null;
+  const cached = postcodeKmCache.get(clean);
+  if (cached !== undefined) return cached;
+
+  let doc: PdokDoc | null;
+  try {
+    doc = await search({ q: "*", fq: ["type:postcode", `postcode:${clean}`] });
+  } catch (err) {
+    console.error("[rider-mileage] postcode lookup failed:", err);
+    return null;
+  }
+  const point = parsePoint(doc?.centroide_ll);
+  if (!point) return null;
+
+  const km = Math.round(distanceKm(siteConfig.coordinates, point) * 10) / 10;
+  postcodeKmCache.set(clean, km);
+  return km;
+}
+
 /**
  * Locate a postcode (and, when given, the exact house number) and measure it.
  * `city` is only used as a fallback if the register can't be reached.
