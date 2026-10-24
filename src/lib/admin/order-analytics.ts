@@ -1,4 +1,3 @@
-import { CHANNEL_LABELS } from "@/lib/admin/order-types";
 import type {
   AdminOrder,
   Period,
@@ -122,7 +121,7 @@ export function realOrders(orders: AdminOrder[]): AdminOrder[] {
  * worked out from order lines, and a partial refund isn't tied to any line, so
  * those stay at the original amounts.
  */
-function isSale(o: AdminOrder): boolean {
+export function isSale(o: AdminOrder): boolean {
   return o.paymentStatus === "paid" && o.status !== "cancelled";
 }
 
@@ -236,132 +235,4 @@ export function getOrderPerformance(allOrders: AdminOrder[]) {
     },
     { label: "Orders Cancelled", value: pct(["cancelled"]), tone: "danger" as const },
   ];
-}
-
-/* ----------------------------------------------------------------- reports */
-
-export function getRevenueByMonth(allOrders: AdminOrder[]) {
-  const orders = realOrders(allOrders);
-  const buckets = bucketsEnding("monthly", new Date());
-  const revenue = sumInBuckets(orders, buckets, (o) =>
-    isSale(o) ? o.total - o.refunded : 0
-  );
-  const counts = sumInBuckets(orders, buckets, () => 1);
-
-  return buckets.map((b, i) => ({
-    label: b.label,
-    revenue: revenue[i],
-    orders: counts[i],
-  }));
-}
-
-/**
- * Order lines snapshot the dish, not its category — categories are a live
- * menu construct. `categoryByDish` maps each dish's slug to a category
- * label as the menu stands *today*; a dish that's since moved category (or
- * been deleted) reports under its current category, or "Other" if it no
- * longer exists. Documented trade-off, not a bug.
- */
-export function getSalesByCategory(
-  allOrders: AdminOrder[],
-  categoryByDish: Map<string, string>
-) {
-  const orders = realOrders(allOrders);
-  const revenueByLabel = new Map<string, number>();
-
-  for (const order of orders) {
-    if (!isSale(order)) continue;
-    for (const line of order.lines) {
-      const label = categoryByDish.get(line.slug) ?? "Other";
-      const lineRevenue = line.unitPrice * line.quantity;
-      revenueByLabel.set(label, (revenueByLabel.get(label) ?? 0) + lineRevenue);
-    }
-  }
-
-  const totalRevenue = [...revenueByLabel.values()].reduce((a, b) => a + b, 0);
-
-  return [...revenueByLabel.entries()]
-    .map(([label, revenue]) => ({
-      label,
-      revenue: Math.round(revenue * 100) / 100,
-      value: totalRevenue ? Math.round((revenue / totalRevenue) * 100) : 0,
-    }))
-    .sort((a, b) => b.revenue - a.revenue);
-}
-
-export function getTopDishes(allOrders: AdminOrder[]) {
-  const orders = realOrders(allOrders);
-  const byDish = new Map<string, { orders: number; revenue: number }>();
-
-  for (const order of orders) {
-    if (!isSale(order)) continue;
-    for (const line of order.lines) {
-      const entry = byDish.get(line.baseName) ?? { orders: 0, revenue: 0 };
-      entry.orders += line.quantity;
-      entry.revenue += line.unitPrice * line.quantity;
-      byDish.set(line.baseName, entry);
-    }
-  }
-
-  return [...byDish.entries()]
-    .map(([name, stats]) => ({
-      name,
-      orders: stats.orders,
-      revenue: Math.round(stats.revenue * 100) / 100,
-    }))
-    .sort((a, b) => b.orders - a.orders)
-    .slice(0, 6);
-}
-
-/** Delivery orders only — a pickup order didn't go anywhere. */
-export function getOrdersByTown(allOrders: AdminOrder[]) {
-  const orders = realOrders(allOrders);
-  const counts = new Map<string, number>();
-  for (const order of orders) {
-    if (order.fulfilment !== "delivery" || !isSale(order)) continue;
-    counts.set(order.town, (counts.get(order.town) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value);
-}
-
-/** Fixed 11:00-22:00 axis — the kitchen's plausible service window, shown
- *  even for hours with zero orders so the chart's shape stays legible. */
-export function getOrdersByHour(allOrders: AdminOrder[]) {
-  const orders = realOrders(allOrders);
-  const counts = new Map<number, number>();
-  for (const order of orders) {
-    if (!isSale(order)) continue;
-    const hour = new Date(order.placedAt).getHours();
-    counts.set(hour, (counts.get(hour) ?? 0) + 1);
-  }
-
-  return Array.from({ length: 12 }, (_, i) => {
-    const hour = i + 11;
-    return { label: `${hour}:00`, value: counts.get(hour) ?? 0 };
-  });
-}
-
-/**
- * Where orders came from. Website orders arrive through the checkout; the
- * others (WhatsApp, phone, other) are the ones staff enter by hand under
- * Orders -> Create order, tagged with their source.
- */
-export function getChannelSplit(allOrders: AdminOrder[]) {
-  const orders = realOrders(allOrders);
-  const real = orders.filter(isSale);
-  const total = real.length;
-  const channels: AdminOrder["channel"][] = ["website", "whatsapp", "phone", "other"];
-
-  // Only channels that have orders are listed, so a quiet "Other" doesn't
-  // sit in the chart at 0% — except Website, which always anchors it.
-  return channels
-    .map((channel) => ({
-      label: CHANNEL_LABELS[channel],
-      value: total ? Math.round((real.filter((o) => o.channel === channel).length / total) * 100) : 0,
-      channel,
-    }))
-    .filter((c) => c.channel === "website" || c.value > 0)
-    .map(({ label, value }) => ({ label, value }));
 }

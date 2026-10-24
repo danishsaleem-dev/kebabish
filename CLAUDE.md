@@ -2164,6 +2164,57 @@ body-text / muted / faint, ember accent, semantic success-warn-danger) — no ne
   "Accept order" / "Start preparing" / "Mark as ready", and the day it is for moved to the violet chip beside it
   ("For zo 25 okt — accepting only schedules it"), which the card already repeats in its DELIVER block.
 
+### Reports: any range of days, every breakdown, print per area (Oct 2026)
+
+Reports used to be a fixed "last 6 or 12 months" with six charts. Danish asked for daily,
+weekly and multi-day reports, a calendar to pick the days, breakdowns of everything (dishes,
+categories, customers, riders, timing) and **a print option on every report area**.
+
+- **The range is a pair of Amsterdam calendar days**, picked from presets (Today, Yesterday,
+  Last 7/30 days, This month, Last month, This year) or a **real calendar** — click the first
+  day, click the last (`components/admin/reports/DateRangePicker.tsx`, built on the same pure
+  `src/lib/calendar.ts` month grid as the checkout day picker, so the two can't drift apart). A
+  future day is never selectable. The popover clamps itself to the viewport with a transform
+  when the chips wrap and its button ends up near the left edge.
+- **Amsterdam days, not the server's.** `order-analytics.ts` buckets by the server's local
+  calendar, which is fine for "one of the last twelve months". It is not fine when the reader
+  points at 24 October: `reports.ts` uses `orderDayKey()` (the Amsterdam day the kitchen took
+  the order) throughout. On a machine running at UTC+5 the two genuinely disagree — that is what
+  makes "Today" right.
+- **Granularity is automatic and overridable:** ≤ 31 days in days, ≤ 182 in weeks, otherwise
+  months. **Buckets are clipped to the range at both ends**, so a part-week at the edge is a
+  real bucket labelled with the days it covers and no total ever includes a day outside the
+  range. "Compared with" is the **same number of days** immediately before, never "the previous
+  calendar month", so a 28-day month is never compared against a 31-day one.
+- **The areas:** Over time (revenue / orders / dishes sold), Dishes, Categories, **Customers**,
+  **Riders**, Timing (by hour *and* by weekday), Towns, Ordering channel. Customers are grouped
+  exactly as the Customers screen groups guests (account, else email, else phone), so the two
+  can't disagree about whether two orders were the same person. Riders count a delivery on **the
+  day it went out**, not the day the order was placed, and show the kilometres from their own
+  odometer rounds (see *Rider mileage*) — a rider who logged none reads "—", never 0.
+- **Print per area.** Each section has its own Print and Export buttons. Printing one marks the
+  body and that section and lets CSS hide the others
+  (`body[data-print-only] [data-report-section]:not([data-printing])` in `globals.css`). A
+  print-only route would be a second copy of every chart to keep in step; this prints exactly
+  what is on screen. Every section also carries a **print-only line naming the range**, because
+  a printed page in a folder that doesn't say which days it covers is useless. "Print
+  everything" at the top prints the lot.
+- **Export** is CSV per area, through the existing `lib/admin/export.ts`. A table that is capped
+  on screen (dishes, customers: top 15) **always exports every row**, and says so.
+- `getRevenueByMonth` / `getSalesByCategory` / `getTopDishes` / `getOrdersByTown` /
+  `getOrdersByHour` / `getChannelSplit` were **removed** from `order-analytics.ts` — the
+  range-aware versions in `reports.ts` replaced them and nothing else used them. The dashboard's
+  own functions are untouched. `isSale` is now exported and shared.
+- **Tested:** `npx tsx scripts/check-reports.mts` (53 checks, no database: day arithmetic across
+  months, years and leap days; every preset incl. "last month" from January and March; bucket
+  clipping at both ends for days, weeks and months; **every day of a range lands in exactly one
+  bucket at all three granularities**; the previous period's length; labels). **Run it after
+  touching `report-range.ts`.** In the browser against the live database: presets (Today 9
+  orders, Last 7 days 45, This year 65), the calendar picking 10–15 Oct, granularity falling
+  back to months for a year, all eight areas rendering with their own print/export buttons, the
+  print-isolation selector verified by applying it on screen, a day with no orders showing zeros
+  and a sensible empty line in every area, and the popover kept on screen at ~450 px.
+
 ### Rider mileage (Oct 2026, migration `0023_rider_shifts.sql`)
 
 **The odometer is the record, and manual entry is the primary way in** (Danish's call). The rider

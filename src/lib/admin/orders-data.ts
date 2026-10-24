@@ -772,7 +772,7 @@ export function ordersForCustomer(
   return orders.filter((o) => o.customerId === customerId);
 }
 
-/** Today's slug -> category label, for getSalesByCategory. */
+/** Today's slug -> category label, for the category breakdowns in reports.ts. */
 export async function getCategoryByDish(): Promise<Map<string, string>> {
   const [items, categories] = await Promise.all([listItems(), listCategories()]);
   const labelById = new Map(categories.map((c) => [c.id, c.label]));

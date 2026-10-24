@@ -344,6 +344,13 @@
   tr {
     break-inside: avoid;
   }
+
+  /* Printing one report area: the screen marks the body and the chosen section, and every
+     other section steps aside. See ReportSection.tsx — this is what lets a per-area print
+     button print exactly what is on screen without a second, divergent print-only page. */
+  body[data-print-only] [data-report-section]:not([data-printing]) {
+    display: none !important;
+  }
 }
 
 /* Lenis is driven by GSAP's ticker; these are the styles it expects. */
