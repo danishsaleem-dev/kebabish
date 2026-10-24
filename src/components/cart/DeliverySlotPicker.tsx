@@ -2,12 +2,21 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Clock } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import {
   amsterdamDateAhead,
   amsterdamNow,
   upcomingBookableDays,
 } from "@/lib/delivery-slots";
+import {
+  addMonths,
+  compareMonths,
+  dateFromKey,
+  monthGrid,
+  monthLabel,
+  monthOfKey,
+  weekdayHeadings,
+} from "@/lib/calendar";
 import type { StoredSettings } from "@/lib/admin/store/types";
 
 export interface DeliverySlotValue {
@@ -23,13 +32,21 @@ interface SlotAvailability {
 }
 
 const POLL_MS = 20_000;
+/** Slots starting before this read as the afternoon, the rest as the evening. */
+const EVENING_FROM = "17:00";
 
-/** "YYYY-MM-DD" -> a Date built from local parts, never through a UTC parse — a plain calendar date shouldn't drift a day depending on the visitor's own timezone offset. */
-function dateFromKey(dateKey: string): Date {
-  const [y, m, d] = dateKey.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
+/**
+ * Picking when the order arrives: **a real calendar** for the day, then the delivery windows for
+ * that day. It replaced a row of seven day chips over a wall of time buttons, which customers
+ * found confusing — a month grid is the control everyone already knows, and it makes "which days
+ * do they even deliver?" answerable at a glance (a closed day simply isn't selectable).
+ *
+ * There is deliberately **no "as soon as possible"**: every order books a real window, so the
+ * customer always leaves knowing when the food arrives (Danish's call).
+ *
+ * Availability still comes from the same 20-second poll of `/api/delivery-slots`, and a slot that
+ * fills up while someone is deciding still reassigns them to the next one with a notice.
+ */
 export default function DeliverySlotPicker({
   hours,
   windowDays,
@@ -45,38 +62,62 @@ export default function DeliverySlotPicker({
   const locale = useLocale();
 
   const days = useMemo(() => upcomingBookableDays(hours, windowDays), [hours, windowDays]);
+  const bookable = useMemo(() => new Set(days.map((d) => d.dateKey)), [days]);
   const [selectedDate, setSelectedDate] = useState(days[0]?.dateKey ?? "");
-  const [slots, setSlots] = useState<SlotAvailability[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Slots are stored *with the date they describe*, so switching day needs no clearing step: a
+  // stale answer simply stops matching, which is also what "still loading" means here. Clearing
+  // state from the effect body instead would be a cascading render the lint rule rightly refuses.
+  const [answer, setAnswer] = useState<{ date: string; slots: SlotAvailability[] } | null>(null);
   const [reassignedNotice, setReassignedNotice] = useState(false);
   const valueRef = useRef(value);
-  valueRef.current = value;
+  useEffect(() => {
+    valueRef.current = value;
+  }, [value]);
 
-  // "Today"/"Tomorrow" read better than a bare weekday on the two days most
-  // orders land on; anything further out gets its weekday instead.
+  const slots = answer?.date === selectedDate ? answer.slots : [];
+  const loading = answer?.date !== selectedDate;
+
+  // The booking window is short (a week by default), so the calendar only ever spans one or two
+  // months — the arrows are capped to those, rather than letting someone wander into 2029.
+  const firstMonth = useMemo(
+    () => monthOfKey(days[0]?.dateKey ?? amsterdamNow().dateKey),
+    [days]
+  );
+  const lastMonth = useMemo(
+    () => monthOfKey(days[days.length - 1]?.dateKey ?? amsterdamNow().dateKey),
+    [days]
+  );
+  const [view, setView] = useState(firstMonth);
+
   const todayKey = amsterdamNow().dateKey;
   const tomorrowKey = amsterdamDateAhead(1).dateKey;
+  const weeks = useMemo(() => monthGrid(view.year, view.month), [view]);
+  const headings = useMemo(() => weekdayHeadings(locale, "short"), [locale]);
 
-  const weekdayLabel = (dateKey: string) => {
-    if (dateKey === todayKey) return t("today");
-    if (dateKey === tomorrowKey) return t("tomorrow");
-    return new Intl.DateTimeFormat(locale, { weekday: "short" }).format(
+  const canGoBack = compareMonths(view, firstMonth) > 0;
+  const canGoForward = compareMonths(view, lastMonth) < 0;
+
+  const relativeDay = (dateKey: string) =>
+    dateKey === todayKey ? t("today") : dateKey === tomorrowKey ? t("tomorrow") : null;
+
+  const dayTitle = (dateKey: string) =>
+    relativeDay(dateKey) ??
+    new Intl.DateTimeFormat(locale, { weekday: "long", day: "numeric", month: "long" }).format(
       dateFromKey(dateKey)
     );
+
+  /**
+   * The same label, fit to sit inside a sentence. Only "Vandaag"/"Morgen" are lowercased: they come
+   * from the message file capitalised, and Dutch writes them lowercase mid-sentence. A weekday is
+   * left exactly as Intl gives it, which is already right in both languages ("zondag", "Sunday").
+   */
+  const dayTitleInline = (dateKey: string) => {
+    const rel = relativeDay(dateKey);
+    return rel ? rel.charAt(0).toLowerCase() + rel.slice(1) : dayTitle(dateKey);
   };
-
-  const dateLabel = (dateKey: string) =>
-    new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(
-      dateFromKey(dateKey)
-    );
 
   useEffect(() => {
     let cancelled = false;
-
-    // Clear immediately on a date switch, or the previous day's slots sit
-    // there looking selectable until the new ones land.
-    setSlots([]);
-    setLoading(true);
 
     async function poll() {
       if (!selectedDate) return;
@@ -90,7 +131,7 @@ export default function DeliverySlotPicker({
           (s) => s.status === "available" || s.status === "full"
         );
         if (cancelled) return;
-        setSlots(visible);
+        setAnswer({ date: selectedDate, slots: visible });
 
         const current = valueRef.current;
         const currentStillGood =
@@ -105,9 +146,12 @@ export default function DeliverySlotPicker({
           setReassignedNotice(false);
         }
       } catch {
-        // Next poll (or a date switch) tries again — nothing actionable here.
-      } finally {
-        if (!cancelled) setLoading(false);
+        // Record the day as having nothing, so the customer gets the "no windows" line rather
+        // than a skeleton that pulses for ever; the next poll (20s) still tries again.
+        if (!cancelled)
+          setAnswer((prev) =>
+            prev?.date === selectedDate ? prev : { date: selectedDate, slots: [] }
+          );
       }
     }
 
@@ -124,6 +168,46 @@ export default function DeliverySlotPicker({
 
   const selectedSlot = value?.date === selectedDate ? value : null;
   const showEmpty = !loading && slots.length === 0;
+  const afternoon = slots.filter((s) => s.start < EVENING_FROM);
+  const evening = slots.filter((s) => s.start >= EVENING_FROM);
+
+  const slotButton = (slot: SlotAvailability) => {
+    const active = value?.date === selectedDate && value.start === slot.start;
+    const full = slot.status === "full";
+    return (
+      <button
+        key={slot.start}
+        type="button"
+        disabled={full}
+        aria-pressed={active}
+        onClick={() => onChange({ date: selectedDate, start: slot.start, end: slot.end })}
+        className={`flex min-h-[3.25rem] flex-col items-center justify-center rounded-xl border px-2 text-sm font-medium transition-colors ${
+          full
+            ? "cursor-not-allowed border-charcoal-600/10 bg-charcoal-600/5 text-ink/35"
+            : active
+              ? "border-ember-600 bg-ember-600 text-cream-50 shadow-sm"
+              : "border-charcoal-600/15 bg-cream-50 text-ink/80 hover:border-ember-600/50 hover:bg-ember-600/5"
+        }`}
+      >
+        <span className="tabular-nums">
+          {slot.start}–{slot.end}
+        </span>
+        {full && (
+          <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide">
+            {t("slotFullLabel")}
+          </span>
+        )}
+      </button>
+    );
+  };
+
+  const group = (label: string, list: SlotAvailability[]) =>
+    list.length === 0 ? null : (
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-ink/45">{label}</p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{list.map(slotButton)}</div>
+      </div>
+    );
 
   return (
     <section>
@@ -133,87 +217,102 @@ export default function DeliverySlotPicker({
       </h2>
       <p className="mt-1 text-sm text-ink/55">{t("deliveryTimeHint")}</p>
 
-      {/* A fixed 4-wide grid rather than a scroll strip: equal-width chips,
-          nothing clipped mid-word, no native scrollbar underneath, and 7
-          days wrap onto two tidy rows. Stays at 4 on desktop too — the
-          checkout form column is narrow enough that 7 across would squeeze
-          "Vandaag" into an ellipsis. */}
-      <div className="mt-4 grid grid-cols-4 gap-2">
-        {days.map((day) => {
-          const active = selectedDate === day.dateKey;
-          return (
-            <button
-              key={day.dateKey}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setSelectedDate(day.dateKey)}
-              className={`rounded-xl border px-1.5 py-2.5 text-center transition-colors ${
-                active
-                  ? "border-ember-600 bg-ember-600 text-cream-50 shadow-sm"
-                  : "border-charcoal-600/15 bg-cream-50 text-ink/75 hover:border-ember-600/50 hover:bg-ember-600/5"
-              }`}
+      {/* ---- step 1: the day ---- */}
+      <div className="mt-4 rounded-2xl border border-charcoal-600/15 bg-cream-50 p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setView(addMonths(view.year, view.month, -1))}
+            disabled={!canGoBack}
+            aria-label={t("slotPrevMonth")}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-ink/60 transition-colors hover:bg-ember-600/10 hover:text-ember-700 disabled:opacity-25 disabled:hover:bg-transparent"
+          >
+            <ChevronLeft size={18} />
+          </button>
+          <p aria-live="polite" className="font-display text-base font-semibold text-charcoal-600">
+            {monthLabel(view.year, view.month, locale)}
+          </p>
+          <button
+            type="button"
+            onClick={() => setView(addMonths(view.year, view.month, 1))}
+            disabled={!canGoForward}
+            aria-label={t("slotNextMonth")}
+            className="flex h-9 w-9 items-center justify-center rounded-lg text-ink/60 transition-colors hover:bg-ember-600/10 hover:text-ember-700 disabled:opacity-25 disabled:hover:bg-transparent"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+
+        <div className="mt-3 grid grid-cols-7 gap-1 text-center">
+          {headings.map((h) => (
+            <span
+              key={h}
+              className="pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink/40"
             >
-              <span className="block truncate text-[13px] font-semibold capitalize leading-tight">
-                {weekdayLabel(day.dateKey)}
-              </span>
-              <span
-                className={`mt-0.5 block truncate text-[11px] leading-tight ${
-                  active ? "text-cream-100/80" : "text-ink/50"
-                }`}
+              {h}
+            </span>
+          ))}
+
+          {weeks.flat().map((cell) => {
+            const open = bookable.has(cell.dateKey);
+            const active = selectedDate === cell.dateKey;
+            const isToday = cell.dateKey === todayKey;
+            return (
+              <button
+                key={cell.dateKey}
+                type="button"
+                disabled={!open}
+                aria-pressed={active}
+                aria-label={dayTitle(cell.dateKey)}
+                onClick={() => setSelectedDate(cell.dateKey)}
+                className={`relative flex h-10 items-center justify-center rounded-lg text-sm font-semibold tabular-nums transition-colors ${
+                  active
+                    ? "bg-ember-600 text-cream-50 shadow-sm"
+                    : open
+                      ? "text-charcoal-600 hover:bg-ember-600/10 hover:text-ember-700"
+                      : `cursor-not-allowed ${cell.inMonth ? "text-ink/25" : "text-ink/10"}`
+                } ${isToday && !active ? "ring-1 ring-inset ring-ember-600/40" : ""}`}
               >
-                {dateLabel(day.dateKey)}
-              </span>
-            </button>
-          );
-        })}
+                {cell.day}
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-ink/45">
+          <CalendarDays size={13} className="shrink-0" />
+          {t("slotDaysHint")}
+        </p>
       </div>
 
+      {/* ---- step 2: the window ---- */}
+      <p className="mt-4 text-sm font-semibold text-charcoal-600">
+        {t("slotPickTime", { day: dayTitleInline(selectedDate) })}
+      </p>
+
       {reassignedNotice && (
-        <p className="mt-3 rounded-xl bg-ember-600/10 px-3.5 py-2.5 text-sm text-ember-700">
+        <p className="mt-2 rounded-xl bg-ember-600/10 px-3.5 py-2.5 text-sm text-ember-700">
           {t("slotReassigned")}
         </p>
       )}
 
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {loading && slots.length === 0
-          ? Array.from({ length: 6 }).map((_, i) => (
+      <div className="mt-3 space-y-4">
+        {loading && slots.length === 0 ? (
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
                 className="min-h-[3.25rem] animate-pulse rounded-xl bg-charcoal-600/5"
                 aria-hidden="true"
               />
-            ))
-          : slots.map((slot) => {
-              const active = value?.date === selectedDate && value.start === slot.start;
-              const full = slot.status === "full";
-              return (
-                <button
-                  key={slot.start}
-                  type="button"
-                  disabled={full}
-                  aria-pressed={active}
-                  onClick={() =>
-                    onChange({ date: selectedDate, start: slot.start, end: slot.end })
-                  }
-                  className={`flex min-h-[3.25rem] flex-col items-center justify-center rounded-xl border px-2 text-sm font-medium transition-colors ${
-                    full
-                      ? "cursor-not-allowed border-charcoal-600/10 bg-charcoal-600/5 text-ink/35"
-                      : active
-                        ? "border-ember-600 bg-ember-600 text-cream-50 shadow-sm"
-                        : "border-charcoal-600/15 bg-cream-50 text-ink/80 hover:border-ember-600/50 hover:bg-ember-600/5"
-                  }`}
-                >
-                  <span className="tabular-nums">
-                    {slot.start}–{slot.end}
-                  </span>
-                  {full && (
-                    <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide">
-                      {t("slotFullLabel")}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            ))}
+          </div>
+        ) : (
+          <>
+            {group(t("slotGroupAfternoon"), afternoon)}
+            {group(t("slotGroupEvening"), evening)}
+          </>
+        )}
       </div>
 
       {showEmpty && (
@@ -223,8 +322,12 @@ export default function DeliverySlotPicker({
       )}
 
       {selectedSlot && (
-        <p className="mt-3 text-sm text-ink/60">
-          {t("slotChosen", { start: selectedSlot.start, end: selectedSlot.end })}
+        <p className="mt-3 rounded-xl bg-ember-600/10 px-3.5 py-2.5 text-sm font-semibold text-ember-700">
+          {t("slotChosenOn", {
+            day: dayTitleInline(selectedSlot.date),
+            start: selectedSlot.start,
+            end: selectedSlot.end,
+          })}
         </p>
       )}
 

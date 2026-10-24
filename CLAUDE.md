@@ -1313,6 +1313,28 @@ and the capacity/on-off controls live — editing a row there changes every
 future occurrence of that weekday+time, not just the date being viewed,
 which the page's copy says explicitly so it isn't a surprise.
 
+**The customer picks the day from a real calendar** (`DeliverySlotPicker.tsx`, redrawn Oct 2026).
+It used to be a row of seven day chips above a wall of time buttons, which Danish reported as
+confusing. It is now a **month grid, Monday first** (`src/lib/calendar.ts` — pure, timezone-free
+month maths, shared with the admin report range picker; a calendar date is a *label*, never an
+instant, so nothing in it goes near `Date.parse` or UTC), then that day's windows grouped into
+**Middag / Avond** split at 17:00. A day the kitchen is closed, a day already past and a day beyond
+the booking window are simply not selectable — so "which days do they even deliver?" is answerable
+at a glance. The arrows are capped to the months the booking window actually spans.
+- **There is deliberately no "as soon as possible"** (Danish's call): every order books a real
+  window, so the customer always leaves knowing when the food arrives.
+- Ant Design was considered and rejected: ~1 MB of JS on the page where SEO is priority #1, and its
+  own blue design language fights cream/charcoal/ember. The calendar is the project's own tokens.
+- Everything underneath is unchanged — the 20 s poll of `/api/delivery-slots`, the reassign-with-a-
+  notice when the chosen slot fills up, and the same three hidden inputs (`deliveryDate`,
+  `deliverySlotStart`, `deliverySlotEnd`), so `checkoutAction` saw no change at all.
+- Two things to keep if you touch it: **slots are stored together with the date they describe**
+  (`answer: {date, slots}`), so "loading" is derived from a date mismatch rather than cleared in the
+  effect body — the lint rule forbids that cascading render, and the old code only got away with it
+  because it predates the rule. And only the **message-derived** "Vandaag"/"Morgen" are lowercased
+  mid-sentence (`dayTitleInline`); an `Intl` weekday is already correct in both languages, and
+  lowercasing it would break English.
+
 A dish with `price: null` can't be added at all — the cart would carry a
 line it can't total. Those fall back to WhatsApp, which is how they're
 ordered today anyway.
