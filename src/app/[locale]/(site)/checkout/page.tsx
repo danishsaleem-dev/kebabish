@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { bookingWindowDays, effectiveHours } from "@/lib/delivery-slots";
 import type { ComponentProps } from "react";
-import { auth } from "@/lib/auth";
+import { getCustomerSession } from "@/lib/customers/session";
 import { getCustomerProfile } from "@/lib/customers/accounts";
 import { getTranslations } from "next-intl/server";
 import CheckoutForm from "@/components/cart/CheckoutForm";
@@ -34,8 +34,9 @@ export default async function CheckoutPage({
   // empty form, same as a guest.
   let account: ComponentProps<typeof CheckoutForm>["account"];
   try {
-    const session = await auth();
-    if (session?.user.role === "customer") {
+    // Only a valid customer sign-in counts (see customers/session.ts).
+    const session = await getCustomerSession();
+    if (session) {
       const profile = await getCustomerProfile(session.user.id);
       if (profile) {
         account = {

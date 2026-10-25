@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Clock, FileText, LogOut, Mail, MapPin, MessageSquareHeart, Phone, RotateCcw, ShoppingBag, Star, User } from "lucide-react";
+import { Clock, FileText, LogOut, MapPin, MessageSquareHeart, Phone, RotateCcw, ShoppingBag, Star } from "lucide-react";
 import { orderAccessToken } from "@/lib/order-token";
 import { listCreditNotesForCustomer } from "@/lib/refunds";
 import { auth } from "@/lib/auth";
@@ -10,6 +10,9 @@ import { listCustomerOrders } from "@/lib/orders";
 import { orderIdsWithFeedback } from "@/lib/feedback/data";
 import { getCustomerProfile } from "@/lib/customers/accounts";
 import AccountPreferences from "@/components/shared/AccountPreferences";
+import CurrentOrders from "@/components/dashboard/CurrentOrders";
+import { ConfirmAccountBanner, PasswordCard, ProfileCard } from "@/components/dashboard/AccountCards";
+import { getCustomerAccountState } from "@/lib/customers/accounts";
 import { formatEuro, fromCents } from "@/lib/money";
 import Card from "@/components/admin/ui/Card";
 import OrderStatusPill from "@/components/admin/OrderStatusPill";
@@ -22,7 +25,12 @@ function placedRecently(placedAt: string): boolean {
   return Date.now() - Date.parse(placedAt) < 14 * 24 * 60 * 60 * 1000;
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string }>;
+}) {
+  const { order: justPlaced } = await searchParams;
   const session = await auth();
   // The layout above already redirects an unauthenticated request — this is
   // a defensive fallback for the rare case this page renders before that
@@ -36,6 +44,10 @@ export default async function DashboardPage() {
     (o) => !["failed", "expired", "canceled"].includes(o.paymentStatus)
   );
   const profile = await getCustomerProfile(user.id);
+  // No password yet = the account was made when an order was paid and is waiting to be
+  // confirmed from the email (see customers/account-rules.ts).
+  const account = await getCustomerAccountState(user.id);
+  const passwordless = account?.passwordless ?? false;
 
   // Feedback: which delivered orders have been rated, and the most recent one
   // that hasn't (within a fortnight — after that it's too long ago to ask).
@@ -83,12 +95,16 @@ export default async function DashboardPage() {
       <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6">
         <div>
           <h1 className="font-display text-2xl font-semibold text-heading">
-            Welcome back, {user.name || user.email}
+            {orders.length <= 1 && passwordless ? "Welcome" : "Welcome back"}, {profile?.name || user.name || user.email}
           </h1>
           <p className="mt-1 text-sm text-muted">
             Your Kebabish account.
           </p>
         </div>
+
+        {passwordless && <ConfirmAccountBanner email={user.email} />}
+
+        <CurrentOrders orders={orders} highlight={justPlaced} />
 
         {toRate && (
           <Card className="border-ember-600/30 bg-ember-600/5">
@@ -117,20 +133,11 @@ export default async function DashboardPage() {
           </Card>
         )}
 
-        <Card>
-          <div className="flex items-center gap-2">
-            <User size={18} className="text-ember-600" />
-            <h2 className="font-display text-lg font-semibold text-heading">
-              Your details
-            </h2>
-          </div>
-          <dl className="mt-4 space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-body-text">
-              <Mail size={14} className="shrink-0 text-faint" />
-              {user.email}
-            </div>
-          </dl>
-        </Card>
+        <ProfileCard
+          name={profile?.name ?? user.name}
+          email={user.email}
+          phone={profile?.phone ?? ""}
+        />
 
         {profile && (
           <AccountPreferences
@@ -148,6 +155,8 @@ export default async function DashboardPage() {
             savedAddress={profile.savedAddress}
           />
         )}
+
+        {!passwordless && <PasswordCard />}
 
         <div>
           <h2 className="font-display text-lg font-semibold text-heading">

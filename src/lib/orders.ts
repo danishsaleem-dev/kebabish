@@ -17,6 +17,8 @@ import { isFutureDelivery } from "@/lib/admin/order-types";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { consumeOrderStock, readStockMap } from "@/lib/stock";
 import { stockLevel } from "@/lib/stock-status";
+import { ensureCheckoutAccount } from "@/lib/customers/accounts";
+import { createAccountSetupToken } from "@/lib/password-reset";
 
 /**
  * Orders: pricing, persistence, and payment reconciliation.
@@ -627,8 +629,11 @@ export async function syncPaymentStatus(
     if (order) {
       // The paid dishes come out of stock now (once, however often this runs).
       await consumeOrderStock(order.id);
+      // The buyer's account is made now (awaited, so the return page finds it) and its
+      // "choose a password" link goes inside the confirmation email.
+      const accountSetupUrl = await accountSetupLinkFor(order.id);
       after(() => sendNewOrderEmail(order));
-      after(() => sendOrderConfirmationEmail(order, locale));
+      after(() => sendOrderConfirmationEmail(order, locale, accountSetupUrl));
     }
   }
 
@@ -653,6 +658,24 @@ export async function syncPaymentStatus(
 export const PAYMENT_HOLD_MINUTES = 15;
 
 let lastSweepAt = 0;
+
+/**
+ * An order has just been paid: make sure its buyer has an account (see
+ * customers/account-rules.ts) and, if that account has no password yet, return the
+ * "choose your password" link for the confirmation email. Never throws and never blocks
+ * the payment: no account, or no link, just means the plain confirmation.
+ */
+async function accountSetupLinkFor(orderId: string): Promise<string | undefined> {
+  try {
+    const result = await ensureCheckoutAccount(orderId);
+    if (result.status === "skipped" || !result.passwordless) return undefined;
+    const token = await createAccountSetupToken(result.customerId);
+    return token ? `${siteConfig.website}/reset-password?token=${encodeURIComponent(token)}` : undefined;
+  } catch (error) {
+    console.error("[orders] could not prepare the customer's account:", error);
+    return undefined;
+  }
+}
 
 /**
  * Give back the slots held by checkouts that were started and abandoned.
@@ -821,7 +844,8 @@ export async function markOrderPaid(orderId: string): Promise<boolean> {
     // the moment it needs the same alert an online payment sends; hand-entered
     // (phone / cash) orders were already known to staff.
     if (order.paymentMethod === "payment_link") after(() => sendNewOrderEmail(order));
-    if (order.customerEmail) after(() => sendOrderConfirmationEmail(order, order.locale));
+    const accountSetupUrl = await accountSetupLinkFor(order.id);
+    if (order.customerEmail) after(() => sendOrderConfirmationEmail(order, order.locale, accountSetupUrl));
   }
   return true;
 }

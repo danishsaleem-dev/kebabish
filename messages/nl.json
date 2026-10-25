@@ -507,7 +507,18 @@
     "promoUsedUp": "Deze code is op — het maximale aantal keren is bereikt.",
     "promoNotFirstOrder": "Deze code is alleen voor je eerste bestelling.",
     "promoNotApplicable": "Deze code geldt niet voor de gerechten in je winkelwagen.",
-    "promoInvalid": "Deze kortingscode is niet (meer) geldig. Verwijder de code en probeer het opnieuw."
+    "promoInvalid": "Deze kortingscode is niet (meer) geldig. Verwijder de code en probeer het opnieuw.",
+    "enteringTitle": "Betaling ontvangen",
+    "enteringText": "We openen je account…",
+    "enteringCta": "Open mijn account",
+    "dashboardTitle": "Volg je bestelling in je account",
+    "dashboardText": "Bekijk hier de status van deze bestelling, je eerdere bestellingen en je gegevens.",
+    "dashboardCta": "Naar mijn account",
+    "accountPendingTitle": "Je account staat klaar",
+    "accountPendingText": "We hebben je bevestiging gemaild op {email}. Kies daarin een wachtwoord om je account te bevestigen, dan kun je je bestellingen volgen en opnieuw bestellen.",
+    "accountExistsTitle": "Je hebt al een account",
+    "accountExistsText": "Log in om deze bestelling in je dashboard te zien en te volgen.",
+    "accountNotice": "Na je betaling maken we een account voor je met deze gegevens, zodat je je bestelling kunt volgen. Je krijgt een e-mail om een wachtwoord te kiezen."
   },
   "footer": {
     "tagline": "Kebabish — De Smaak van Thuis",
@@ -605,7 +616,7 @@
   },
   "privacy": {
     "title": "Privacybeleid",
-    "updated": "Laatst bijgewerkt: 12 oktober 2026",
+    "updated": "Laatst bijgewerkt: 25 oktober 2026",
     "intro": "Kebabish hecht veel waarde aan de bescherming van jouw persoonsgegevens. In dit privacybeleid leggen we uit welke gegevens we verzamelen, waarom, en welke rechten je hebt.",
     "sections": [
       {
@@ -624,6 +635,7 @@
           "Naam, e-mailadres, telefoonnummer, bezorgadres en gekozen bezorgmoment bij het plaatsen van een bestelling",
           "Bestelgeschiedenis en de inhoud van je bestelling",
           "Accountgegevens als je een klantaccount aanmaakt (naam, e-mailadres, wachtwoord in versleutelde vorm)",
+          "Een klantaccount dat we voor je aanmaken wanneer je een bestelling betaalt, met de gegevens van die bestelling (naam, e-mailadres, telefoonnummer) en zonder wachtwoord totdat je er zelf een kiest",
           "Je bezorgadres, alleen als je zelf kiest om het te bewaren voor een volgende bestelling — dat kun je op je accountpagina weer verwijderen",
           "Je toestemming voor nieuws en aanbiedingen per e-mail, met de datum en de plek waar je die gaf — standaard staat die uit en je kunt hem altijd intrekken",
           "Communicatie via WhatsApp, telefoon of e-mail wanneer je contact met ons opneemt",
@@ -642,7 +654,8 @@
           "Een klantaccount en bestelgeschiedenis aan te bieden, als je daarvoor kiest",
           "Te voldoen aan wettelijke verplichtingen, zoals onze fiscale administratie",
           "Onze website te beveiligen en technisch te verbeteren",
-          "Feedback te lezen en te gebruiken om ons eten, onze bezorging en onze website te verbeteren, en — alleen als je dat hebt toegestaan — contact met je op te nemen of je opmerking (met alleen je voornaam) op onze website te tonen"
+          "Feedback te lezen en te gebruiken om ons eten, onze bezorging en onze website te verbeteren, en — alleen als je dat hebt toegestaan — contact met je op te nemen of je opmerking (met alleen je voornaam) op onze website te tonen",
+          "Een account voor je aanmaken wanneer je een bestelling betaalt, zodat je die bestelling kunt volgen en later opnieuw kunt bestellen; je bevestigt het account door via de e-mail een wachtwoord te kiezen"
         ]
       },
       {
@@ -682,7 +695,8 @@
         "heading": "Bewaartermijn",
         "body": [
           "Wij bewaren jouw gegevens niet langer dan noodzakelijk voor het doel waarvoor ze zijn verzameld. Bestelgegevens en facturen die we nodig hebben voor onze fiscale administratie bewaren wij 7 jaar, zoals de Nederlandse belastingregels dat van ons als ondernemer vereisen. Overige persoonsgegevens bewaren wij niet langer dan voor hun doel nodig is.",
-          "Feedback bewaren we zolang die ons helpt Kebabish te verbeteren; op je verzoek verwijderen we jouw feedback eerder."
+          "Feedback bewaren we zolang die ons helpt Kebabish te verbeteren; op je verzoek verwijderen we jouw feedback eerder.",
+          "Een account dat we bij je bestelling voor je hebben aangemaakt en dat je nooit bevestigt door een wachtwoord te kiezen, verwijderen we na 90 dagen. De bestelling zelf blijft bewaard volgens de termijnen hierboven."
         ]
       },
       {

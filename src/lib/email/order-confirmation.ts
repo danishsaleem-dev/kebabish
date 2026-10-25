@@ -47,6 +47,12 @@ const COPY = {
     terms: "Algemene voorwaarden",
     privacy: "Privacybeleid",
     dateLocale: "nl-NL",
+    accountTitle: "Je account staat klaar",
+    accountText:
+      "We hebben een account voor je gemaakt met de gegevens van je bestelling, zodat je je bestellingen kunt volgen. Kies een wachtwoord om het te bevestigen.",
+    accountCta: "Wachtwoord kiezen",
+    accountNote:
+      "De link werkt 7 dagen. Geen account nodig? Dan hoef je niets te doen: een account dat niet bevestigd wordt, verwijderen we na 90 dagen. Je bestelling blijft altijd bewaard.",
   },
   en: {
     subject: (ref: string) => `Your order confirmation ${ref}`,
@@ -75,6 +81,12 @@ const COPY = {
     terms: "Terms & conditions",
     privacy: "Privacy policy",
     dateLocale: "en-GB",
+    accountTitle: "Your account is ready",
+    accountText:
+      "We have created an account for you from the details of your order, so you can follow your orders. Choose a password to confirm it.",
+    accountCta: "Choose a password",
+    accountNote:
+      "The link works for 7 days. Don't need an account? Then you don't have to do anything: an account that is never confirmed is deleted after 90 days. Your order is always kept.",
   },
 } as const;
 
@@ -103,7 +115,9 @@ function html(
   locale: Locale,
   vatRate: number | null,
   vatNumber: string | undefined,
-  invoiceNumber: string | null
+  invoiceNumber: string | null,
+  /** Set when this order created (or is waiting on) an account with no password yet. */
+  accountSetupUrl?: string
 ): string {
   const c = COPY[locale];
   const logoUrl = `${siteConfig.website}/logo/Kebabish-light.png`;
@@ -188,6 +202,24 @@ function html(
                 </table>
               </td>
             </tr>
+            ${
+              accountSetupUrl
+                ? `<tr>
+              <td style="padding:20px 28px 0;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #a95026;border-radius:10px;">
+                  <tr>
+                    <td style="padding:16px;">
+                      <p style="margin:0;font-size:15px;font-weight:bold;color:#1a1713;">${c.accountTitle}</p>
+                      <p style="margin:6px 0 12px;font-size:13px;line-height:1.55;color:#1a1713;">${c.accountText}</p>
+                      <a href="${accountSetupUrl}" style="display:inline-block;background:#3d3831;color:#ffffff;text-decoration:none;font-size:13px;font-weight:bold;padding:10px 22px;border-radius:8px;">${c.accountCta}</a>
+                      <p style="margin:12px 0 0;font-size:11px;line-height:1.5;color:#6b6459;">${c.accountNote}</p>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>`
+                : ""
+            }
             <tr>
               <td style="padding:22px 28px 0;" align="center">
                 <a href="${orderUrl}" style="display:inline-block;background:#a95026;color:#ffffff;text-decoration:none;font-size:14px;font-weight:bold;padding:12px 28px;border-radius:8px;">${c.view}</a>
@@ -219,7 +251,9 @@ function html(
  */
 export async function sendOrderConfirmationEmail(
   order: OrderSummary,
-  locale: string | undefined
+  locale: string | undefined,
+  /** The "choose your password" link, when this order's account has no password yet. */
+  accountSetupUrl?: string
 ): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -260,7 +294,8 @@ export async function sendOrderConfirmationEmail(
         lang,
         settings.vatRatePercent ?? null,
         settings.vatNumber || undefined,
-        invoiceNumber
+        invoiceNumber,
+        accountSetupUrl
       ),
     });
     if (error) {

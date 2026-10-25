@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { verifyCredentials, type AdminRole } from "@/lib/admin/auth-users";
 import { verifyCustomerCredentials } from "@/lib/customers/accounts";
+import { customerForOrderAccess } from "@/lib/customers/order-access";
 
 export type Role = AdminRole | "customer";
 
@@ -13,6 +14,10 @@ declare module "next-auth" {
       name: string;
       role: Role;
     };
+    /** When this person signed in (seconds) — checked against the account, see customers/session.ts. */
+    issuedAt?: number;
+    /** Signed in from an order link, on an account that has no password yet. */
+    unconfirmed?: boolean;
   }
 }
 
@@ -22,6 +27,9 @@ declare module "@auth/core/jwt" {
     role?: Role;
     name?: string;
     email?: string;
+    unconfirmed?: boolean;
+    /** When the person signed in (ms). Our own field, set once: Auth.js re-issues `iat` whenever the session is refreshed. */
+    signedInAt?: number;
   }
 }
 
@@ -69,6 +77,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return null;
       },
     }),
+
+    // The buyer's way straight into the account their order just created — only ever under
+    // the strict rules in customers/account-rules.ts. Used by /api/account/enter, never by
+    // the sign-in form.
+    Credentials({
+      id: "order-access",
+      credentials: { ref: {}, token: {} },
+      async authorize(credentials) {
+        const customer = await customerForOrderAccess(
+          String(credentials?.ref ?? ""),
+          String(credentials?.token ?? "")
+        );
+        if (!customer) return null;
+        return {
+          id: customer.id,
+          email: customer.email,
+          name: customer.name,
+          role: "customer" as const,
+          unconfirmed: true,
+        };
+      },
+    }),
   ],
 
   callbacks: {
@@ -80,6 +110,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.role = (user as { role: Role }).role;
         token.name = user.name ?? undefined;
         token.email = user.email ?? undefined;
+        token.unconfirmed = (user as { unconfirmed?: boolean }).unconfirmed ? true : undefined;
+        token.signedInAt = Date.now();
       }
       return token;
     },
@@ -88,6 +120,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.role = token.role ?? "customer";
       session.user.name = token.name ?? "";
       session.user.email = token.email ?? "";
+      session.issuedAt = token.signedInAt ? Math.floor(token.signedInAt / 1000) : undefined;
+      session.unconfirmed = token.unconfirmed;
       return session;
     },
   },

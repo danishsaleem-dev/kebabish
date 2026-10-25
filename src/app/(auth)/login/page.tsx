@@ -57,7 +57,11 @@ export default async function LoginPage({
       notice={
         notice === "password-reset"
           ? "Your password has been changed. Sign in with the new one."
-          : undefined
+          : notice === "account-ready"
+            ? "Your account is confirmed. Sign in with your email and the password you just chose."
+            : notice === "session-ended"
+              ? "For your security you were signed out. Sign in again to continue."
+              : undefined
       }
     />;
 }

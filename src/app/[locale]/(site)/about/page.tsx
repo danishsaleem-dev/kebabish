@@ -182,7 +182,7 @@ export default async function AboutPage({
                   <span className="block font-display text-2xl font-semibold text-charcoal-600 sm:text-3xl">
                     {stat.value}
                   </span>
-                  <span className="mt-1 block hyphens-auto text-xs leading-snug text-ink/60 sm:text-sm">
+                  <span className="mt-1 block hyphens-auto [overflow-wrap:anywhere] text-xs leading-snug text-ink/60 sm:text-sm">
                     {stat.label}
                   </span>
                 </li>

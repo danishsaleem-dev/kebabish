@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { escalateUnacceptedOrders, expireStaleOrders } from "@/lib/orders";
+import { purgeUnusedAccounts } from "@/lib/customers/accounts";
 
 export const dynamic = "force-dynamic";
 
@@ -22,6 +23,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
   }
 
-  await Promise.all([expireStaleOrders(), escalateUnacceptedOrders()]);
-  return NextResponse.json({ ok: true });
+  // The sweeps are independent. Also clears accounts made at checkout that nobody ever
+  // confirmed (no password after 90 days) — their orders are kept.
+  const [, , removedAccounts] = await Promise.all([
+    expireStaleOrders(),
+    escalateUnacceptedOrders(),
+    purgeUnusedAccounts().catch((error) => {
+      console.error("[housekeeping] could not clear unused accounts:", error);
+      return 0;
+    }),
+  ]);
+  return NextResponse.json({ ok: true, removedAccounts });
 }

@@ -2,6 +2,7 @@ import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
+import { ACCOUNT_SETUP_DAYS } from "@/lib/customers/account-rules";
 
 /**
  * "Forgot my password", for staff and customers alike — they share one
@@ -27,7 +28,10 @@ export interface ResetAccount {
   id: string;
   email: string;
   name: string;
+  /** "" for an account with no password yet (one created at checkout). */
   passwordHash: string;
+  /** False for an account whose owner has never chosen a password. */
+  hasPassword: boolean;
 }
 
 const TABLE: Record<AccountType, string> = {
@@ -59,7 +63,7 @@ async function findByEmail(email: string): Promise<ResetAccount | null> {
     const { data, error } = await supabaseAdmin()
       .from(TABLE[type])
       .select("id, email, name, password_hash")
-      .ilike("email", email.trim())
+      .ilike("email", email.trim().replace(/[\%_]/g, (c) => "\\" + c))
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (data) {
@@ -68,7 +72,8 @@ async function findByEmail(email: string): Promise<ResetAccount | null> {
         id: data.id,
         email: data.email,
         name: data.name,
-        passwordHash: data.password_hash,
+        passwordHash: data.password_hash ?? "",
+        hasPassword: Boolean(data.password_hash),
       };
     }
   }
@@ -87,7 +92,8 @@ async function findById(type: AccountType, id: string): Promise<ResetAccount | n
     id: data.id,
     email: data.email,
     name: data.name,
-    passwordHash: data.password_hash,
+    passwordHash: data.password_hash ?? "",
+    hasPassword: Boolean(data.password_hash),
   };
 }
 
@@ -127,11 +133,42 @@ export async function verifyResetToken(token: string): Promise<ResetAccount | nu
   return account;
 }
 
+/**
+ * A link that lets the owner of a checkout-created account (no password yet) choose one.
+ * Same signed-token mechanism as a reset link, with a longer life: it is the main way into
+ * the account, and the customer may not open the email the same hour. Single use all the
+ * same — it stops working the moment the password is set.
+ */
+export async function createAccountSetupToken(customerId: string): Promise<string | null> {
+  const account = await findById("customer", customerId);
+  if (!account) return null;
+  const expiry = Date.now() + ACCOUNT_SETUP_DAYS * 86_400_000;
+  return ["customer", account.id, expiry, signature("customer", account.id, expiry, account.passwordHash)].join(".");
+}
+
+/**
+ * Write the new password. For a customer this also:
+ *  - marks the email address confirmed (the link only ever went to that address), and
+ *  - ends every sign-in issued before now (`sessions_valid_after`). That is what stops
+ *    whoever typed somebody else's address at checkout from keeping a login on the real
+ *    owner's account — and it is the right thing after any password reset.
+ * If migration 0027 hasn't been run those two columns don't exist; the password is still
+ * saved, so resetting a password never breaks because of it.
+ */
 export async function setAccountPassword(account: ResetAccount, newPassword: string) {
   const password_hash = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  const { error } = await supabaseAdmin()
-    .from(TABLE[account.type])
-    .update({ password_hash })
-    .eq("id", account.id);
+  const supabase = supabaseAdmin();
+
+  if (account.type === "customer") {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("customers")
+      .update({ password_hash, sessions_valid_after: now, email_confirmed_at: now })
+      .eq("id", account.id);
+    if (!error) return;
+    console.error("[password-reset] saving with the confirmation columns failed — has migration 0027 been run?", error.message);
+  }
+
+  const { error } = await supabase.from(TABLE[account.type]).update({ password_hash }).eq("id", account.id);
   if (error) throw new Error(error.message);
 }

@@ -41,6 +41,11 @@ export async function resetPasswordAction(
     };
   }
 
+  // An account created at checkout (no password until now) gets its own welcome; either
+  // way the email is filled in on the sign-in page so they only type the password.
+  const first = !account.hasPassword;
   await setAccountPassword(account, parsed.data.password);
-  redirect("/login?notice=password-reset");
+  redirect(
+    `/login?notice=${first ? "account-ready" : "password-reset"}&email=${encodeURIComponent(account.email)}`
+  );
 }

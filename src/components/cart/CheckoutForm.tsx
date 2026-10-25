@@ -557,6 +557,13 @@ function CheckoutFormInner({
             disabled={!slot || blocked || !deliverable}
           />
         )}
+
+        {/* Told plainly, once, right where they pay: an account is made from these details
+            (no password yet — an email lets them choose one). Not for someone who is already
+            signed in, who has an account. */}
+        {!account && (
+          <p className="mt-3 text-center text-xs leading-relaxed text-ink/55">{t("accountNotice")}</p>
+        )}
       </aside>
     </form>
   );

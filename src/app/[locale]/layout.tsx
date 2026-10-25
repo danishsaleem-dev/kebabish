@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Bitter, Inter } from "next/font/google";
+import { Bitter, Poppins } from "next/font/google";
 import { hasLocale } from "next-intl";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
@@ -12,11 +12,13 @@ import StructuredData from "@/components/StructuredData";
 import "../globals.css";
 import HalalBadge from "@/components/HalalBadge";
 
-// Inter for body copy, Bitter (slab serif) for headings — picked to sit
-// beside the logo's hand-cut serif wordmark. See globals.css.
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
+// Poppins for body copy, Bitter (slab serif) for headings — Bitter was picked to sit
+// beside the logo's hand-cut serif wordmark. See globals.css and lib/fonts.ts (the
+// admin, kitchen, rider, dashboard and sign-in layouts load the same pair from there).
+const poppins = Poppins({
+  subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-poppins",
   display: "swap",
 });
 
@@ -111,7 +113,7 @@ export default async function LocaleLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className={`${inter.variable} ${bitter.variable} js`}>
+    <html lang={locale} className={`${poppins.variable} ${bitter.variable} js`}>
       <head>
         {/* Every uploaded dish photo is served from here (see "Media
             library" in CLAUDE.md) — warming up the connection ahead of the

@@ -23,8 +23,8 @@ export default async function ResetPasswordPage({
             <LinkIcon size={20} />
           </span>
           <p className="text-sm leading-relaxed text-body-text">
-            It has expired, was already used, or isn&apos;t complete. Reset links work
-            once, for 60 minutes.
+            It has expired, was already used, or isn&apos;t complete. These links work once —
+            reset links for 60 minutes, account links for 7 days.
           </p>
           <Link
             href="/forgot-password"
@@ -37,5 +37,5 @@ export default async function ResetPasswordPage({
     );
   }
 
-  return <ResetPasswordForm token={token} />;
+  return <ResetPasswordForm token={token} welcome={!account.hasPassword} />;
 }

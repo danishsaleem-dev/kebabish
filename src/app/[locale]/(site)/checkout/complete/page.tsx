@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import BrandLogo from "@/components/shared/BrandLogo";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { CheckCircle2, Clock, FileText, MapPin, UserPlus, LogIn, XCircle } from "lucide-react";
+import NextLink from "next/link";
+import { CheckCircle2, Clock, FileText, MapPin, UserPlus, LogIn, LayoutDashboard, MailCheck, XCircle } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getInvoiceNumber, getOrderByReference, localizeLineNames, syncPaymentStatus } from "@/lib/orders";
 import { getPayment } from "@/lib/mollie";
@@ -14,6 +15,9 @@ import { siteConfig } from "@/lib/site-config";
 import { orderHasFeedback } from "@/lib/feedback/data";
 import { validPaymentLinkUrl } from "@/lib/payment-link";
 import { auth } from "@/lib/auth";
+import { ensureCheckoutAccount, findCustomerStateByEmail } from "@/lib/customers/accounts";
+import { checkOrderAccess } from "@/lib/customers/order-access";
+import EnterDashboard from "@/components/account/EnterDashboard";
 import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
 import ClearCartOnPaid from "@/components/cart/ClearCartOnPaid";
 import RememberLastOrder from "@/components/reorder/RememberLastOrder";
@@ -41,10 +45,10 @@ export default async function CheckoutCompletePage({
   searchParams,
 }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ ref?: string; t?: string; retry?: string }>;
+  searchParams: Promise<{ ref?: string; t?: string; retry?: string; e?: string }>;
 }) {
   const { locale } = await params;
-  const { ref, t: token, retry } = await searchParams;
+  const { ref, t: token, retry, e: enterFailed } = await searchParams;
   // The reference alone is guessable; the page shows personal details, so
   // it also needs the token that only the checkout redirect carries.
   if (!ref || !isValidOrderToken(ref, token)) notFound();
@@ -95,16 +99,30 @@ export default async function CheckoutCompletePage({
   const linkPending = order.paymentMethod === "payment_link" && !paid && !failed;
   const paymentLinkUrl = validPaymentLinkUrl(settings.paymentLinkUrl);
 
-  // A guest order (no customerId) placed while signed out is the one case
-  // where it's worth offering to save the details just submitted — a
-  // signed-in customer's order is already linked, so there's nothing to
-  // offer them here.
-  // Only a signed-in *customer* already has this order covered — staff
-  // browsing their own test checkout, or a plain guest, should still see
-  // the offer.
+  // The buyer's account. When an order is paid its buyer gets an account (made in
+  // syncPaymentStatus / markOrderPaid, with no password yet — see
+  // customers/account-rules.ts). This page makes sure of it (idempotent: the webhook usually
+  // got there first) and then, only when it is safe, signs the buyer straight in:
+  //   - an account this very order created, still without a password  -> signed in and
+  //     taken to the dashboard (`enterUrl`);
+  //   - an address that already had an account                       -> never signed in
+  //     automatically: "sign in to see this order in your dashboard";
+  //   - an account waiting for its password (the link is in the email) -> "check your email".
   const session = await auth();
-  const offerAccount =
-    paid && !order.customerId && session?.user?.role !== "customer";
+  const isCustomerSession = session?.user?.role === "customer";
+  const signedInAsBuyer = isCustomerSession && order.customerId === session?.user?.id;
+
+  let enterUrl: string | null = null;
+  let accountNote: "none" | "pending" | "signIn" | "offer" = "none";
+  if (paid && !session) {
+    if (!order.customerId) await ensureCheckoutAccount(order.id);
+    // `e` = we already tried and it didn't take: show the page, don't try again (no loop).
+    if (!enterFailed && (await checkOrderAccess(ref, token as string))) {
+      enterUrl = `/api/account/enter?ref=${encodeURIComponent(ref)}&t=${encodeURIComponent(token as string)}&locale=${locale}`;
+    }
+    const account = await findCustomerStateByEmail(order.customerEmail).catch(() => null);
+    accountNote = !account ? "offer" : account.passwordless ? "pending" : "signIn";
+  }
 
   const placedAt = new Date(order.placedAt).toLocaleString(
     locale === "nl" ? "nl-NL" : "en-GB",
@@ -130,6 +148,14 @@ export default async function CheckoutCompletePage({
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-5 py-20 text-center sm:px-6 sm:py-28">
       {(paid || order.paymentMethod === "payment_link") && <ClearCartOnPaid />}
+      {enterUrl && (
+        <EnterDashboard
+          href={enterUrl}
+          title={t("enteringTitle")}
+          text={t("enteringText")}
+          cta={t("enteringCta")}
+        />
+      )}
       {paid && token && (
         <RememberLastOrder
           reference={order.reference}
@@ -434,14 +460,52 @@ export default async function CheckoutCompletePage({
         )}
       </div>
 
-      {offerAccount && (
+      {signedInAsBuyer && (
+        <div className="print:hidden mt-8 w-full rounded-3xl border-2 border-ember-600/30 bg-cream-50 p-6 text-left">
+          <h2 className="flex items-center gap-2.5 font-display text-lg font-semibold text-charcoal-600">
+            <LayoutDashboard size={19} aria-hidden="true" className="text-ember-600" />
+            {t("dashboardTitle")}
+          </h2>
+          <p className="mt-1.5 text-sm text-ink/65">{t("dashboardText")}</p>
+          <NextLink
+            href="/dashboard"
+            className="mt-4 inline-flex items-center justify-center gap-2 rounded-full bg-ember-600 px-6 py-3 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+          >
+            {t("dashboardCta")}
+          </NextLink>
+        </div>
+      )}
+
+      {accountNote === "pending" && (
         <div className="print:hidden mt-8 w-full rounded-3xl bg-charcoal-900 p-6 text-left text-cream-100 sm:p-8">
-          <h2 className="font-display text-lg font-semibold text-cream-50">
-            {t("createAccountTitle")}
+          <h2 className="flex items-center gap-2.5 font-display text-lg font-semibold text-cream-50">
+            <MailCheck size={20} aria-hidden="true" className="text-ember-400" />
+            {t("accountPendingTitle")}
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-cream-200/70">
-            {t("createAccountText")}
+            {t("accountPendingText", { email: order.customerEmail })}
           </p>
+        </div>
+      )}
+
+      {accountNote === "signIn" && (
+        <div className="print:hidden mt-8 w-full rounded-3xl bg-charcoal-900 p-6 text-left text-cream-100 sm:p-8">
+          <h2 className="font-display text-lg font-semibold text-cream-50">{t("accountExistsTitle")}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-cream-200/70">{t("accountExistsText")}</p>
+          <NextLink
+            href={`/login?email=${encodeURIComponent(order.customerEmail)}`}
+            className="mt-5 inline-flex items-center justify-center gap-2 rounded-full bg-ember-600 px-6 py-3 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+          >
+            <LogIn size={16} />
+            {t("loginCta")}
+          </NextLink>
+        </div>
+      )}
+
+      {accountNote === "offer" && (
+        <div className="print:hidden mt-8 w-full rounded-3xl bg-charcoal-900 p-6 text-left text-cream-100 sm:p-8">
+          <h2 className="font-display text-lg font-semibold text-cream-50">{t("createAccountTitle")}</h2>
+          <p className="mt-2 text-sm leading-relaxed text-cream-200/70">{t("createAccountText")}</p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Link
               href={{

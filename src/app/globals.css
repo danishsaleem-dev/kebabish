@@ -10,7 +10,8 @@
  * Body copy sits on a warm near-black so it reads darker than headings.
  *
  * Typography: Bitter (slab serif) for headings — chosen to sit beside the
- * logo's hand-cut serif wordmark without competing with it. Inter for body.
+ * logo's hand-cut serif wordmark without competing with it. Poppins for body
+ * (Danish's call, replacing Inter).
  */
 
 @theme {
@@ -62,7 +63,7 @@
   --color-danger: #f04438;
   --color-danger-soft: #fef3f2;
 
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-bitter), ui-serif, Georgia, serif;
 
   --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);

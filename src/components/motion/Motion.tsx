@@ -26,7 +26,7 @@ gsap.registerPlugin(ScrollTrigger);
  * One-shot reveals fire off an IntersectionObserver rather than
  * ScrollTrigger's scroll-position bookkeeping — that bookkeeping has to
  * stay in sync with Lenis' virtualized scroll position and with layout
- * settling after the Bitter/Inter web fonts swap in, and in dev, React's
+ * settling after the Bitter/Poppins web fonts swap in, and in dev, React's
  * Strict Mode double-invokes this effect, which can wipe a tween's primed
  * starting state out from under the real mount. An IntersectionObserver
  * just answers "is it on screen yet", sidestepping all of that. Scrubbed

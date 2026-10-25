@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { auth, homeForRole } from "@/lib/auth";
 import { signOutAction } from "@/app/logout-action";
-import { inter, bitter } from "@/lib/fonts";
+import { poppins, bitter } from "@/lib/fonts";
 import AppShellBody from "@/components/shared/AppShellBody";
 import { FullscreenButton } from "@/components/kitchen/KitchenBoard";
 import KitchenNav from "@/components/kitchen/KitchenNav";
@@ -31,7 +31,7 @@ export default async function KitchenLayout({ children }: { children: ReactNode 
   }
 
   return (
-    <html lang="en" className={`${inter.variable} ${bitter.variable}`}>
+    <html lang="en" className={`${poppins.variable} ${bitter.variable}`}>
       <body className="min-h-screen bg-canvas font-sans text-body-text antialiased">
         <AppShellBody>
           <header className="sticky top-0 z-10 border-b border-hairline bg-panel">

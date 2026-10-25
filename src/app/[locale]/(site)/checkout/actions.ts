@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { routing } from "@/i18n/routing";
-import { auth } from "@/lib/auth";
+import { getCustomerSession } from "@/lib/customers/session";
 import { siteConfig } from "@/lib/site-config";
 import { createPayment } from "@/lib/mollie";
 import { validPaymentLinkUrl } from "@/lib/payment-link";
@@ -279,9 +279,8 @@ export async function checkoutAction(
 
   // Attach the order to a signed-in customer so it shows on their
   // dashboard; guests check out fine without one.
-  const session = await auth();
-  const customerId =
-    session?.user?.role === "customer" ? (session.user.id ?? null) : null;
+  const session = await getCustomerSession();
+  const customerId = session?.user.id ?? null;
 
   // Interim mode: pay through the shared Mollie payment link, staff confirm.
   const paymentLinkUrl = validPaymentLinkUrl(store.settings.paymentLinkUrl);

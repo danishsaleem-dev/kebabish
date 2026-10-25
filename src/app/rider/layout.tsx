@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { auth, homeForRole } from "@/lib/auth";
-import { inter, bitter } from "@/lib/fonts";
+import { poppins, bitter } from "@/lib/fonts";
 import AppShellBody from "@/components/shared/AppShellBody";
 import "../globals.css";
 
@@ -28,7 +28,7 @@ export default async function RiderLayout({
   if (session.user.role !== "rider") redirect(homeForRole(session.user.role));
 
   return (
-    <html lang="en" className={`${inter.variable} ${bitter.variable}`}>
+    <html lang="en" className={`${poppins.variable} ${bitter.variable}`}>
       <body className="bg-canvas font-sans text-body-text antialiased">
         <AppShellBody>{children}</AppShellBody>
       </body>

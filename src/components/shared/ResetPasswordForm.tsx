@@ -9,15 +9,29 @@ import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 
 const EMPTY: FormState = { ok: false };
 
-export default function ResetPasswordForm({ token }: { token: string }) {
+export default function ResetPasswordForm({
+  token,
+  welcome = false,
+}: {
+  token: string;
+  /** An account created at checkout choosing its first password, rather than a reset. */
+  welcome?: boolean;
+}) {
   const [state, formAction] = useActionState(resetPasswordAction, EMPTY);
 
   return (
-    <AuthFrame title="Choose a new password" subtitle="Pick something you don't use anywhere else.">
+    <AuthFrame
+      title={welcome ? "Choose your password" : "Choose a new password"}
+      subtitle={
+        welcome
+          ? "This confirms your account. Next time, sign in with your email and this password."
+          : "Pick something you don't use anywhere else."
+      }
+    >
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="token" value={token} />
         <FormError message={!state.ok ? state.message : undefined} />
-        <Field label="New password" hint="At least 8 characters." error={state.errors?.password}>
+        <Field label={welcome ? "Password" : "New password"} hint="At least 8 characters." error={state.errors?.password}>
           <Input name="password" type="password" autoComplete="new-password" required />
         </Field>
         <Field label="Repeat the password" error={state.errors?.confirm}>
@@ -25,7 +39,7 @@ export default function ResetPasswordForm({ token }: { token: string }) {
         </Field>
         <SubmitButton>
           <KeyRound size={15} />
-          Save new password
+          {welcome ? "Confirm my account" : "Save new password"}
         </SubmitButton>
       </form>
     </AuthFrame>

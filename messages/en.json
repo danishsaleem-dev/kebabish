@@ -507,7 +507,18 @@
     "promoUsedUp": "This code has been used up.",
     "promoNotFirstOrder": "This code is for your first order only.",
     "promoNotApplicable": "This code doesn't apply to the dishes in your cart.",
-    "promoInvalid": "This promo code is no longer valid. Remove it and try again."
+    "promoInvalid": "This promo code is no longer valid. Remove it and try again.",
+    "enteringTitle": "Payment received",
+    "enteringText": "Opening your account…",
+    "enteringCta": "Open my account",
+    "dashboardTitle": "Follow your order in your account",
+    "dashboardText": "See the status of this order, your earlier orders and your details here.",
+    "dashboardCta": "Go to my account",
+    "accountPendingTitle": "Your account is ready",
+    "accountPendingText": "We emailed your confirmation to {email}. Choose a password in it to confirm your account, then you can follow your orders and order again.",
+    "accountExistsTitle": "You already have an account",
+    "accountExistsText": "Sign in to see and follow this order in your dashboard.",
+    "accountNotice": "After you pay we create an account for you with these details, so you can follow your order. You'll get an email to choose a password."
   },
   "footer": {
     "tagline": "Kebabish — The Taste of Home",
@@ -605,7 +616,7 @@
   },
   "privacy": {
     "title": "Privacy Policy",
-    "updated": "Last updated: 12 October 2026",
+    "updated": "Last updated: 25 October 2026",
     "intro": "Kebabish takes protecting your personal data seriously. This privacy policy explains what data we collect, why, and what rights you have.",
     "sections": [
       {
@@ -624,6 +635,7 @@
           "Name, email address, phone number, delivery address and chosen delivery time when placing an order",
           "Order history and the contents of your order",
           "Account details if you create a customer account (name, email, password stored in encrypted form)",
+          "A customer account we create for you when you pay for an order, with the details of that order (name, email address, phone number) and no password until you choose one yourself",
           "Your delivery address, only if you choose to save it for next time — you can remove it from your account page",
           "Your consent to receive news and offers by email, with the date and where you gave it — it is off by default and you can withdraw it at any time",
           "Communication via WhatsApp, phone or email when you contact us",
@@ -642,7 +654,8 @@
           "Offer a customer account and order history, if you choose to create one",
           "Meet legal obligations, such as our tax record-keeping",
           "Keep our website secure and technically sound",
-          "Read and use feedback to improve our food, delivery and website and — only if you have allowed it — to contact you or show your comment (first name only) on our website"
+          "Read and use feedback to improve our food, delivery and website and — only if you have allowed it — to contact you or show your comment (first name only) on our website",
+          "Creating an account for you when you pay for an order, so you can follow that order and order again later; you confirm the account by choosing a password through the email"
         ]
       },
       {
@@ -682,7 +695,8 @@
         "heading": "Retention period",
         "body": [
           "We do not keep your data longer than necessary for the purpose it was collected for. Order data and invoices we need for our tax records are kept for 7 years, as Dutch tax rules require of us as a business. Other personal data is not kept longer than its purpose requires.",
-          "We keep feedback for as long as it helps us improve Kebabish; we delete yours sooner if you ask us to."
+          "We keep feedback for as long as it helps us improve Kebabish; we delete yours sooner if you ask us to.",
+          "An account we created for you with your order and that you never confirm by choosing a password is deleted after 90 days. The order itself is kept for the periods above."
         ]
       },
       {
