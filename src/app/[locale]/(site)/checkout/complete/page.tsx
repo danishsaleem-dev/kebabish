@@ -16,6 +16,8 @@ import { validPaymentLinkUrl } from "@/lib/payment-link";
 import { auth } from "@/lib/auth";
 import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
 import ClearCartOnPaid from "@/components/cart/ClearCartOnPaid";
+import RememberLastOrder from "@/components/reorder/RememberLastOrder";
+import { getPublicMenu } from "@/lib/public-menu";
 import AutoRefresh from "@/components/cart/AutoRefresh";
 import ReceiptPrintButton from "@/components/cart/ReceiptPrintButton";
 
@@ -80,6 +82,14 @@ export default async function CheckoutCompletePage({
   const refunded = paymentStatus === "refunded";
   const paid = paymentStatus === "paid" || refunded;
   const invoiceNumber = paid ? await getInvoiceNumber(order.reference) : null;
+  // Dish photos for the "order again" card this device will show next time.
+  const images = new Map<string, string | undefined>(
+    paid
+      ? (await getPublicMenu(locale).catch(() => []))
+          .flatMap((c) => c.items)
+          .map((i) => [i.slug, i.image])
+      : []
+  );
   const failed = ["failed", "expired", "canceled"].includes(paymentStatus);
   // Interim payment-link mode: unpaid, and the customer pays on Mollie's page.
   const linkPending = order.paymentMethod === "payment_link" && !paid && !failed;
@@ -120,6 +130,18 @@ export default async function CheckoutCompletePage({
   return (
     <div className="mx-auto flex max-w-2xl flex-col items-center px-5 py-20 text-center sm:px-6 sm:py-28">
       {(paid || order.paymentMethod === "payment_link") && <ClearCartOnPaid />}
+      {paid && token && (
+        <RememberLastOrder
+          reference={order.reference}
+          token={token}
+          totalCents={order.totalCents}
+          items={receiptLines.map((l) => ({
+            name: l.name,
+            quantity: l.quantity,
+            ...(images.get(l.slug) ? { image: images.get(l.slug) } : {}),
+          }))}
+        />
+      )}
       {/* Still waiting on the bank: look again every few seconds. Once paid,
           follow the order through the kitchen at a gentler pace. */}
       {!paid && !failed && <AutoRefresh intervalMs={linkPending ? 10000 : 4000} />}

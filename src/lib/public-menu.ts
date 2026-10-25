@@ -5,6 +5,7 @@ import { buildSeed } from "@/lib/admin/store/seed";
 import { dishImage } from "@/lib/dish-images";
 import { readStockMap, type StockMap } from "@/lib/stock";
 import { stockLevel } from "@/lib/stock-status";
+import { getBestsellerSlugs } from "@/lib/bestsellers";
 import type { StoreShape, StoredOptionGroup } from "@/lib/admin/store/types";
 
 /**
@@ -40,6 +41,21 @@ export interface PublicMenuItem {
   variants: string[];
   vegetarian: boolean;
   spicy: boolean;
+  /**
+   * 0 not spicy, 1 mild, 2 medium, 3 hot. `null` = an older dish marked "spicy" before
+   * levels existed: shown as spicy, without claiming how hot, until a level is picked.
+   */
+  spiceLevel: number | null;
+  /** The owner's "Chef's pick" badge. */
+  chefsPick: boolean;
+  /** Counted from paid orders (lib/bestsellers.ts), never set by hand. */
+  bestseller: boolean;
+  /**
+   * Can go straight into the basket with one tap: priced, orderable, and with no extras
+   * group the customer *has* to choose from (a dish with a required sauce or size needs
+   * its own page). Whether the kitchen is open is the caller's business.
+   */
+  quickAdd: boolean;
   /**
    * Can't be ordered right now: marked sold out by hand, **or its stock quantity has run out**
    * (see lib/stock.ts). Either way the dish stays on the menu and offers the "request it" form.
@@ -109,10 +125,21 @@ async function read(): Promise<StoreShape> {
   }
 }
 
-/** The menu plus the stock quantities (null when stock tracking isn't set up — nothing is then limited). */
-async function readWithStock(): Promise<{ data: StoreShape; stock: StockMap | null }> {
-  const [data, stock] = await Promise.all([read(), readStockMap()]);
-  return { data, stock };
+/**
+ * The menu plus the stock quantities (null when stock tracking isn't set up — nothing is
+ * then limited) and the dishes currently earning the "Bestseller" badge.
+ */
+async function readWithStock(): Promise<{
+  data: StoreShape;
+  stock: StockMap | null;
+  bestsellers: Set<string>;
+}> {
+  const [data, stock, bestsellers] = await Promise.all([
+    read(),
+    readStockMap(),
+    getBestsellerSlugs(),
+  ]);
+  return { data, stock, bestsellers };
 }
 
 /**
@@ -149,11 +176,16 @@ function toPublicItem(
   groups: StoredOptionGroup[],
   data: StoreShape,
   locale: string,
-  stock: StockMap | null = null
+  stock: StockMap | null = null,
+  bestsellers: ReadonlySet<string> = new Set()
 ): PublicMenuItem {
   const media = data.media ?? [];
   const level = stockLevel(stock?.get(item.slug));
   const soldOut = item.soldOut || level === "out";
+  const price = isSellablePrice(item.price) ? item.price : null;
+  const optionGroups = (item.optionGroupIds ?? [])
+    .map((id) => groups.find((g) => g.id === id))
+    .filter((g): g is StoredOptionGroup => Boolean(g));
   // An uploaded photo wins; otherwise the stock placeholder keyed by slug.
   const uploaded = (item.imageIds ?? []).flatMap((id) => {
     const url = media.find((m) => m.id === id)?.url;
@@ -167,10 +199,14 @@ function toPublicItem(
     portion: item.portion?.trim() ?? "",
     featured: Boolean(item.featured),
     // A placeholder price must never look (or be) purchasable.
-    price: isSellablePrice(item.price) ? item.price : null,
+    price,
     variants: item.variants ?? [],
     vegetarian: item.vegetarian,
-    spicy: item.spicy,
+    spicy: item.spiceLevel !== undefined ? item.spiceLevel > 0 : item.spicy,
+    spiceLevel: item.spiceLevel ?? (item.spicy ? null : 0),
+    chefsPick: Boolean(item.chefsPick),
+    bestseller: bestsellers.has(item.slug),
+    quickAdd: price != null && !soldOut && !optionGroups.some((g) => g.minChoices > 0),
     soldOut,
     lowStock: !soldOut && level === "low",
     image: uploaded[0] ?? fallback,
@@ -179,10 +215,7 @@ function toPublicItem(
     descriptionTranslated: locale !== "en" || Boolean(item.descriptionEn?.trim()),
     videoUrl: item.videoUrl ?? "",
     allergens: allergensFor(item, data),
-    optionGroups: (item.optionGroupIds ?? [])
-      .map((id) => groups.find((g) => g.id === id))
-      .filter((g): g is StoredOptionGroup => Boolean(g))
-      .map((g) => ({
+    optionGroups: optionGroups.map((g) => ({
         id: g.id,
         label: pick(locale, g.label, g.labelEn),
         minChoices: g.minChoices,
@@ -197,7 +230,7 @@ function toPublicItem(
 }
 
 export async function getPublicMenu(locale = "nl"): Promise<PublicMenuCategory[]> {
-  const { data, stock } = await readWithStock();
+  const { data, stock, bestsellers } = await readWithStock();
 
   return [...data.categories]
     .filter((c) => c.visible)
@@ -209,7 +242,9 @@ export async function getPublicMenu(locale = "nl"): Promise<PublicMenuCategory[]
       description: category.description,
       items: data.items
         .filter((i) => i.categoryId === category.id && i.visible)
-        .map((i) => toPublicItem(i, data.optionGroups ?? [], data, locale, stock)),
+        .map((i) =>
+          toPublicItem(i, data.optionGroups ?? [], data, locale, stock, bestsellers)
+        ),
     }))
     .filter((c) => c.items.length > 0);
 }
@@ -219,7 +254,7 @@ export async function getPublicItem(slug: string, locale = "nl"): Promise<{
   /** `translated` is false on /en when only the Dutch name exists. */
   category: { id: string; label: string; translated: boolean };
 } | null> {
-  const { data, stock } = await readWithStock();
+  const { data, stock, bestsellers } = await readWithStock();
   const item = data.items.find((i) => i.slug === slug);
   if (!item || !item.visible) return null;
 
@@ -227,7 +262,7 @@ export async function getPublicItem(slug: string, locale = "nl"): Promise<{
   if (!category?.visible) return null;
 
   return {
-    item: toPublicItem(item, data.optionGroups ?? [], data, locale, stock),
+    item: toPublicItem(item, data.optionGroups ?? [], data, locale, stock, bestsellers),
     category: {
       id: category.id,
       label: pick(locale, category.label, category.labelEn),

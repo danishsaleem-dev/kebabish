@@ -106,13 +106,23 @@ function sanitizeLines(raw: unknown): CartLine[] {
     }
 
     const quantity = finite(l.quantity) ? Math.min(50, Math.max(1, Math.round(l.quantity))) : 1;
+    const instructions = typeof l.instructions === "string" ? l.instructions : "";
+    // The id is worked out again from the line itself rather than trusted: an older
+    // version of the site wrote ids in another format, and such a line would never
+    // stack with the same dish added today (it showed as two separate lines).
+    const id = lineId({ slug: l.slug, options, instructions } as NewCartLine);
+    const same = out.find((line) => line.id === id);
+    if (same) {
+      same.quantity = Math.min(50, same.quantity + quantity);
+      continue;
+    }
     out.push({
-      id: l.id,
+      id,
       slug: l.slug,
       name: l.name,
       unitPrice: l.unitPrice,
       options,
-      instructions: typeof l.instructions === "string" ? l.instructions : "",
+      instructions,
       quantity,
       ...(typeof l.image === "string" ? { image: l.image } : {}),
     });

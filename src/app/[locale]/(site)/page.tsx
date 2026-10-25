@@ -14,6 +14,11 @@ import Popular from "@/components/home/Popular";
 import Why from "@/components/home/Why";
 import DeliveryArea from "@/components/home/DeliveryArea";
 import FinalCta from "@/components/home/FinalCta";
+import HowItWorks from "@/components/home/HowItWorks";
+import TrustStrip from "@/components/home/TrustStrip";
+import Pick from "@/components/home/Pick";
+import Founder from "@/components/home/Founder";
+import CateringTeaser from "@/components/home/CateringTeaser";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
 import { getPublicSettings } from "@/lib/admin/store";
 import { pageMetadata } from "@/lib/seo";
@@ -65,12 +70,17 @@ export default async function HomePage({
       />
     ),
     marquee: <Marquee items={marqueeItems} />,
+    how: <HowItWorks locale={locale} settings={settings} />,
+    trust: <TrustStrip locale={locale} />,
     story: <Story locale={locale} />,
     categories: <Categories locale={locale} />,
     popular: <Popular locale={locale} isOpen={isOpen} />,
+    pick: <Pick locale={locale} isOpen={isOpen} />,
     why: <Why locale={locale} />,
     showcase: <Showcase locale={locale} />,
     testimonials: <Testimonials locale={locale} />,
+    founder: <Founder locale={locale} />,
+    catering: <CateringTeaser locale={locale} />,
     delivery: <DeliveryArea locale={locale} />,
     faq: <Faq locale={locale} />,
     cta: <FinalCta locale={locale} isOpen={isOpen} />,

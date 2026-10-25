@@ -97,6 +97,10 @@
         "a": "Bij elk gerecht staat welke van de 14 wettelijk verplichte allergenen erin kunnen voorkomen. Twijfel je, of heb je een ernstige allergie? Neem dan contact met ons op vóór je bestelt, dan kijken we er samen naar."
       },
       {
+        "q": "Is jullie eten halal?",
+        "a": "Ja. Al ons eten is 100% halal."
+      },
+      {
         "q": "Kan ik mijn bestelling nog annuleren of wijzigen?",
         "a": "Neem dan zo snel mogelijk contact met ons op via WhatsApp of telefoon. Zodra we met de bereiding zijn begonnen, kunnen we een bestelling helaas niet meer annuleren — het gaat om vers bereid eten."
       },
@@ -108,7 +112,60 @@
         "q": "Verzorgen jullie ook grotere bestellingen of catering?",
         "a": "Ja. Voor feesten, bedrijfsborrels en familiebijeenkomsten maken we graag iets op maat. Neem contact met ons op via WhatsApp of bekijk onze cateringpagina."
       }
-    ]
+    ],
+    "howEyebrow": "Zo werkt het",
+    "howTitle": "Van trek tot aan je deur in vier stappen",
+    "howText": "Bestellen kost je een minuut. Daarna doen wij de rest.",
+    "how1Title": "Kies je gerechten",
+    "how1Text": "Blader door het menu en voeg toe met één tik. Extra’s en sauzen kies je er meteen bij.",
+    "how2Title": "Kies je bezorgmoment",
+    "how2Text": "Prik zelf een tijdvak — vandaag of een paar dagen vooruit. Elk tijdvak heeft beperkt plek, dus jouw tijd klopt ook echt.",
+    "how3Title": "Betaal veilig online",
+    "how3Text": "Met iDEAL, creditcard, Apple Pay, Google Pay of Klarna, via onze betaalpartner Mollie.",
+    "how4Title": "Vers aan je deur",
+    "how4Text": "Wij koken alles vers en bezorgen het binnen 10 km van Hoogkarspel bij je thuis.",
+    "howCta": "Bekijk het menu",
+    "payCard": "Creditcard",
+    "paySecure": "Veilig betalen via Mollie",
+    "trustLabel": "Betalen en zekerheid",
+    "trustHalal": "100% halal",
+    "trustAllergens": "Allergenen bij elk gerecht",
+    "trustFresh": "Elke dag vers bereid",
+    "pickEyebrow": "Hulp bij kiezen",
+    "pickTitle": "Waar heb je zin in?",
+    "pickText": "Kies een stemming en wij zetten de gerechten klaar die erbij passen.",
+    "pickFirst": "Eerste keer hier",
+    "pickVeg": "Vegetarisch",
+    "pickMild": "Mild",
+    "pickSpicy": "Lekker pittig",
+    "pickAll": "Alles",
+    "pickEmpty": "Hier staan nu nog geen gerechten bij — kijk gerust in het hele menu.",
+    "pickPrevious": "Vorige gerechten",
+    "pickNext": "Volgende gerechten",
+    "spiceTitle": "Hoe pittig is pittig?",
+    "spiceText": "Bij elk gerecht zie je met pepertjes hoe pittig het is. Tik op een niveau om die gerechten te zien.",
+    "spiceMildText": "Vol van smaak, nauwelijks pit.",
+    "spiceMediumText": "Merkbare warmte, goed te doen.",
+    "spiceHotText": "Voor echte liefhebbers van pit.",
+    "why5Title": "100% halal",
+    "why5Text": "Al ons eten is 100% halal, zodat iedereen met een gerust hart kan aanschuiven.",
+    "reviewsBasedOn": "{count, plural, one {op basis van # review} other {op basis van # reviews}}",
+    "reviewsMore": "Lees verder",
+    "reviewsLess": "Minder tonen",
+    "reviewsPrevious": "Vorige review",
+    "reviewsNext": "Volgende review",
+    "founderEyebrow": "Van de familie",
+    "founderTitle": "Een woord van ons",
+    "founderText1": "We zijn Kebabish begonnen met één simpel doel: de echte smaken van Pakistan naar West-Friesland brengen. Geen shortcuts en geen kant-en-klare sauzen — alleen verse ingrediënten en traditionele kruiden.",
+    "founderText2": "Alles wat je bij ons bestelt, maken we dezelfde dag vers, precies zoals het bij ons thuis op tafel zou komen. Dank je wel dat je bij ons bestelt.",
+    "founderSign": "De familie Kebabish",
+    "founderPhotoAlt": "De familie achter Kebabish",
+    "cateringEyebrow": "Catering & grote bestellingen",
+    "cateringTitle": "Iets te vieren? Wij koken voor de hele groep",
+    "cateringText": "Van verjaardagen tot bedrijfsborrels: wij verzorgen verse, authentieke Pakistaanse gerechten voor grotere groepen, afgestemd op jouw gelegenheid.",
+    "cateringCta": "Bekijk catering",
+    "cateringBadge": "Op maat voor jouw groep",
+    "deliveryAreasLink": "Bekijk alle bezorgplaatsen"
   },
   "about": {
     "title": "Over Kebabish",
@@ -185,7 +242,15 @@
     "hideSoldOut": "Verberg uitverkocht",
     "resultCount": "{count, plural, =0 {Geen gerechten} one {# gerecht} other {# gerechten}}",
     "noResults": "Geen gerechten gevonden met deze filters.",
-    "clearFilters": "Filters wissen"
+    "clearFilters": "Filters wissen",
+    "spiceMild": "Mild",
+    "spiceMedium": "Medium",
+    "spiceHot": "Heet",
+    "spiceScale": "Pittigheid",
+    "chefsPick": "Tip van de chef",
+    "bestseller": "Bestseller",
+    "quickAddAria": "{name} toevoegen aan je mandje",
+    "quickAdded": "Toegevoegd"
   },
   "contact": {
     "title": "Contact & Bezorggebied",
@@ -901,7 +966,11 @@
       "invalidPostcode": "We kunnen die postcode niet vinden. Controleer hem even.",
       "busy": "Er zijn even te veel aanvragen. Probeer het over een minuutje opnieuw.",
       "failed": "Er ging iets mis. Probeer het opnieuw."
-    }
+    },
+    "statusYes": "We bezorgen in {town}",
+    "statusKm": "± {km} km van onze keuken",
+    "statusChange": "Wijzig",
+    "statusCheck": "Check je adres"
   },
   "stockRequest": {
     "soldOutButton": "Nu niet beschikbaar — vraag het aan",
@@ -932,5 +1001,26 @@
       "tooMany": "Je hebt al een paar aanvragen gestuurd — probeer het later opnieuw, of stuur ons een bericht via WhatsApp.",
       "saveFailed": "We konden je aanvraag nu niet versturen. Probeer het opnieuw, of stuur ons een bericht via WhatsApp."
     }
+  },
+  "reorder": {
+    "eyebrow": "Welkom terug",
+    "title": "Nog een keer hetzelfde?",
+    "lastOrder": "Vorige bestelling: {date}",
+    "cta": "Bestel opnieuw",
+    "loading": "Even in je mandje zetten…",
+    "added": "In je mandje — controleer en reken af.",
+    "skipped": "Niet meer beschikbaar: {names}",
+    "noneAvailable": "Deze gerechten zijn nu niet beschikbaar. Kies gerust iets anders van het menu.",
+    "error": "Dat lukte niet. Probeer het nog eens.",
+    "more": "+{count} meer"
+  },
+  "dock": {
+    "label": "Snel bestellen",
+    "home": "Home",
+    "menu": "Menu",
+    "order": "Bestel",
+    "basketAria": "{count, plural, one {Mandje: # item, {total}} other {Mandje: # items, {total}}}",
+    "deliver": "Bezorgen",
+    "account": "Account"
   }
 }

@@ -215,6 +215,8 @@ const itemSchema = z.object({
     ),
   vegetarian: z.boolean(),
   spicy: z.boolean(),
+  spiceLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
+  chefsPick: z.boolean(),
   soldOut: z.boolean(),
   visible: z.boolean(),
   imageIds: z.array(z.string()),
@@ -227,8 +229,23 @@ const itemSchema = z.object({
   pairsWith: z.array(z.string()).max(PAIRS_LIMIT, `Pick at most ${PAIRS_LIMIT} dishes.`),
 });
 
+/**
+ * The "Spice level" select: "0"–"3", or "legacy" for an older dish that was only ever
+ * marked "spicy" and has no level yet — kept exactly as it was until one is picked, so
+ * saving some other field never invents a heat level for it.
+ */
+function readSpice(formData: FormData): { spicy: boolean; spiceLevel?: 0 | 1 | 2 | 3 } {
+  const raw = String(formData.get("spiceLevel") ?? "0");
+  if (raw === "legacy") return { spicy: true, spiceLevel: undefined };
+  const level = Number(raw);
+  const safe = level === 1 || level === 2 || level === 3 ? level : 0;
+  return { spicy: safe > 0, spiceLevel: safe };
+}
+
 function readItemForm(formData: FormData) {
   return itemSchema.safeParse({
+    ...readSpice(formData),
+    chefsPick: formData.get("chefsPick") === "on",
     name: formData.get("name"),
     nameEn: formData.get("nameEn") ?? "",
     portion: formData.get("portion") ?? "",
@@ -240,7 +257,6 @@ function readItemForm(formData: FormData) {
     description: formData.get("description") ?? "",
     videoUrl: formData.get("videoUrl") ?? "",
     vegetarian: formData.get("vegetarian") === "on",
-    spicy: formData.get("spicy") === "on",
     soldOut: formData.get("soldOut") === "on",
     visible: formData.get("visible") === "on",
     imageIds: formData.getAll("imageIds").map(String).filter(Boolean),

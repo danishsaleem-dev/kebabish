@@ -104,7 +104,9 @@ export default function PromoWidget({
   return (
     <div
       className={`print:hidden fixed right-5 z-40 animate-[media-fade-in_0.4s_ease-out_both] motion-reduce:animate-none md:right-7 ${
-        lifted ? "bottom-[5.5rem] md:bottom-[6.75rem]" : "bottom-5 md:bottom-7"
+        lifted
+          ? "bottom-[calc(var(--dock,0px)+5.5rem)] md:bottom-[6.75rem]"
+          : "bottom-[calc(var(--dock,0px)+1.25rem)] md:bottom-7"
       }`}
     >
       <button

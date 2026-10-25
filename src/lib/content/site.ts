@@ -50,6 +50,8 @@ export interface SiteMedia {
   story: VideoMedia;
   aboutBanner: VideoMedia;
   storyDetail: { image: string };
+  /** The family-note photo, or null until the owner picks one (nothing ships for it). */
+  founder: { image: string | null };
 }
 
 /** Bundled files are checked on disk so a missing one never ships a `<video>` that 404s. */
@@ -96,6 +98,7 @@ export async function getSiteMedia(): Promise<SiteMedia> {
 
   const detail = stored(shared, "storyDetail");
   const detailFallback = SLOT_BY_ID.get("storyDetail")!.fallback.image!;
+  const founder = stored(shared, "founder");
 
   return {
     heroWeb,
@@ -104,6 +107,9 @@ export async function getSiteMedia(): Promise<SiteMedia> {
     aboutBanner,
     storyDetail: {
       image: typeof detail.image === "string" && detail.image ? detail.image : detailFallback,
+    },
+    founder: {
+      image: typeof founder.image === "string" && founder.image ? founder.image : null,
     },
   };
 }

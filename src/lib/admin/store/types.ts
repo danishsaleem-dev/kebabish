@@ -57,7 +57,16 @@ export interface StoredItem {
   price: number | null;
   variants: string[];
   vegetarian: boolean;
+  /**
+   * Kept in step with `spiceLevel` (true when it is 1–3), so the menu's "spicy" filter and
+   * anything else that only needs yes/no keeps working. Older dishes were saved with this
+   * alone and no level: they show as "spicy" without a level until one is picked.
+   */
   spicy: boolean;
+  /** 0 = not spicy, 1 = mild, 2 = medium, 3 = hot. Absent on older data (see `spicy`). */
+  spiceLevel?: SpiceLevel;
+  /** The owner's "Chef's pick" badge. ("Bestseller" is never set by hand — it is counted from orders.) */
+  chefsPick?: boolean;
   soldOut: boolean;
   /**
    * Shown on the public menu at all. Separate from `soldOut` — a sold-out
@@ -100,6 +109,8 @@ export interface StoredItem {
    */
   pairsWith?: string[];
 }
+
+export type SpiceLevel = 0 | 1 | 2 | 3;
 
 /** How many "often bought with" dishes can be picked for one dish. */
 export const PAIRS_LIMIT = 4;

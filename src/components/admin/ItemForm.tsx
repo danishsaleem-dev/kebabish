@@ -308,8 +308,33 @@ export default function ItemForm({
             </Field>
 
             <Field
+              label="Spice level"
+              hint="Shown on the dish as chillies, and used by the spice guide on the homepage."
+            >
+              <Select
+                name="spiceLevel"
+                form="item-form"
+                defaultValue={
+                  item?.spiceLevel !== undefined
+                    ? String(item.spiceLevel)
+                    : item?.spicy
+                      ? "legacy"
+                      : "0"
+                }
+              >
+                <option value="0">Not spicy</option>
+                <option value="1">Mild — one chilli</option>
+                <option value="2">Medium — two chillies</option>
+                <option value="3">Hot — three chillies</option>
+                {item?.spicy && item.spiceLevel === undefined && (
+                  <option value="legacy">Spicy — pick a level</option>
+                )}
+              </Select>
+            </Field>
+
+            <Field
               label="Tags"
-              hint="Comma separated — your own labels, e.g. Chef's pick, Spicy favourite."
+              hint="Comma separated — your own labels, admin-side only. (Chef's pick is a tick under Status.)"
             >
               <Input
                 name="tags"
@@ -402,11 +427,14 @@ export default function ItemForm({
               defaultChecked={item?.vegetarian}
             />
             <Checkbox
-              name="spicy"
+              name="chefsPick"
               form="item-form"
-              label="Spicy"
-              defaultChecked={item?.spicy}
+              label="Chef's pick badge"
+              defaultChecked={item?.chefsPick}
             />
+            <p className="-mt-1 pl-6 text-xs text-muted">
+              The “Bestseller” badge is never set by hand: it goes on the dishes ordered most in the last 30 days.
+            </p>
             <Checkbox
               name="soldOut"
               form="item-form"

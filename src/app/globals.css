@@ -286,6 +286,164 @@
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * Homepage motion added with the Oct 2026 design pass. Every one of these is a
+ * gentle loop or a one-shot entrance, and all of them stop under reduced motion
+ * (the block at the end of this section).
+ * ------------------------------------------------------------------------- */
+
+/* One-tap add: the icon pops when a dish goes in. */
+@keyframes quick-pop {
+  0% { transform: scale(0.5); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* A card arriving in a filtered row ("Help me choose"). */
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+/* A review's stars lighting up one by one as its card comes forward. */
+@keyframes star-pop {
+  0% { transform: scale(0.4); opacity: 0.2; }
+  70% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* The active dot's fill, timed to the review deck's autoplay. */
+@keyframes progress-x {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+/* The mobile order bar's count when the basket changes. */
+@keyframes dock-bump {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+/* How it works — the thread between the steps draws as the section scrolls by.
+   Browsers without scroll-driven animations simply show it drawn. */
+@keyframes draw-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes draw-y { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .how-line-x {
+      animation: draw-x linear both;
+      animation-timeline: view();
+      animation-range: entry 30% cover 55%;
+    }
+    .how-line-y {
+      animation: draw-y linear both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 65%;
+    }
+  }
+}
+
+/* How it works, step 1: the "+" taps itself into a tick, and the basket badge pops. */
+@keyframes how-tap-out {
+  0%, 35% { opacity: 1; transform: scale(1); }
+  45%, 90% { opacity: 0; transform: scale(0.4); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes how-tap-in {
+  0%, 35% { opacity: 0; transform: scale(0.4); }
+  45%, 90% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.4); }
+}
+@keyframes how-badge {
+  0%, 38% { opacity: 0; transform: translateY(6px) scale(0.6); }
+  48%, 88% { opacity: 1; transform: none; }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.9); }
+}
+.how-tap-out { animation: how-tap-out 4s var(--ease-brand) infinite; }
+.how-tap-in { animation: how-tap-in 4s var(--ease-brand) infinite; }
+.how-tap-badge { animation: how-badge 4s var(--ease-brand) infinite; }
+
+/* How it works, step 2: the chosen time window hops from slot to slot. */
+@keyframes how-slot {
+  0%, 14% {
+    background-color: var(--color-ember-600);
+    border-color: var(--color-ember-500);
+    color: var(--color-cream-50);
+    box-shadow: 0 0 22px rgba(201, 113, 62, 0.45);
+  }
+  20%, 100% {
+    background-color: rgba(250, 247, 238, 0.04);
+    border-color: rgba(244, 239, 224, 0.12);
+    color: rgba(244, 239, 224, 0.8);
+    box-shadow: none;
+  }
+}
+.how-slot { animation: how-slot 6.6s ease-in-out infinite; }
+
+/* How it works, step 3: a light sweep across the payment card. */
+@keyframes how-shimmer {
+  0%, 55% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+.how-shimmer {
+  background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, 0.08) 50%, transparent 70%);
+  animation: how-shimmer 5s ease-in-out infinite;
+}
+
+/* Why Kebabish: steam rising off "freshly made". */
+@keyframes why-steam {
+  0% { transform: translateY(6px) scaleY(0.6); opacity: 0; }
+  40% { opacity: 1; }
+  100% { transform: translateY(-10px) scaleY(1.1); opacity: 0; }
+}
+.why-steam { animation: why-steam 2.4s ease-out infinite; }
+
+/* Catering: the plates drift, each on its own beat. */
+@keyframes catering-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(1.5deg); }
+}
+.catering-float { animation: catering-float 7s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .how-tap-out,
+  .how-tap-in,
+  .how-tap-badge,
+  .how-slot,
+  .how-shimmer,
+  .why-steam,
+  .catering-float {
+    animation: none !important;
+  }
+  /* Resting states that still make sense without the loop. */
+  .how-tap-in,
+  .how-shimmer,
+  .why-steam {
+    opacity: 0;
+  }
+  .how-tap-badge {
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * The mobile order bar (MobileDock.tsx). While it is showing, `--dock` holds its
+ * height, the page gets that much room at the bottom so the footer isn't hidden
+ * under it, and every floating corner element sits above it.
+ * ------------------------------------------------------------------------- */
+:root {
+  --dock: 0px;
+}
+@media (max-width: 767.98px) {
+  html[data-dock] {
+    --dock: calc(4.5rem + env(safe-area-inset-bottom));
+  }
+  html[data-dock] body {
+    padding-bottom: var(--dock);
+  }
+}
+
 /* Toast entrance — slides up from the bottom edge it appears at. */
 .toast-in {
   animation: toast-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;

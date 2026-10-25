@@ -16,6 +16,8 @@ import ItemOrderPanel from "@/components/menu/ItemOrderPanel";
 import ItemGallery from "@/components/menu/ItemGallery";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
+import DishBadges from "@/components/menu/DishBadges";
+import SpiceMeter from "@/components/menu/SpiceMeter";
 
 export async function generateStaticParams() {
   const slugs = await getPublicItemSlugs();
@@ -284,9 +286,12 @@ function ItemHeading({
 }) {
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ember-600">
-        {category}
-      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ember-600">
+          {category}
+        </p>
+        <DishBadges chefsPick={item.chefsPick} bestseller={item.bestseller} />
+      </div>
       <h1 className="mt-2 text-balance font-display text-3xl font-semibold leading-tight text-charcoal-600 sm:text-4xl">
         {item.name}
       </h1>
@@ -311,8 +316,8 @@ function ItemHeading({
         )}
         {item.spicy && (
           <Tag>
-            <Flame size={13} aria-hidden="true" />
-            {spicyLabel}
+            <SpiceMeter level={item.spiceLevel} size="sm" />
+            <span className="sr-only">{spicyLabel}</span>
           </Tag>
         )}
         {item.soldOut && <Tag muted>{soldOutLabel}</Tag>}

@@ -97,6 +97,10 @@
         "a": "Every dish lists which of the 14 legally declarable allergens it may contain. If you are unsure, or your allergy is severe, contact us before you order and we will go through it with you."
       },
       {
+        "q": "Is your food halal?",
+        "a": "Yes. All our food is 100% halal."
+      },
+      {
         "q": "Can I still cancel or change my order?",
         "a": "Contact us as soon as possible over WhatsApp or by phone. Once we have started cooking we can no longer cancel an order — it is freshly prepared food."
       },
@@ -108,7 +112,60 @@
         "q": "Do you handle larger orders or catering?",
         "a": "Yes. For parties, company drinks and family gatherings we are happy to put something together. Get in touch over WhatsApp or take a look at our catering page."
       }
-    ]
+    ],
+    "howEyebrow": "How it works",
+    "howTitle": "From craving to your door in four steps",
+    "howText": "Ordering takes a minute. We take it from there.",
+    "how1Title": "Pick your dishes",
+    "how1Text": "Browse the menu and add with a single tap. Choose extras and sauces as you go.",
+    "how2Title": "Choose your delivery time",
+    "how2Text": "Pick a delivery window yourself — today or a few days ahead. Each window has limited room, so your time really holds.",
+    "how3Title": "Pay securely online",
+    "how3Text": "With iDEAL, card, Apple Pay, Google Pay or Klarna, through our payment partner Mollie.",
+    "how4Title": "Fresh at your door",
+    "how4Text": "We cook everything fresh and bring it to your door within 10 km of Hoogkarspel.",
+    "howCta": "View the menu",
+    "payCard": "Card",
+    "paySecure": "Secure payment via Mollie",
+    "trustLabel": "Payment and reassurance",
+    "trustHalal": "100% halal",
+    "trustAllergens": "Allergens on every dish",
+    "trustFresh": "Freshly made every day",
+    "pickEyebrow": "Help me choose",
+    "pickTitle": "What are you in the mood for?",
+    "pickText": "Pick a mood and we’ll line up the dishes that fit.",
+    "pickFirst": "First time here",
+    "pickVeg": "Vegetarian",
+    "pickMild": "Mild",
+    "pickSpicy": "Nice and spicy",
+    "pickAll": "Everything",
+    "pickEmpty": "Nothing here just yet — have a look through the full menu.",
+    "pickPrevious": "Previous dishes",
+    "pickNext": "Next dishes",
+    "spiceTitle": "How hot is hot?",
+    "spiceText": "Every dish shows its heat in chillies. Tap a level to see those dishes.",
+    "spiceMildText": "Full of flavour, barely any heat.",
+    "spiceMediumText": "A noticeable warmth, easy going.",
+    "spiceHotText": "For true lovers of heat.",
+    "why5Title": "100% halal",
+    "why5Text": "All our food is 100% halal, so everyone can tuck in with peace of mind.",
+    "reviewsBasedOn": "{count, plural, one {from # review} other {from # reviews}}",
+    "reviewsMore": "Read more",
+    "reviewsLess": "Show less",
+    "reviewsPrevious": "Previous review",
+    "reviewsNext": "Next review",
+    "founderEyebrow": "From the family",
+    "founderTitle": "A word from us",
+    "founderText1": "We started Kebabish with one simple goal: bringing the real flavours of Pakistan to West Friesland. No shortcuts and no ready-made sauces — just fresh ingredients and traditional spices.",
+    "founderText2": "Everything you order from us is cooked fresh the same day, exactly how it would land on our own table at home. Thank you for ordering with us.",
+    "founderSign": "The Kebabish family",
+    "founderPhotoAlt": "The family behind Kebabish",
+    "cateringEyebrow": "Catering & large orders",
+    "cateringTitle": "Something to celebrate? We cook for the whole group",
+    "cateringText": "From birthdays to company drinks: we prepare fresh, authentic Pakistani food for larger groups, tailored to your occasion.",
+    "cateringCta": "Explore catering",
+    "cateringBadge": "Tailored to your group",
+    "deliveryAreasLink": "See every town we deliver to"
   },
   "about": {
     "title": "About Kebabish",
@@ -185,7 +242,15 @@
     "hideSoldOut": "Hide sold out",
     "resultCount": "{count, plural, =0 {No dishes} one {# dish} other {# dishes}}",
     "noResults": "No dishes match those filters.",
-    "clearFilters": "Clear filters"
+    "clearFilters": "Clear filters",
+    "spiceMild": "Mild",
+    "spiceMedium": "Medium",
+    "spiceHot": "Hot",
+    "spiceScale": "Spice level",
+    "chefsPick": "Chef’s pick",
+    "bestseller": "Bestseller",
+    "quickAddAria": "Add {name} to your basket",
+    "quickAdded": "Added"
   },
   "contact": {
     "title": "Contact & Delivery Area",
@@ -901,7 +966,11 @@
       "invalidPostcode": "We couldn't find that postcode. Please check it.",
       "busy": "Too many requests for a moment. Please try again in a minute.",
       "failed": "Something went wrong. Please try again."
-    }
+    },
+    "statusYes": "We deliver to {town}",
+    "statusKm": "about {km} km from our kitchen",
+    "statusChange": "Change",
+    "statusCheck": "Check your address"
   },
   "stockRequest": {
     "soldOutButton": "Not available right now — request it",
@@ -932,5 +1001,26 @@
       "tooMany": "You've sent a few requests already — please try again later, or message us on WhatsApp.",
       "saveFailed": "We couldn't send your request right now. Please try again, or message us on WhatsApp."
     }
+  },
+  "reorder": {
+    "eyebrow": "Welcome back",
+    "title": "The same again?",
+    "lastOrder": "Last order: {date}",
+    "cta": "Order again",
+    "loading": "Adding to your basket…",
+    "added": "In your basket — check it and pay.",
+    "skipped": "No longer available: {names}",
+    "noneAvailable": "These dishes aren’t available right now. Pick something else from the menu.",
+    "error": "That didn’t work. Please try again.",
+    "more": "+{count} more"
+  },
+  "dock": {
+    "label": "Quick ordering",
+    "home": "Home",
+    "menu": "Menu",
+    "order": "Order",
+    "basketAria": "{count, plural, one {Basket: # item, {total}} other {Basket: # items, {total}}}",
+    "deliver": "Deliver to",
+    "account": "Account"
   }
 }

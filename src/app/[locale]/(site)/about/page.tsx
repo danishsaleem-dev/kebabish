@@ -3,7 +3,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Flame, Leaf, Clock, Smartphone, UtensilsCrossed } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { siteConfig } from "@/lib/site-config";
-import { menu } from "@/lib/menu-data";
+import { getPublicCategories } from "@/lib/public-menu";
 import { pageMetadata } from "@/lib/seo";
 import PageSchema from "@/components/schema/PageSchema";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
@@ -54,7 +54,7 @@ export default async function AboutPage({
   const stats = [
     { value: `${siteConfig.deliveryRadiusKm} km`, label: t("statsLabel1") },
     { value: "100%", label: t("statsLabel2") },
-    { value: String(menu.length), label: t("statsLabel3") },
+    { value: String((await getPublicCategories(locale)).length), label: t("statsLabel3") },
   ];
 
   const values = [

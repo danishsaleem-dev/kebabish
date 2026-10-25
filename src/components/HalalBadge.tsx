@@ -19,7 +19,7 @@ export default function HalalBadge() {
   const t = useTranslations("common");
 
   return (
-    <div className="pointer-events-none fixed bottom-3 left-3 z-40 select-none print:hidden sm:bottom-5 sm:left-5">
+    <div className="pointer-events-none fixed bottom-[calc(var(--dock,0px)+0.75rem)] left-3 z-40 select-none print:hidden sm:bottom-[calc(var(--dock,0px)+1.25rem)] sm:left-5">
       <Image
         src="/halal.png"
         alt={t("halalBadge")}

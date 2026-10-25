@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import MobileDock from "@/components/MobileDock";
+import ReorderFromUrl from "@/components/reorder/ReorderFromUrl";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
@@ -52,10 +54,16 @@ export default async function SiteLayout({
         showReviews={reviews.length > 0}
       />
       <WhatsAppButton isOpen={status.isOpen} />
+      <MobileDock />
       <CartDrawer />
       <LocationDialog />
       <PromoPopup promos={promos} />
       <PromoWidget promos={promos} lifted={status.isOpen} />
+      {/* Reads the URL, so it needs its own Suspense boundary or every
+          statically generated page would fall back to client rendering. */}
+      <Suspense fallback={null}>
+        <ReorderFromUrl />
+      </Suspense>
     </CartProvider>
     </LocationProvider>
   );

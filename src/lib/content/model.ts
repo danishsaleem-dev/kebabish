@@ -300,15 +300,20 @@ export interface HomeSectionDef {
 export const HOME_SECTIONS: HomeSectionDef[] = [
   { id: "hero", label: "Top banner", hint: "The video banner. Always first.", band: "dark", pinned: true },
   { id: "marquee", label: "Scrolling strip", hint: "The orange strip of short phrases.", band: "ember" },
+  { id: "how", label: "How it works", hint: "Four steps from choosing to delivery, on a dark band.", band: "dark" },
+  { id: "trust", label: "Payment & trust strip", hint: "A slim row: payment methods, halal, allergens.", band: "plain" },
   { id: "story", label: "Our story", hint: "Video and text about the kitchen.", band: "plain" },
   { id: "categories", label: "Menu categories", hint: "The grid of category cards.", band: "plain" },
   { id: "popular", label: "Popular dishes", hint: "The featured dishes.", band: "cream" },
-  { id: "why", label: "Why Kebabish", hint: "Four reasons, on a dark band.", band: "dark" },
+  { id: "pick", label: "Help me choose + spice guide", hint: "Mood filters, the chilli scale, and “order again” for returning customers.", band: "plain" },
+  { id: "why", label: "Why Kebabish", hint: "Five reasons in a tile grid, the halal one large.", band: "cream" },
   { id: "showcase", label: "Photo gallery", hint: "Kitchen photos. Shows once photos are picked in Settings.", band: "plain", needs: "photos" },
   { id: "testimonials", label: "Customer quotes", hint: "Quotes on a dark band. Shows once reviews are added.", band: "dark", needs: "reviews" },
+  { id: "founder", label: "A word from us", hint: "The family's note, with a photo once you pick one.", band: "plain" },
+  { id: "catering", label: "Catering teaser", hint: "Parties and large orders, on a dark band.", band: "dark" },
   { id: "delivery", label: "Delivery area", hint: "The map and towns.", band: "plain" },
   { id: "faq", label: "Questions & answers", hint: "The FAQ accordion.", band: "cream" },
-  { id: "cta", label: "Closing call to action", hint: "The orange band above the footer.", band: "ember" },
+  { id: "cta", label: "Closing call to action", hint: "The slim orange band above the feedback card.", band: "ember" },
   { id: "feedback", label: "Feedback invitation", hint: "The card with the QR code.", band: "plain" },
 ];
 
@@ -390,7 +395,7 @@ function bandName(band: Band): string {
 // Media slots
 // ---------------------------------------------------------------------------
 
-export type SlotId = "heroWeb" | "heroMobile" | "story" | "aboutBanner" | "storyDetail";
+export type SlotId = "heroWeb" | "heroMobile" | "story" | "aboutBanner" | "storyDetail" | "founder";
 
 export interface SlotValue {
   video?: string;
@@ -455,6 +460,16 @@ export const MEDIA_SLOTS: SlotDef[] = [
     shape: "square",
     advice: "Square works best. JPEG, PNG or WebP.",
     fallback: { image: "/images/story/burger.webp" },
+  },
+  {
+    id: "founder",
+    label: "“A word from us” photo",
+    where: "The photo beside the family's note on the homepage.",
+    kind: "image",
+    shape: "portrait",
+    advice:
+      "A tall photo of you, the family or the kitchen team works best. Until you pick one, the note shows the Kebabish logo instead.",
+    fallback: {}, // none: the section shows the logo mark rather than an invented photo
   },
 ];
 

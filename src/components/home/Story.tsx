@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { ArrowRight } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { menu } from "@/lib/menu-data";
+import { getPublicCategories } from "@/lib/public-menu";
 import { siteConfig } from "@/lib/site-config";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
@@ -9,12 +9,14 @@ import StoryFrame from "@/components/shared/StoryFrame";
 
 export default async function Story({ locale }: { locale: string }) {
   const t = await getTranslations({ locale });
-
+  // Counted from the live menu (visible categories with something in them — the same
+  // ones the category cards show), not the old static list, which still said 6.
+  const categoryCount = (await getPublicCategories(locale)).length;
 
   const stats = [
     { value: `${siteConfig.deliveryRadiusKm} km`, label: t("home.storyStat1Label") },
     { value: "100%", label: t("home.storyStat2Label") },
-    { value: String(menu.length), label: t("home.storyStat3Label") },
+    { value: String(categoryCount), label: t("home.storyStat3Label") },
   ];
 
   return (

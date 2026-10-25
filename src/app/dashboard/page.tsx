@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Clock, FileText, LogOut, Mail, MapPin, MessageSquareHeart, Phone, ShoppingBag, Star, User } from "lucide-react";
+import { Clock, FileText, LogOut, Mail, MapPin, MessageSquareHeart, Phone, RotateCcw, ShoppingBag, Star, User } from "lucide-react";
 import { orderAccessToken } from "@/lib/order-token";
 import { listCreditNotesForCustomer } from "@/lib/refunds";
 import { auth } from "@/lib/auth";
@@ -43,6 +43,10 @@ export default async function DashboardPage() {
   const rated = await orderIdsWithFeedback(delivered.map((o) => o.id));
   const feedbackHref = (o: (typeof orders)[number]) =>
     `${o.locale === "en" ? "/en" : ""}/feedback?order=${encodeURIComponent(o.reference)}&t=${orderAccessToken(o.reference)}&src=dashboard`;
+  // "Order again" goes through the public menu, where the basket lives: it reads these
+  // two parameters, puts the order's lines back (at today's prices) and opens the basket.
+  const reorderHref = (o: (typeof orders)[number]) =>
+    `${o.locale === "en" ? "/en" : ""}/menu?reorder=${encodeURIComponent(o.reference)}&t=${orderAccessToken(o.reference)}`;
   const toRate = delivered.find((o) => !rated.has(o.id) && placedRecently(o.placedAt));
   const creditNotesByRef = new Map(
     await Promise.all(
@@ -188,6 +192,15 @@ timeZone: "Europe/Amsterdam",
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-3">
+                      {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (
+                        <a
+                          href={reorderHref(order)}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-ember-600 px-2.5 py-1.5 text-xs font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+                        >
+                          <RotateCcw size={13} />
+                          Order again
+                        </a>
+                      )}
                       {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (
                         <a
                           href={`/api/invoice?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}&download=1`}

@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
 import type { PublicMenuCategory, PublicMenuItem } from "@/lib/public-menu";
+import SpiceMeter from "@/components/menu/SpiceMeter";
+import ReorderCard from "@/components/reorder/ReorderCard";
 
 type Toggle = "vegetarian" | "spicy" | "hideSoldOut";
 
@@ -183,6 +185,8 @@ export default function MenuBrowser({
             </div>
           </div>
 
+          <SpiceLegend className="mt-6 border-t border-charcoal-600/10 pt-5" />
+
           {isFiltered && (
             <button
               type="button"
@@ -198,6 +202,8 @@ export default function MenuBrowser({
 
       {/* ---- results (and the compact controls above them) -------------- */}
       <div className="min-w-0">
+        <ReorderCard variant="compact" className="mb-5" />
+
         <div className="space-y-4 lg:hidden">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="min-w-0 flex-1">{searchField}</div>
@@ -257,6 +263,8 @@ export default function MenuBrowser({
                   </Chip>
                 ))}
               </div>
+
+              <SpiceLegend className="mt-5" />
 
               <button
                 type="button"
@@ -321,6 +329,25 @@ export default function MenuBrowser({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/** The spice scale in one glance, so the chillies on the cards mean something. */
+function SpiceLegend({ className = "" }: { className?: string }) {
+  const t = useTranslations("menu");
+  return (
+    <div className={className}>
+      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
+        {t("spiceScale")}
+      </p>
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 lg:flex-col">
+        {[1, 2, 3].map((level) => (
+          <li key={level}>
+            <SpiceMeter level={level} size="sm" />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

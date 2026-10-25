@@ -4,17 +4,22 @@ import { Link } from "@/i18n/navigation";
 import { formatEuro } from "@/lib/money";
 import type { PublicMenuItem } from "@/lib/public-menu";
 import BrandLogo from "@/components/shared/BrandLogo";
+import DishBadges from "@/components/menu/DishBadges";
+import SpiceMeter from "@/components/menu/SpiceMeter";
+import QuickAdd from "@/components/menu/QuickAdd";
 
 /**
- * A dish card. The whole card links to the item page — that's where extras
- * get chosen and the dish is added to the cart, so there's no separate
- * "add" action here to conflict with it.
+ * A dish card. The whole card opens the dish page (a stretched link on the title —
+ * the title's `::after` covers the card), and a dish that needs no choices also gets
+ * a real one-tap **Add** button on top of that link (`QuickAdd`, `z-10`), so on a
+ * phone the commonest thing — "one of those, please" — never needs a page load. A
+ * dish with a required sauce or size keeps the old behaviour: the "Add" pill is part
+ * of the card and opens its page, where the choice is made.
  *
- * It sizes itself by **container** query, not viewport: the same card is two
- * per row on a phone's menu grid (~160px wide) and full width on the
- * homepage, and a media query can't tell those apart. Below ~16rem of its own
- * width it tightens its padding and type and stacks the price above the
- * button; above it, nothing changes from before.
+ * It sizes itself by **container** query, not viewport: the same card is two per row
+ * on a phone's menu grid (~160px wide) and full width on the homepage, and a media
+ * query can't tell those apart. Below ~16rem of its own width it tightens its padding
+ * and type and stacks the price above the button.
  */
 export default function FeaturedDishCard({
   item,
@@ -44,68 +49,98 @@ export default function FeaturedDishCard({
    */
   reveal?: boolean;
 }) {
+  const canQuickAdd = item.quickAdd && isOpen && item.price != null;
+
   return (
     <div className="@container h-full">
-      <Link
-        href={`/menu/${item.slug}`}
+      <article
         data-reveal={reveal ? "" : undefined}
-        className="group flex h-full flex-col overflow-hidden rounded-2xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[translate,box-shadow] duration-500 ease-brand hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10 @min-[16rem]:rounded-3xl"
+        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[translate,box-shadow] duration-500 ease-brand has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ember-500 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10 @min-[16rem]:rounded-3xl"
       >
         <div className="relative aspect-4/3 overflow-hidden bg-cream-300">
-        {item.image ? (
-          <Image
-            src={item.image}
-            alt={item.name}
-            fill
-            sizes="(min-width: 1280px) 25vw, (min-width: 640px) 45vw, 47vw"
-            className="object-cover transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
-          />
-        ) : (
-          // No photo for this dish yet. A branded tile reads as intentional,
-          // where an empty grey box reads as broken.
+          {item.image ? (
+            <Image
+              src={item.image}
+              alt={item.name}
+              fill
+              sizes="(min-width: 1280px) 25vw, (min-width: 640px) 45vw, 47vw"
+              className="object-cover transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
+            />
+          ) : (
+            // No photo for this dish yet. A branded tile reads as intentional,
+            // where an empty grey box reads as broken.
+            <div
+              aria-hidden="true"
+              className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]"
+            >
+              <BrandLogo
+                src="/logo/Kebabish-light.png"
+                alt=""
+                width={220}
+                height={165}
+                className="h-auto w-20 opacity-25 transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
+              />
+            </div>
+          )}
+
+          {/* A soft floor under the photo so badges and the chilli read on any picture. */}
           <div
             aria-hidden="true"
-            className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]"
-          >
-            <BrandLogo
-              src="/logo/Kebabish-light.png"
-              alt=""
-              width={220}
-              height={165}
-              className="h-auto w-20 opacity-25 transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
+            className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-charcoal-950/25 to-transparent"
+          />
+
+          <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-1.5 @min-[16rem]:left-3 @min-[16rem]:right-3 @min-[16rem]:top-3">
+            <DishBadges
+              chefsPick={item.chefsPick}
+              bestseller={item.bestseller}
+              className="@max-[16rem]:hidden"
             />
+            <DishBadges
+              chefsPick={item.chefsPick}
+              bestseller={item.bestseller}
+              compact
+              className="@min-[16rem]:hidden"
+            />
+            {item.vegetarian && (
+              <span
+                className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-cream-50/95 p-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-green-800 backdrop-blur-sm @min-[16rem]:px-2.5 @min-[16rem]:py-1"
+                title={vegetarianLabel}
+              >
+                <Leaf size={12} />
+                {/* The leaf alone carries it on a narrow card; the word would
+                    crowd the photo. `title` keeps it reachable either way. */}
+                <span className="hidden @min-[16rem]:inline">{vegetarianLabel}</span>
+              </span>
+            )}
           </div>
-        )}
 
-        {item.vegetarian && (
-          <span
-            className="absolute left-2 top-2 inline-flex items-center gap-1.5 rounded-full bg-cream-50/95 p-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-green-800 backdrop-blur-sm @min-[16rem]:left-3 @min-[16rem]:top-3 @min-[16rem]:px-2.5 @min-[16rem]:py-1"
-            title={vegetarianLabel}
-          >
-            <Leaf size={12} />
-            {/* The leaf alone carries it on a narrow card; the word would
-                crowd the photo. `title` keeps it reachable either way. */}
-            <span className="hidden @min-[16rem]:inline">{vegetarianLabel}</span>
-          </span>
-        )}
-
-        {item.lowStock && lowStockLabel && (
-          <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ember-600 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-cream-50 shadow-sm @min-[16rem]:bottom-3 @min-[16rem]:left-3">
-            <Flame size={12} aria-hidden="true" />
-            {lowStockLabel}
-          </span>
-        )}
-      </div>
+          {item.lowStock && lowStockLabel && (
+            <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ember-600 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-cream-50 shadow-sm @min-[16rem]:bottom-3 @min-[16rem]:left-3">
+              <Flame size={12} aria-hidden="true" />
+              {lowStockLabel}
+            </span>
+          )}
+        </div>
 
         <div className="flex flex-1 flex-col p-3.5 @min-[16rem]:p-5">
           <h3 className="font-display text-[0.95rem] font-semibold leading-snug text-charcoal-600 @min-[16rem]:text-lg">
-            {item.name}
+            <Link
+              href={`/menu/${item.slug}`}
+              className="after:absolute after:inset-0 after:z-[1] after:content-[''] focus-visible:outline-none"
+            >
+              {item.name}
+            </Link>
           </h3>
 
-          {item.variants.length > 0 && (
-            <p className="mt-1 line-clamp-2 text-xs leading-snug text-ink/55 @min-[16rem]:mt-1.5 @min-[16rem]:text-sm">
-              {item.variants.join(" · ")}
-            </p>
+          {(item.spiceLevel !== 0 || item.variants.length > 0) && (
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 @min-[16rem]:mt-1.5">
+              <SpiceMeter level={item.spiceLevel} size="xs" />
+              {item.variants.length > 0 && (
+                <p className="line-clamp-2 text-xs leading-snug text-ink/55 @min-[16rem]:text-sm">
+                  {item.variants.join(" · ")}
+                </p>
+              )}
+            </div>
           )}
 
           <div className="mt-auto flex flex-col items-start gap-2 pt-3.5 @min-[16rem]:flex-row @min-[16rem]:items-center @min-[16rem]:justify-between @min-[16rem]:gap-3 @min-[16rem]:pt-5">
@@ -120,17 +155,25 @@ export default function FeaturedDishCard({
 
             {item.soldOut ? (
               <Pill muted>{soldOutLabel}</Pill>
-            ) : isOpen ? (
+            ) : !isOpen ? (
+              <Pill muted>{unavailableLabel}</Pill>
+            ) : canQuickAdd ? (
+              <QuickAdd
+                slug={item.slug}
+                name={item.name}
+                price={item.price as number}
+                image={item.image}
+                fluid
+              />
+            ) : (
               <Pill>
                 <Plus size={14} />
                 {addLabel}
               </Pill>
-            ) : (
-              <Pill muted>{unavailableLabel}</Pill>
             )}
           </div>
         </div>
-      </Link>
+      </article>
     </div>
   );
 }

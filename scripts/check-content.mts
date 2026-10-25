@@ -169,9 +169,10 @@ ok(resolveLayout([null, 5, "x"] as never).length === HOME_SECTIONS.length, "junk
 const none = new Set<string>();
 ok(layoutWarnings(def, new Set(["showcase", "testimonials"])).length === 0, "the default order has no warnings");
 const twoDark = resolveLayout(HOME_SECTIONS.map((s) => ({ id: s.id, enabled: true })));
-const whyAt = twoDark.findIndex((e) => e.id === "why");
+// "How it works" and "Customer quotes" are both dark bands: put the quotes straight after it.
+const howAt = twoDark.findIndex((e) => e.id === "how");
 const tAt = twoDark.findIndex((e) => e.id === "testimonials");
-[twoDark[tAt], twoDark[whyAt + 1]] = [twoDark[whyAt + 1], twoDark[tAt]];
+[twoDark[tAt], twoDark[howAt + 1]] = [twoDark[howAt + 1], twoDark[tAt]];
 ok(layoutWarnings(twoDark, none).some((w) => w.includes("dark")), "two dark bands touching is flagged");
 const emptyOk = layoutWarnings(twoDark, new Set(["testimonials"]));
 ok(!emptyOk.some((w) => w.includes("Customer quotes")), "a section that renders nothing is not counted");

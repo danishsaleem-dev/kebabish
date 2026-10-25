@@ -1725,8 +1725,9 @@ Danish asked for a round of visual work. What it changed, and the decisions insi
   for free, works with JS off, exclusive-accordion where supported, and the answers are in the
   server HTML even while collapsed so they are indexable. It also emits **FAQPage JSON-LD**
   from the same strings. Content is in `messages/*.json` under `home.faq`; it states only
-  facts already true (delivery-only, the radius, slots, allergens, no 14-day cooling-off) and
-  deliberately avoids anything we would have to invent, prices and halal included.
+  facts already true (delivery-only, the radius, slots, allergens, no 14-day cooling-off, and —
+  since Danish approved it in Oct 2026 — "all our food is 100% halal") and deliberately avoids
+  anything we would have to invent, prices included.
 - **Story shows a video** (`StoryVideo`): the vertical hero clip for now, mounted only when the
   section is near, never on save-data or 2g, and never under `prefers-reduced-motion`. The
   poster still is the server-rendered layer underneath, so it degrades to exactly what was
@@ -1823,12 +1824,98 @@ large display; a higher-resolution source is the only remedy for that one.
   and never fires at all in a hidden tab). The source PNG is 1254px/~800 KB; `next/image` serves a ~96px
   WebP instead. Its alt text is `common.halalBadge` in `messages/*.json`.
   **Whether the food is halal is a claim Danish makes, not one we inferred** — he supplied the image and
-  asked for it to be shown on every page. Don't add halal wording anywhere else (FAQ, schema, copy)
-  without him saying so; the FAQ deliberately avoids it (see the Faq note above).
+  asked for it to be shown on every page. In Oct 2026 he approved the exact wording **"All our food is
+  100% halal"** ("Al ons eten is 100% halal"), which now also appears in the FAQ, the large Why tile and the
+  trust strip. Use that wording (not "our meat is halal" or anything stronger), and still don't put it in
+  the schema.org data without asking.
 - **The hero no longer carries the brand logo.** The logo mark above the "New in Hoogkarspel" badge was
   removed at Danish's request (the header already shows the logo). `data-hero-mark` and its line in the
   GSAP intro timeline (`Motion.tsx`) went with it; the eyebrow badge is now the first element and lost its
   top margin. The logo still appears in the header, footer, favicon and OG image.
+
+### Homepage, mobile ordering and dish badges (design pass 2, Oct 2026)
+
+Danish's list after a homepage review. He said **no** to: removing the arrival address dialog (the
+address is needed first), changing the hero, merging Why with the marquee, removing the opening hours
+from the marquee, and shortening the FAQ. Everything below he asked for.
+
+**New homepage sections** (all in `HOME_SECTIONS` and the `sections` map in `(site)/page.tsx`, so the
+owner can hide/reorder them; copy is editable in Website content → Homepage):
+- **How it works** (`home/HowItWorks.tsx`, dark): four steps, each with a small illustration built from
+  real data — menu dishes (featured first, topped up to three), the first open day's **real slot times**
+  (`generateDaySlots(effectiveHours(...))`), the checkout payment methods. The ember line between steps
+  draws on scroll with a **CSS scroll-driven animation** (`.how-line-*` in globals.css); browsers without
+  `animation-timeline` just show it drawn. No client JS in the section.
+- **Payment & trust strip** (`home/TrustStrip.tsx`): payment marks (`PaymentMarks.tsx`, monochrome
+  wordmarks in the palette — the same list as the FAQ/Terms/`paymentAccepted`; change all of them together),
+  100% halal, allergens, fresh.
+- **Help me choose + spice guide** (`home/Pick.tsx` → client `DishFinder.tsx`): mood chips (first time /
+  vegetarian / mild / spicy / everything) over a swipe row of dish cards, and the chilli scale, whose three
+  levels are also filters (with live counts; a level with no dishes is disabled). The returning-customer
+  `ReorderCard` sits at the top.
+- **A word from us** (`home/Founder.tsx`): signed **"The Kebabish family"** (Danish chose no personal
+  name). The text is a draft built only from facts on the About page — he will edit it. Photo = the new
+  **`founder` media slot** (Website content → Images & videos); **nothing ships for it**, so until he picks
+  one the arch shows the logo mark rather than a stand-in photo.
+- **Catering teaser** (`home/CateringTeaser.tsx`, dark): floating plates are menu photos (one per
+  category first), occasions and steps reuse `catering.*` so the two pages can't disagree.
+
+**Redesigned:** Why (bento grid; the big tile is **100% halal** with the seal, the four old reasons keep
+their `home.why1…4` keys — Danish has edited `why4Text`), Customer quotes (`ReviewWall.tsx`: full-bleed
+snap deck, centred card lit/neighbours dimmed, autoplay with a progress dot that pauses on hover/focus/
+touch/off-screen/reduced motion, cursor spotlight, "read more" for long reviews — **review text is never
+altered**, it's real), the closing CTA (one slim row, ~170px instead of ~860px). **Delivery area** lost
+its town chips (the map labels are real text, so still crawlable) and its button now opens the address
+dialog / shows "We deliver to {town}" from the saved address (`location/DeliveryAddressStatus.tsx`).
+**Story's category figure** is counted from the live menu (`getPublicCategories().length`), as is the
+About page's — both used to read the static `menu-data.ts` (6, while 7 were live).
+
+**Spice level** (`StoredItem.spiceLevel` 0–3, no migration): the dish editor's "Spicy" tick became a
+*Spice level* select. `spicy` is kept in step (true when level ≥ 1) so the menu's spicy filter works
+unchanged. **Older dishes with only `spicy: true` have no level** — they show one chilli and the word
+"Pittig" (`PublicMenuItem.spiceLevel === null`), and the editor offers "Spicy — pick a level" until one is
+chosen; we never invent a level for them. 4 live dishes are in that state (Oct 2026). Chillies render via
+`menu/SpiceMeter.tsx`; the menu sidebar and filter panel show the scale.
+
+**Badges** (`menu/DishBadges.tsx`): **Chef's pick** = `StoredItem.chefsPick`, a tick in the dish editor.
+**Bestseller is never set by hand** (Danish's call): `lib/bestsellers.ts` = the dishes in the most
+**paid orders** of the last 30 days, max 3, and only with ≥ 3 distinct orders each (counted per order,
+not per portion), cached 10 min, never throws. `rankBestsellers` is pure.
+
+**One-tap add** (`menu/QuickAdd.tsx`): dish cards now use a stretched link on the title (the whole card
+still opens the dish) with a real **Add** button on top for dishes with no required choice
+(`PublicMenuItem.quickAdd`). It flips to "Added (n)". Dishes with a required sauce/size keep the old pill
+that opens the page.
+
+**Reorder** ("Order again", for returning customers):
+- `RememberLastOrder` on the confirmation page (paid only) stores ref + access token + names/photos in
+  localStorage (`kebabish-last-order-v1`, 180 days, re-validated on read, no personal data).
+- `GET /api/reorder?ref=&t=&locale=` (`lib/reorder.ts`) rebuilds the lines **against today's menu and
+  prices**; extras are matched back **by label** (order lines snapshot labels, not ids); a gone/hidden/
+  sold-out/unpriced dish, a vanished extra or a newly required choice is skipped and named. Same HMAC
+  token as the order page; wrong token = unknown ref = 404.
+- Shown as `ReorderCard` (homepage "Help me choose", compact on `/menu`). The **dashboard** has "Order
+  again" per paid order, linking to `/menu?reorder=…&t=…`, handled by `ReorderFromUrl` in the site layout
+  (inside a `Suspense`, strips the params, opens the basket).
+- Verified: real order KBB-2026-000099 rebuilt with current price/photo; wrong token and unknown ref 404;
+  the URL flow added the line and opened the drawer.
+
+**Mobile order bar** (`MobileDock.tsx`, `md:hidden`, not on `/checkout`): Home · Menu · raised basket
+(count + running total, bumps on add, opens the drawer; links to the menu when empty) · Deliver to (town
+from the saved address, opens the dialog) · Account (`next/link` to `/dashboard` — **not** the localised
+`Link`, which would produce `/en/dashboard`). While shown it sets `html[data-dock]`; globals.css then gives
+`--dock` its height, pads `body`, and **WhatsAppButton, PromoWidget and HalalBadge position themselves at
+`calc(var(--dock) + …)`** — anything new that floats at the bottom must do the same.
+
+**A basket bug found while testing:** lines saved by an older version carried ids in another format, so
+the same dish added today showed as a second line. `sanitizeLines` now recomputes each id with `lineId()`
+and merges duplicates.
+
+**Checked:** typecheck, `check-content.mts` (1255 checks; its "two dark bands" test now uses How it works
++ Customer quotes, since Why is no longer dark), production build, `seo-validate.mjs` (home/menu/dishes
+pass; the three remaining findings are pre-existing content duplicates), desktop and 390px screenshots of
+every section, one-tap add and the reorder URL flow in the browser. **Not checked in the browser:** the
+admin dish editor's new fields (needs a sign-in) — open a dish, set a spice level, tick Chef's pick, save.
 
 ### Error page and launch badge
 
