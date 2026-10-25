@@ -926,8 +926,9 @@ stock pill in the items table (*Set* = exactly N, *Add batch* = on top of what i
 - **Tested:** the SQL on a throwaway local Postgres (take once, repeat = no-op, clamp at 0, release gives back only what was taken, edit resync, deleting an
   order removes its holds, re-runnable migration); the app logic against a fake PostgREST + temporary menu (32 checks: public flags, no quantity leaks to the browser,
   `priceCart`/`inspectCart` limits incl. two lines of one dish, alert crossings, the right SQL functions called); the admin screens in the browser before the migration
-  ("Not set up") and with made-up numbers (alert card, pills, inline *Set/Add batch*, editor card, customer badges). **Not run against the live database — it has no
-  stock tables until you run 0022. After running it: give one dish a stock, order it through checkout, and watch the number drop.**
+  ("Not set up") and with made-up numbers (alert card, pills, inline *Set/Add batch*, editor card, customer badges). **0022 has since been run** and dishes
+  are tracking stock on the live site; the ordering path has not been watched end to end on real data — next time an order
+  comes in for a tracked dish, check the number drops.
 - **Not built:** per-order reservation while a customer is still paying (stock is taken when paid, so two people paying for the last portion at once can oversell by one —
   the clamp keeps it from going negative and the kitchen handles the overlap), stock per extra/variant, scheduled auto-restock.
 
@@ -2263,9 +2264,12 @@ the accountant's spreadsheet, not here.
   rather than duplicating, end-before-start refused both ways round, negative/absurd readings
   refused, two riders on one day, removing a rider cascades); the arithmetic by script (32); all
   five states of the card in the browser at 900 px and 375 px, including the correction panel and
-  the below-straight-line warning, via a throwaway preview page deleted afterwards. **Not run
-  against the live database — it has no `rider_shifts` table until you run 0023. After running it:
-  log a start and an end on `/rider` and check the round appears in `/admin/riders`.**
+  the below-straight-line warning, via a throwaway preview page deleted afterwards. **0023 has since been run, and the write path was then
+  verified against the live database** with a throwaway round that was deleted afterwards: an end
+  reading before any start is refused (`noStart`), an end below the start is refused and changes
+  nothing, a real pair records 48210→48242 = 32 km, correcting the start to 48215 re-derives
+  27 km and **keeps the original `start_at`**, and the admin list reads it back with the rider's
+  name.
 - **Not built:** GPS or any automatic position tracking, a rate per kilometre, per-vehicle
   tracking, and fuel or maintenance costs.
 
