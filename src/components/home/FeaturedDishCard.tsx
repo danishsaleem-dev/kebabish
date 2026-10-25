@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Flame, Leaf, Plus } from "lucide-react";
+import { ArrowUpRight, Leaf } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { formatEuro } from "@/lib/money";
 import type { PublicMenuItem } from "@/lib/public-menu";
@@ -9,17 +9,27 @@ import SpiceMeter from "@/components/menu/SpiceMeter";
 import QuickAdd from "@/components/menu/QuickAdd";
 
 /**
- * A dish card. The whole card opens the dish page (a stretched link on the title —
- * the title's `::after` covers the card), and a dish that needs no choices also gets
- * a real one-tap **Add** button on top of that link (`QuickAdd`, `z-10`), so on a
- * phone the commonest thing — "one of those, please" — never needs a page load. A
- * dish with a required sauce or size keeps the old behaviour: the "Add" pill is part
- * of the card and opens its page, where the choice is made.
+ * A dish card, in the style of a modern delivery app:
+ *
+ * - **The photo is inset** in the card with its own rounded corners, and carries the
+ *   price as a frosted chip, the badges (Bestseller / Chef's pick) and the vegetarian
+ *   leaf. It zooms gently on hover while the card lifts and picks up an ember rim.
+ * - **The round action button sits on the seam** between photo and text. For a dish
+ *   with no required choice it is a real one-tap add (`QuickAdd`, which then shows how
+ *   many are in the basket); for one with a required sauce or size it is an arrow that
+ *   is part of the card and opens the dish page, where the choice is made.
+ * - **Sold out** greys the photo and says so across it — the dish stays visible and its
+ *   page still offers the "request it" form. **Closed** hides the button and says why.
+ * - Under the name: the chillies, the portion, "selling fast" (never a number), and —
+ *   on a wide card — the first lines of the dish's own description.
+ *
+ * The whole card opens the dish page through a stretched link on the title (its
+ * `::after` covers the card); the add button sits above that link at `z-10`.
  *
  * It sizes itself by **container** query, not viewport: the same card is two per row
- * on a phone's menu grid (~160px wide) and full width on the homepage, and a media
- * query can't tell those apart. Below ~16rem of its own width it tightens its padding
- * and type and stacks the price above the button.
+ * on a phone's menu grid (~160px wide) and wide on the homepage, and a media query
+ * can't tell those apart. Below 16rem of its own width it tightens everything and
+ * drops the description.
  */
 export default function FeaturedDishCard({
   item,
@@ -49,81 +59,111 @@ export default function FeaturedDishCard({
    */
   reveal?: boolean;
 }) {
-  const canQuickAdd = item.quickAdd && isOpen && item.price != null;
+  const orderable = isOpen && !item.soldOut && item.price != null;
+  const canQuickAdd = orderable && item.quickAdd;
 
   return (
     <div className="@container h-full">
       <article
         data-reveal={reveal ? "" : undefined}
-        className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-cream-400/40 bg-cream-50 shadow-sm shadow-charcoal-950/5 transition-[translate,box-shadow] duration-500 ease-brand has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ember-500 hover:-translate-y-1.5 hover:shadow-xl hover:shadow-charcoal-950/10 @min-[16rem]:rounded-3xl"
+        className="group relative flex h-full flex-col rounded-[1.4rem] bg-cream-50 p-1.5 shadow-[0_1px_2px_rgba(20,18,15,0.04),0_8px_24px_-12px_rgba(20,18,15,0.18)] ring-1 ring-charcoal-600/8 transition-[translate,box-shadow] duration-500 ease-brand has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ember-500 hover:-translate-y-1.5 hover:shadow-[0_2px_4px_rgba(20,18,15,0.05),0_28px_50px_-18px_rgba(140,64,29,0.35)] hover:ring-ember-500/30 @min-[16rem]:rounded-[1.75rem] @min-[16rem]:p-2"
       >
-        <div className="relative aspect-4/3 overflow-hidden bg-cream-300">
-          {item.image ? (
-            <Image
-              src={item.image}
-              alt={item.name}
-              fill
-              sizes="(min-width: 1280px) 25vw, (min-width: 640px) 45vw, 47vw"
-              className="object-cover transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
-            />
-          ) : (
-            // No photo for this dish yet. A branded tile reads as intentional,
-            // where an empty grey box reads as broken.
+        {/* ---- photo (inset) ------------------------------------------- */}
+        <div className="relative">
+          <div className="relative aspect-[5/4] overflow-hidden rounded-[1.1rem] bg-cream-300 @min-[16rem]:rounded-[1.35rem]">
+            {item.image ? (
+              <Image
+                src={item.image}
+                alt={item.name}
+                fill
+                sizes="(min-width: 1280px) 25vw, (min-width: 640px) 45vw, 47vw"
+                className={`object-cover transition-transform duration-[900ms] ease-brand group-hover:scale-[1.07] ${
+                  item.soldOut ? "grayscale-[0.85]" : ""
+                }`}
+              />
+            ) : (
+              // No photo for this dish yet. A branded tile reads as intentional,
+              // where an empty grey box reads as broken.
+              <div
+                aria-hidden="true"
+                className="flex h-full w-full items-center justify-center bg-[radial-gradient(80%_70%_at_50%_30%,var(--color-cream-200),var(--color-cream-400))]"
+              >
+                <BrandLogo
+                  src="/logo/Kebabish-light.png"
+                  alt=""
+                  width={220}
+                  height={165}
+                  className="h-auto w-20 opacity-30 transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
+                />
+              </div>
+            )}
+
+            {/* Soft shade top and bottom, so the chips read on any photo. */}
             <div
               aria-hidden="true"
-              className="flex h-full w-full items-center justify-center bg-[linear-gradient(135deg,var(--color-cream-300),var(--color-cream-200))]"
-            >
-              <BrandLogo
-                src="/logo/Kebabish-light.png"
-                alt=""
-                width={220}
-                height={165}
-                className="h-auto w-20 opacity-25 transition-transform duration-700 ease-brand group-hover:scale-[1.06]"
+              className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,rgba(20,18,15,0.28),transparent_32%,transparent_62%,rgba(20,18,15,0.38))]"
+            />
+
+            <div className="absolute inset-x-2 top-2 flex items-start justify-between gap-1.5 @min-[16rem]:inset-x-3 @min-[16rem]:top-3">
+              <DishBadges
+                chefsPick={item.chefsPick}
+                bestseller={item.bestseller}
+                className="@max-[16rem]:hidden"
               />
+              <DishBadges
+                chefsPick={item.chefsPick}
+                bestseller={item.bestseller}
+                compact
+                className="@min-[16rem]:hidden"
+              />
+              {item.vegetarian && (
+                <span
+                  className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cream-50/95 text-green-800 shadow-sm backdrop-blur-sm @min-[16rem]:h-8 @min-[16rem]:w-8"
+                  title={vegetarianLabel}
+                  aria-label={vegetarianLabel}
+                  role="img"
+                >
+                  <Leaf size={14} aria-hidden="true" />
+                </span>
+              )}
             </div>
-          )}
 
-          {/* A soft floor under the photo so badges and the chilli read on any picture. */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-linear-to-b from-charcoal-950/25 to-transparent"
-          />
+            {/* The price, frosted, bottom-left of the photo. */}
+            <span className="absolute bottom-2 left-2 rounded-full bg-cream-50/92 px-2.5 py-1 font-display text-[0.8rem] font-bold tabular-nums text-charcoal-700 shadow-sm backdrop-blur-md @min-[16rem]:bottom-3 @min-[16rem]:left-3 @min-[16rem]:px-3.5 @min-[16rem]:py-1.5 @min-[16rem]:text-base">
+              {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
+            </span>
 
-          <div className="absolute left-2 right-2 top-2 flex items-start justify-between gap-1.5 @min-[16rem]:left-3 @min-[16rem]:right-3 @min-[16rem]:top-3">
-            <DishBadges
-              chefsPick={item.chefsPick}
-              bestseller={item.bestseller}
-              className="@max-[16rem]:hidden"
-            />
-            <DishBadges
-              chefsPick={item.chefsPick}
-              bestseller={item.bestseller}
-              compact
-              className="@min-[16rem]:hidden"
-            />
-            {item.vegetarian && (
-              <span
-                className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-cream-50/95 p-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-green-800 backdrop-blur-sm @min-[16rem]:px-2.5 @min-[16rem]:py-1"
-                title={vegetarianLabel}
-              >
-                <Leaf size={12} />
-                {/* The leaf alone carries it on a narrow card; the word would
-                    crowd the photo. `title` keeps it reachable either way. */}
-                <span className="hidden @min-[16rem]:inline">{vegetarianLabel}</span>
+            {item.soldOut && (
+              <span className="absolute inset-0 flex items-center justify-center">
+                <span className="-rotate-6 rounded-full bg-charcoal-800/90 px-4 py-1.5 font-display text-xs font-bold uppercase tracking-[0.14em] text-cream-50 shadow-lg backdrop-blur-sm">
+                  {soldOutLabel}
+                </span>
               </span>
             )}
           </div>
 
-          {item.lowStock && lowStockLabel && (
-            <span className="absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full bg-ember-600 px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-wide text-cream-50 shadow-sm @min-[16rem]:bottom-3 @min-[16rem]:left-3">
-              <Flame size={12} aria-hidden="true" />
-              {lowStockLabel}
-            </span>
+          {/* ---- the round action on the seam --------------------------- */}
+          {orderable && (
+            <div className="absolute -bottom-5 right-2.5 @min-[16rem]:-bottom-6 @min-[16rem]:right-4">
+              {canQuickAdd ? (
+                <QuickAdd slug={item.slug} name={item.name} price={item.price as number} image={item.image} />
+              ) : (
+                // Needs a choice first: part of the card's link, so it opens the dish.
+                <span
+                  aria-hidden="true"
+                  title={addLabel}
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-cream-50 text-charcoal-700 shadow-lg shadow-charcoal-950/20 ring-4 ring-cream-50 transition-[background-color,color,transform] duration-300 ease-brand group-hover:rotate-45 group-hover:bg-ember-600 group-hover:text-cream-50 @min-[16rem]:h-12 @min-[16rem]:w-12"
+                >
+                  <ArrowUpRight size={20} strokeWidth={2.5} />
+                </span>
+              )}
+            </div>
           )}
         </div>
 
-        <div className="flex flex-1 flex-col p-3.5 @min-[16rem]:p-5">
-          <h3 className="font-display text-[0.95rem] font-semibold leading-snug text-charcoal-600 @min-[16rem]:text-lg">
+        {/* ---- text --------------------------------------------------- */}
+        <div className="flex flex-1 flex-col px-1.5 pb-2 pt-3 @min-[16rem]:px-3 @min-[16rem]:pb-3 @min-[16rem]:pt-4">
+          <h3 className="pr-11 font-display text-[0.92rem] font-semibold leading-snug text-charcoal-600 transition-colors duration-300 group-hover:text-ember-700 @min-[16rem]:pr-14 @min-[16rem]:text-lg">
             <Link
               href={`/menu/${item.slug}`}
               className="after:absolute after:inset-0 after:z-[1] after:content-[''] focus-visible:outline-none"
@@ -132,68 +172,35 @@ export default function FeaturedDishCard({
             </Link>
           </h3>
 
-          {(item.spiceLevel !== 0 || item.variants.length > 0) && (
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 @min-[16rem]:mt-1.5">
+          {(item.spiceLevel !== 0 || item.portion || (item.lowStock && lowStockLabel)) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.7rem] text-ink/55 @min-[16rem]:text-xs">
               <SpiceMeter level={item.spiceLevel} size="xs" />
-              {item.variants.length > 0 && (
-                <p className="line-clamp-2 text-xs leading-snug text-ink/55 @min-[16rem]:text-sm">
-                  {item.variants.join(" · ")}
-                </p>
+              {item.portion && <span>{item.portion}</span>}
+              {item.lowStock && lowStockLabel && (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-ember-700">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inset-0 animate-ping rounded-full bg-ember-500/60 motion-reduce:hidden" />
+                    <span className="relative h-2 w-2 rounded-full bg-ember-600" />
+                  </span>
+                  {lowStockLabel}
+                </span>
               )}
             </div>
           )}
 
-          <div className="mt-auto flex flex-col items-start gap-2 pt-3.5 @min-[16rem]:flex-row @min-[16rem]:items-center @min-[16rem]:justify-between @min-[16rem]:gap-3 @min-[16rem]:pt-5">
-            <span className="font-display text-sm font-semibold text-charcoal-500">
-              {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
-              {item.portion && (
-                <span className="ml-1.5 font-sans text-xs font-normal text-ink/50">
-                  · {item.portion}
-                </span>
-              )}
-            </span>
+          {(item.description || item.variants.length > 0) && (
+            <p className="mt-2 line-clamp-2 text-sm leading-snug text-ink/55 @max-[16rem]:hidden">
+              {item.description || item.variants.join(" · ")}
+            </p>
+          )}
 
-            {item.soldOut ? (
-              <Pill muted>{soldOutLabel}</Pill>
-            ) : !isOpen ? (
-              <Pill muted>{unavailableLabel}</Pill>
-            ) : canQuickAdd ? (
-              <QuickAdd
-                slug={item.slug}
-                name={item.name}
-                price={item.price as number}
-                image={item.image}
-                fluid
-              />
-            ) : (
-              <Pill>
-                <Plus size={14} />
-                {addLabel}
-              </Pill>
-            )}
-          </div>
+          {!item.soldOut && !isOpen && (
+            <p className="mt-auto pt-3 text-[0.7rem] font-semibold text-charcoal-500/80 @min-[16rem]:text-xs">
+              {unavailableLabel}
+            </p>
+          )}
         </div>
       </article>
     </div>
-  );
-}
-
-function Pill({
-  children,
-  muted,
-}: {
-  children: React.ReactNode;
-  muted?: boolean;
-}) {
-  return (
-    <span
-      className={`inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold transition-colors duration-300 @min-[16rem]:w-auto @min-[16rem]:px-4 @min-[16rem]:py-2.5 ${
-        muted
-          ? "bg-charcoal-600/10 text-charcoal-500"
-          : "bg-charcoal-600 text-cream-100 group-hover:bg-ember-600"
-      }`}
-    >
-      {children}
-    </span>
   );
 }

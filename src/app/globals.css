@@ -299,23 +299,39 @@
   100% { transform: scale(1); }
 }
 
+/* …and a ring goes out from the add button. */
+@keyframes add-ring {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(1.9); opacity: 0; }
+}
+
 /* A card arriving in a filtered row ("Help me choose"). */
 @keyframes card-in {
   from { opacity: 0; transform: translateY(14px) scale(0.98); }
   to { opacity: 1; transform: none; }
 }
 
-/* A review's stars lighting up one by one as its card comes forward. */
-@keyframes star-pop {
-  0% { transform: scale(0.4); opacity: 0.2; }
-  70% { transform: scale(1.2); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
+/* Customer quotes: two rows sliding in opposite directions (Testimonials.tsx). The
+   track holds the same set twice, so sliding by half its width loops seamlessly.
+   A row stops while hovered or while something in it has keyboard focus. */
+@keyframes review-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
-
-/* The active dot's fill, timed to the review deck's autoplay. */
-@keyframes progress-x {
-  from { width: 0%; }
-  to { width: 100%; }
+.review-track {
+  animation: review-marquee var(--review-duration, 60s) linear infinite;
+}
+.review-track-reverse {
+  animation-direction: reverse;
+}
+.review-row:hover .review-track,
+.review-row:focus-within .review-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .review-track {
+    animation: none;
+  }
 }
 
 /* The mobile order bar's count when the basket changes. */
@@ -432,12 +448,20 @@
  * height, the page gets that much room at the bottom so the footer isn't hidden
  * under it, and every floating corner element sits above it.
  * ------------------------------------------------------------------------- */
+/* `--dock-base` is the bar alone; `--dock` adds the dish page's sticky add bar
+   (`html[data-addbar]`, ItemOrderPanel) when that is showing, so floating
+   elements clear both while the add bar itself sits on `--dock-base`. */
 :root {
   --dock: 0px;
+  --dock-base: 0px;
 }
 @media (max-width: 767.98px) {
   html[data-dock] {
-    --dock: calc(4.5rem + env(safe-area-inset-bottom));
+    --dock-base: calc(4.5rem + env(safe-area-inset-bottom));
+    --dock: var(--dock-base);
+  }
+  html[data-dock][data-addbar] {
+    --dock: calc(var(--dock-base) + 4.5rem);
   }
   html[data-dock] body {
     padding-bottom: var(--dock);

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { Check, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useCart } from "@/components/cart/CartProvider";
 
 /**
@@ -12,27 +12,23 @@ import { useCart } from "@/components/cart/CartProvider";
  * rendered with; the basket re-checks it against the live menu straight away, and
  * checkout re-prices everything on the server regardless.
  *
- * It sits on top of the card's stretched link (`relative z-10`), so tapping it adds
- * the dish without opening the page. A short pop + "Added · 2" is the feedback; the
- * mobile order bar bumps its count at the same moment.
+ * A round button that sits where the card's photo meets its text, on top of the card's
+ * stretched link (`relative z-10`), so tapping it adds the dish without opening the
+ * page. Once the dish is in the basket it shows how many, in ember; each tap pops the
+ * number and sends a ring out from the button. The mobile order bar bumps at the same
+ * moment.
  */
 export default function QuickAdd({
   slug,
   name,
   price,
   image,
-  fluid = false,
   className = "",
 }: {
   slug: string;
   name: string;
   price: number;
   image?: string;
-  /**
-   * Inside a dish card's `@container`: full width while the card is narrow (two per
-   * row on a phone), its own size once the card is wide.
-   */
-  fluid?: boolean;
   className?: string;
 }) {
   const t = useTranslations("menu");
@@ -50,30 +46,32 @@ export default function QuickAdd({
         add({ slug, name, unitPrice: price, image, options: [], instructions: "" });
         setPop((n) => n + 1);
       }}
-      aria-label={t("quickAddAria", { name })}
-      className={`relative z-10 inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full text-xs font-semibold transition-[background-color,color,transform] duration-300 active:scale-95 ${
-        fluid
-          ? "w-full px-3 py-2 @min-[16rem]:w-auto @min-[16rem]:px-4 @min-[16rem]:py-2.5"
-          : "px-4 py-2.5"
-      } ${
+      aria-label={
+        inBasket > 0 ? `${t("quickAddAria", { name })} (${t("quickAdded")}: ${inBasket})` : t("quickAddAria", { name })
+      }
+      className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full shadow-lg ring-4 ring-cream-50 transition-[background-color,transform,box-shadow] duration-300 ease-brand hover:scale-110 active:scale-90 @min-[16rem]:h-12 @min-[16rem]:w-12 ${
         inBasket > 0
-          ? "bg-ember-600 text-cream-50 hover:bg-ember-500"
-          : "bg-charcoal-600 text-cream-100 hover:bg-ember-600"
+          ? "bg-ember-600 text-cream-50 shadow-ember-800/35"
+          : "bg-charcoal-700 text-cream-50 shadow-charcoal-950/25 group-hover:bg-ember-600"
       } ${className}`}
     >
-      <span key={pop} className={pop > 0 ? "inline-flex animate-[quick-pop_0.45s_var(--ease-brand)]" : "inline-flex"}>
-        {inBasket > 0 ? <Check size={14} strokeWidth={3} /> : <Plus size={14} strokeWidth={2.5} />}
-      </span>
-      {inBasket > 0 ? (
-        <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
-          {t("quickAdded")}
-          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cream-50 px-1 text-[0.65rem] font-bold tabular-nums text-ember-700">
-            {inBasket}
-          </span>
-        </span>
-      ) : (
-        <span className="whitespace-nowrap">{t("addToOrder")}</span>
+      {pop > 0 && (
+        <span
+          key={`ring-${pop}`}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-full border-2 border-ember-500 animate-[add-ring_0.7s_ease-out_forwards] motion-reduce:hidden"
+        />
       )}
+      <span
+        key={pop}
+        className={`inline-flex ${pop > 0 ? "animate-[quick-pop_0.45s_var(--ease-brand)] motion-reduce:animate-none" : ""}`}
+      >
+        {inBasket > 0 ? (
+          <span className="font-display text-sm font-bold tabular-nums @min-[16rem]:text-base">{inBasket}</span>
+        ) : (
+          <Plus size={20} strokeWidth={2.75} aria-hidden="true" />
+        )}
+      </span>
     </button>
   );
 }

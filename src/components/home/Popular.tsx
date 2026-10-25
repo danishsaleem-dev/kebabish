@@ -35,7 +35,9 @@ export default async function Popular({
         <div
           data-reveal-group
           className={`mt-12 grid grid-cols-2 gap-3 sm:gap-6 ${
-            dishes.length >= 4 ? "lg:grid-cols-4" : dishes.length === 3 ? "lg:grid-cols-3" : ""
+            // Never fewer than three columns on a laptop: one or two featured dishes
+            // stretched to half the page each read as oversized, not featured.
+            dishes.length >= 4 ? "lg:grid-cols-4" : "lg:grid-cols-3"
           }`}
         >
           {dishes.map((item) => (

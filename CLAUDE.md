@@ -1060,6 +1060,33 @@ fall back to Dutch text for those. Two pairs of dishes (`shami-kabab` / `shami-k
 `chapli-kabab` / `chapli-kebab-x-4`) share an identical description — one dish with variants,
 or distinct text, is better for search than two near-duplicate pages.
 
+### The dish page redesign (Oct 2026)
+
+`/menu/[slug]` was redrawn as a modern product page (Danish's ask). Structure, top to bottom:
+visible breadcrumb (Menu › category › dish; the category links to `/menu#<categoryId>`) with a **Share**
+button (`menu/ShareButton.tsx`: the phone's share sheet, else copy the link); a two-column grid —
+the gallery (sticky on `lg`, badges laid over it via `ItemGallery`'s `overlay` prop, "Good to know"
+under it on `lg`) and the **buy box** card (category chip, the page's only `<h1>`, price, fact chips —
+chillies, vegetarian, 100% halal, freshly made —, the description in `ExpandableText` (CSS clamp, the
+full text is always in the HTML), a one-line allergen summary linking to `#allergenen`, the order panel,
+and a delivery card with the **real fee / free-delivery threshold / minimum from Settings** plus the
+payment marks); then "About this dish" cards (allergens with a safety note and a contact link — "no
+allergens listed" is worded as *not listed yet*, never as *contains none*; the spice scale with this dish's
+level marked; Good to know on smaller screens), the video, and related dishes.
+
+`ItemOrderPanel` was rebuilt: extras are tiles with Required/Optional badges, the rule and a picked
+count; the kitchen note opens on request; the add button shows the total and is **never disabled for a
+missing required choice** — it scrolls to the first such group, outlines it and says "Choose first: …"
+(the server still enforces it). **No live dish has a required group (Oct 2026), so that path has not been
+exercised on real data.** On phones the button takes its own full-width row, and a **sticky add bar**
+sits on `--dock-base` above the order bar whenever the main button is off screen; while it shows it sets
+`html[data-addbar]`, which raises `--dock` so floating elements clear both bars.
+
+Checked: typecheck, lint, content checks, single `<h1>` + canonical + structured data unchanged,
+desktop/390px screenshots (a grid column overflowing the phone screen was found and fixed with
+`min-w-0`), and in headless Chrome: the bar appears/hides correctly, adds the dish and opens the basket,
+and nothing is wider than the screen.
+
 ### Dish description, video and allergens on the public item page
 
 `/menu/[slug]` used to show only a photo, name, price and the order panel.
@@ -1861,10 +1888,12 @@ owner can hide/reorder them; copy is editable in Website content → Homepage):
   category first), occasions and steps reuse `catering.*` so the two pages can't disagree.
 
 **Redesigned:** Why (bento grid; the big tile is **100% halal** with the seal, the four old reasons keep
-their `home.why1…4` keys — Danish has edited `why4Text`), Customer quotes (`ReviewWall.tsx`: full-bleed
-snap deck, centred card lit/neighbours dimmed, autoplay with a progress dot that pauses on hover/focus/
-touch/off-screen/reduced motion, cursor spotlight, "read more" for long reviews — **review text is never
-altered**, it's real), the closing CTA (one slim row, ~170px instead of ~860px). **Delivery area** lost
+their `home.why1…4` keys — Danish has edited `why4Text`), Customer quotes (Danish's own design, from
+a reference he sent: **two rows sliding in opposite directions, fading at both edges, a row stops while
+hovered or focused**. Pure CSS — `.review-track` in globals.css, each row = one set rendered twice and slid
+by −50%, the set repeated to ≥ 8 cards; copies and row two are `aria-hidden` + `inert` so each review is
+announced once; still under reduced motion. Long reviews are clamped to six lines — **review text is never
+altered**, it's real. A first attempt, a single swipe deck, was rejected), the closing CTA (one slim row, ~170px instead of ~860px). **Delivery area** lost
 its town chips (the map labels are real text, so still crawlable) and its button now opens the address
 dialog / shows "We deliver to {town}" from the saved address (`location/DeliveryAddressStatus.tsx`).
 **Story's category figure** is counted from the live menu (`getPublicCategories().length`), as is the
@@ -1882,10 +1911,16 @@ chosen; we never invent a level for them. 4 live dishes are in that state (Oct 2
 **paid orders** of the last 30 days, max 3, and only with ≥ 3 distinct orders each (counted per order,
 not per portion), cached 10 min, never throws. `rankBestsellers` is pure.
 
-**One-tap add** (`menu/QuickAdd.tsx`): dish cards now use a stretched link on the title (the whole card
-still opens the dish) with a real **Add** button on top for dishes with no required choice
-(`PublicMenuItem.quickAdd`). It flips to "Added (n)". Dishes with a required sauce/size keep the old pill
-that opens the page.
+**The dish card** (`home/FeaturedDishCard.tsx`, used on the homepage, `/menu`, related dishes and Help me
+choose): an inset rounded photo carrying a frosted **price chip**, the badges and the veg leaf; a **round
+action button on the seam** between photo and text; name, chillies, portion, "selling fast" and (wide
+cards only) two lines of the description. Sold out greys the photo with a label across it; closed hides
+the button. The whole card opens the dish via a stretched link on the title.
+**One-tap add** (`menu/QuickAdd.tsx`) is that round button for dishes with no required choice
+(`PublicMenuItem.quickAdd`): it adds without leaving the page, then shows the basket count in ember, with
+a pop and a ring on each tap. A dish with a required sauce/size gets an arrow instead (part of the card's
+link), which opens its page. **Popular dishes** now sits directly after the trust strip, above Our story
+(Danish's call), and keeps at least three columns on a laptop so one featured dish isn't half the page.
 
 **Reorder** ("Order again", for returning customers):
 - `RememberLastOrder` on the confirmation page (paid only) stores ref + access token + names/photos in

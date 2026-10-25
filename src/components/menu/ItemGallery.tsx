@@ -27,7 +27,10 @@ export default function ItemGallery({
   closeLabel,
   previousLabel,
   nextLabel,
+  overlay,
 }: {
+  /** Badges and the like, laid over the photo's top-left corner (never intercept taps). */
+  overlay?: React.ReactNode;
   images: string[];
   alt: string;
   /**
@@ -69,7 +72,7 @@ export default function ItemGallery({
 
   return (
     <div>
-      <div className="group relative aspect-4/3 overflow-hidden rounded-3xl bg-cream-300">
+      <div className="group relative aspect-4/3 overflow-hidden rounded-[2rem] bg-cream-300 shadow-[0_30px_60px_-30px_rgba(20,18,15,0.45)] ring-1 ring-charcoal-600/8">
         {images.map((src, i) => (
           <Image
             key={src}
@@ -102,13 +105,19 @@ export default function ItemGallery({
           </span>
         </button>
 
+        {overlay && (
+          <div className="pointer-events-none absolute inset-x-4 top-4 z-[5] flex flex-wrap items-start gap-2">
+            {overlay}
+          </div>
+        )}
+
         {many && (
           <>
             <GalleryArrow side="left" label={previousLabel} onClick={() => step(-1)} />
             <GalleryArrow side="right" label={nextLabel} onClick={() => step(1)} />
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-3 rounded-full bg-charcoal-950/55 px-2.5 py-1 text-xs font-semibold tabular-nums text-cream-50 backdrop-blur-sm"
+              className="pointer-events-none absolute bottom-4 left-4 rounded-full bg-charcoal-950/55 px-2.5 py-1 text-xs font-semibold tabular-nums text-cream-50 backdrop-blur-sm"
             >
               {index + 1}/{total}
             </span>
