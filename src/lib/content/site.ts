@@ -15,6 +15,7 @@ import {
   type SlotId,
   type SlotValue,
 } from "@/lib/content/model";
+import { listHomepageQuotes } from "@/lib/feedback/data";
 import { reviews as shippedReviews, type Review } from "@/lib/reviews-data";
 
 /**
@@ -151,7 +152,10 @@ export function cleanReviews(value: unknown): Review[] | null {
  */
 export async function getReviews(): Promise<Review[]> {
   const { shared } = await getContent();
-  return cleanReviews(shared[REVIEWS_KEY]) ?? shippedReviews;
+  const own = cleanReviews(shared[REVIEWS_KEY]) ?? shippedReviews;
+  // Plus the customer comments switched on in /admin/feedback (one click each).
+  const fromFeedback = await listHomepageQuotes();
+  return [...own, ...fromFeedback.map((q): Review => ({ name: q.name, rating: q.rating, text: q.text }))];
 }
 
 /**

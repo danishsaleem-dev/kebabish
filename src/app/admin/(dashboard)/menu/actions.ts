@@ -437,19 +437,33 @@ const ingredientSchema = z.object({
     .number()
     .min(0, "Cost can't be negative.")
     .max(100000, "That looks like a typo."),
+  stockQuantity: z.coerce.number().min(0, "Quantity can't be negative.").max(10_000_000).optional(),
+  stockTotalCost: z.coerce.number().min(0, "Price can't be negative.").max(10_000_000).optional(),
   allergens: z.array(z.string()),
   supplier: z.string().trim().optional(),
 });
 
 function readIngredientForm(formData: FormData) {
-  return ingredientSchema.safeParse({
+  const blank = (v: FormDataEntryValue | null) =>
+    v === null || String(v).trim() === "" ? undefined : v;
+  const parsed = ingredientSchema.safeParse({
     name: formData.get("name"),
     group: formData.get("group"),
     unit: formData.get("unit"),
     costPerUnit: formData.get("costPerUnit") || 0,
+    stockQuantity: blank(formData.get("stockQuantity")),
+    stockTotalCost: blank(formData.get("stockTotalCost")),
     allergens: formData.getAll("allergens").map(String),
     supplier: formData.get("supplier") || undefined,
   });
+  if (!parsed.success) return parsed;
+  // Total price ÷ total quantity is the price per unit every costing figure uses. It is worked
+  // out here, not trusted from the browser, so the two can never disagree.
+  const { stockQuantity, stockTotalCost } = parsed.data;
+  if (stockQuantity && stockQuantity > 0 && stockTotalCost !== undefined) {
+    parsed.data.costPerUnit = Math.round((stockTotalCost / stockQuantity) * 10000) / 10000;
+  }
+  return parsed;
 }
 
 export async function createIngredientAction(

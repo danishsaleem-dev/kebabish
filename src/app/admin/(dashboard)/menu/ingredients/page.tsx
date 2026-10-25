@@ -69,10 +69,10 @@ export default async function IngredientsPage() {
             </p>
 
             <div className="overflow-x-auto border-t border-hairline">
-              <table className="w-full min-w-[720px] border-collapse text-left">
+              <table className="w-full min-w-[860px] border-collapse text-left">
                 <thead>
                   <tr className="bg-canvas/60">
-                    {["Ingredient", "Priced per", "Cost", "Allergens", ""].map(
+                    {["Ingredient", "In stock", "Total paid", "Priced per", "Cost", "Allergens", ""].map(
                       (h) => (
                         <th
                           key={h}
@@ -96,6 +96,20 @@ export default async function IngredientsPage() {
                             <span className="ml-2 text-xs font-normal text-faint">
                               {ingredient.supplier}
                             </span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-sm text-body-text sm:px-6">
+                          {ingredient.stockQuantity !== undefined ? (
+                            `${ingredient.stockQuantity.toLocaleString("en-GB")} ${ingredient.unit}`
+                          ) : (
+                            <span className="text-faint">—</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-5 py-3.5 text-sm text-body-text sm:px-6">
+                          {ingredient.stockTotalCost !== undefined ? (
+                            formatMoney(ingredient.stockTotalCost)
+                          ) : (
+                            <span className="text-faint">—</span>
                           )}
                         </td>
                         <td className="px-5 py-3.5 text-sm text-muted sm:px-6">

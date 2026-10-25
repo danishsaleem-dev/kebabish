@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/admin/guard";
 import { deleteCustomerAccount, deleteOrders, guestOrderIds } from "@/lib/admin/deletion";
+import { setContactSaved } from "@/lib/admin/customer-contacts";
 
 /** Owner only, like deleting orders: this can erase an account and, optionally, its orders. */
 const OWNER_ONLY = ["owner"] as const;
@@ -68,4 +69,32 @@ export async function deleteGuestOrdersAction(input: {
   } catch (error) {
     return { ok: false, message: `Couldn't delete: ${(error as Error).message}` };
   }
+}
+
+/**
+ * Tick (or untick) "I saved this customer's number in my phone". Harmless bookkeeping, so
+ * owner, staff and managers can all use it. The key is the id the Customers screen shows —
+ * an account uuid or `guest:<…>` — and is only ever used as a lookup string.
+ */
+export async function setContactSavedAction(
+  key: string,
+  saved: boolean
+): Promise<{ ok: boolean; message: string }> {
+  const session = await requireRole(["owner", "staff", "manager"]);
+  const clean = String(key ?? "");
+  if (!clean || clean.length > 320) return { ok: false, message: "Unknown customer." };
+
+  const userId = /^[0-9a-f-]{36}$/i.test(session.user.id ?? "") ? session.user.id : null;
+  const result = await setContactSaved(clean, Boolean(saved), userId);
+  if (!result.ok) {
+    return {
+      ok: false,
+      message:
+        result.reason === "not_ready"
+          ? "Run migration 0026 in Supabase first, then try again."
+          : "Couldn't save that — try again.",
+    };
+  }
+  revalidatePath("/admin/customers");
+  return { ok: true, message: saved ? "Marked as saved in your phone." : "Marked as not saved." };
 }

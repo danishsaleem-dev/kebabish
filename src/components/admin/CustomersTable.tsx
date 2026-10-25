@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { CHANNEL_LABELS } from "@/lib/admin/order-types";
 import { useRouter } from "next/navigation";
-import { ChevronsUpDown, Globe, MessageCircle, Search, Trash2 } from "lucide-react";
+import { BookUser, ChevronsUpDown, Globe, MessageCircle, Search, Trash2 } from "lucide-react";
+import { useToast } from "@/components/admin/ui/Toast";
+import { setContactSavedAction } from "@/app/admin/(dashboard)/customers/actions";
 import Card from "@/components/admin/ui/Card";
 import Dropdown from "@/components/admin/ui/Dropdown";
 import DeleteCustomerDialog, { type CustomerTarget } from "@/components/admin/DeleteCustomerDialog";
@@ -16,6 +18,7 @@ import {
 
 type StatusOption = CustomerStatus | "all";
 type AccountOption = "all" | "registered" | "guest";
+type SavedOption = "all" | "saved" | "unsaved";
 type SortKey = "name" | "orderCount" | "totalSpent" | "lastOrderAt";
 
 const STATUS_TONE: Record<CustomerStatus, string> = {
@@ -37,6 +40,25 @@ export default function CustomersTable({
   const [status, setStatus] = useState<StatusOption>("all");
   const [account, setAccount] = useState<AccountOption>("all");
   const [town, setTown] = useState("all");
+  const [savedFilter, setSavedFilter] = useState<SavedOption>("all");
+  // Optimistic ticks, so the icon turns green the moment it is clicked.
+  const [savedOverride, setSavedOverride] = useState<Record<string, boolean>>({});
+  const [, startTransition] = useTransition();
+  const { toast } = useToast();
+  const isSaved = (c: AdminCustomer) => savedOverride[c.id] ?? c.contactSaved;
+
+  function toggleSaved(c: AdminCustomer) {
+    const next = !isSaved(c);
+    setSavedOverride((prev) => ({ ...prev, [c.id]: next }));
+    startTransition(async () => {
+      const result = await setContactSavedAction(c.id, next);
+      if (!result.ok) {
+        // Put it back if the server refused.
+        setSavedOverride((prev) => ({ ...prev, [c.id]: !next }));
+        toast(result.message, "error");
+      }
+    });
+  }
   const [sort, setSort] = useState<SortKey>("totalSpent");
   const [desc, setDesc] = useState(true);
   const [deleting, setDeleting] = useState<CustomerTarget | null>(null);
@@ -53,6 +75,8 @@ export default function CustomersTable({
       if (status !== "all" && c.status !== status) return false;
       if (account !== "all" && c.accountType !== account) return false;
       if (town !== "all" && c.town !== town) return false;
+      if (savedFilter === "saved" && !isSaved(c)) return false;
+      if (savedFilter === "unsaved" && isSaved(c)) return false;
       if (!q) return true;
       return (
         c.name.toLowerCase().includes(q) ||
@@ -72,7 +96,8 @@ export default function CustomersTable({
       const bt = b.lastOrderAt ? Date.parse(b.lastOrderAt) : -Infinity;
       return (at - bt) * dir;
     });
-  }, [customers, query, status, account, town, sort, desc]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customers, query, status, account, town, savedFilter, savedOverride, sort, desc]);
 
   const toggleSort = (key: SortKey) => {
     if (sort === key) setDesc((d) => !d);
@@ -136,6 +161,17 @@ export default function CustomersTable({
           />
 
           <Dropdown
+            label="Phone book"
+            value={savedFilter}
+            onChange={setSavedFilter}
+            options={[
+              { value: "all", label: "All contacts" },
+              { value: "saved", label: "Saved in my phone" },
+              { value: "unsaved", label: "Not saved yet" },
+            ]}
+          />
+
+          <Dropdown
             label="Town"
             value={town}
             onChange={setTown}
@@ -148,10 +184,11 @@ export default function CustomersTable({
       </div>
 
       <div className="overflow-x-auto border-t border-hairline">
-        <table className="w-full min-w-[880px] border-collapse text-left">
+        <table className="w-full min-w-[1020px] border-collapse text-left">
           <thead>
             <tr className="bg-canvas/60">
               <Th onClick={() => toggleSort("name")}>Customer</Th>
+              <Th>Phone</Th>
               <Th>Town</Th>
               <Th onClick={() => toggleSort("orderCount")}>Orders</Th>
               <Th onClick={() => toggleSort("totalSpent")}>Lifetime value</Th>
@@ -195,6 +232,41 @@ export default function CustomersTable({
                       </p>
                     </div>
                   </div>
+                </td>
+                <td
+                  className="whitespace-nowrap px-4 py-4 text-sm text-body-text"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => toggleSaved(customer)}
+                      aria-pressed={isSaved(customer)}
+                      aria-label={
+                        isSaved(customer)
+                          ? `${customer.name} is saved in your phone — click to undo`
+                          : `Mark ${customer.name} as saved in your phone`
+                      }
+                      title={isSaved(customer) ? "Saved in your phone" : "Not saved in your phone yet — click when you have"}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+                        isSaved(customer)
+                          ? "bg-success-soft text-success"
+                          : "text-faint/60 hover:bg-canvas hover:text-muted"
+                      }`}
+                    >
+                      <BookUser size={16} />
+                    </button>
+                    {customer.phone && customer.phone !== "—" ? (
+                      <a
+                        href={`tel:${customer.phone.replace(/[^d+]/g, "")}`}
+                        className="hover:text-ember-700 hover:underline"
+                      >
+                        {customer.phone}
+                      </a>
+                    ) : (
+                      <span className="text-faint">—</span>
+                    )}
+                  </span>
                 </td>
                 <td className="px-4 py-4 text-sm text-body-text">
                   {customer.town}
@@ -282,6 +354,7 @@ export default function CustomersTable({
                 setQuery("");
                 setStatus("all");
                 setTown("all");
+                setSavedFilter("all");
               }}
               className="font-semibold text-ember-600 hover:underline"
             >

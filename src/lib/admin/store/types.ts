@@ -221,6 +221,13 @@ export interface StoredIngredient {
   group: IngredientGroup;
   unit: Unit;
   costPerUnit: number;
+  /** How much is on hand, in `unit` (e.g. 10 for a 10 kg sack of rice). Optional. */
+  stockQuantity?: number;
+  /**
+   * What was paid for `stockQuantity`, in euros. When both are set, `costPerUnit` is
+   * `stockTotalCost / stockQuantity` — worked out on the server when saving, never typed.
+   */
+  stockTotalCost?: number;
   allergens: Allergen[];
   supplier?: string;
 }

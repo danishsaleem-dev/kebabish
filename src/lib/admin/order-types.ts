@@ -167,6 +167,8 @@ export interface AdminCustomer {
    * that doesn't resolve anywhere, so guest rows aren't clickable.
    */
   accountType: "registered" | "guest";
+  /** The owner ticked "I saved this number in my phone" (migration 0026). */
+  contactSaved: boolean;
 }
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {

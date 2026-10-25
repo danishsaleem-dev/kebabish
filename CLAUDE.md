@@ -989,6 +989,14 @@ skip a required choice and set any price.
   (new lines → totals → delete old lines → notes) is written to undo itself on failure but has NOT been run against a database that
   has the tables — try one edit on a test order right after running 0021.**
 
+### Admin round: +7 numbers, ingredient stock, homepage quotes, saved contacts (Oct 2026)
+
+- **Invoice and order numbers step by 7** (migration `0024_number_step_seven.sql`): counters carry on from where they are, a new year starts at 1 then +7. Credit notes (CN-) still step by 1. Dutch rules ask for a consecutive series — tell the accountant the step is 7.
+- **Ingredients hold stock**: `StoredIngredient.stockQuantity` + `stockTotalCost` (in the store document, no migration). When both are set, `costPerUnit = total ÷ quantity`, computed on the server in `readIngredientForm` (the form previews it live).
+- **Feedback → homepage quotes** (migration `0025_feedback_homepage.sql`): a switch per response in /admin/feedback (`show_on_homepage`); only allowed when there is a comment and the customer ticked "you may quote" (checked server-side in `setShowOnHomepage`). `getReviews()` appends them to the owner's list; name = first name if they left one, else Klant/Customer.
+- **Customers**: Phone column plus a book icon per customer (green = saved in the owner's phone), stored in `customer_contact_saved` (migration `0026`, keyed by the Customers screen's id incl. `guest:…`; in BACKUP_TABLES).
+- **Reports → Today crash**: `DonutChart` iterated its tweened array, which lags one render behind `slices`; going to a range with fewer categories read a missing slice. It now indexes by slice.
+
 ### SEO audit and structured data (Oct 2026)
 
 A full audit found real bugs, not polish. It was done by crawling the built site, and is now

@@ -19,8 +19,12 @@ export default function DonutChart({
   centreLabel?: string;
   size?: number;
 }) {
-  const animated = useAnimatedNumbers(slices.map((s) => s.value));
-  const [hover, setHover] = useState<number | null>(null);
+  const tweened = useAnimatedNumbers(slices.map((s) => s.value));
+  // The tween lags a render behind `slices`: when a filter leaves fewer slices than before, the
+  // old, longer array is still here for one frame. Index by slice so a stale tail is ignored.
+  const animated = slices.map((_, i) => tweened[i] ?? 0);
+  const [hoverRaw, setHover] = useState<number | null>(null);
+  const hover = hoverRaw !== null && hoverRaw < slices.length ? hoverRaw : null;
 
   const total = Math.max(1, animated.reduce((a, b) => a + b, 0));
   const R = 60;

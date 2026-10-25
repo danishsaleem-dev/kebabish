@@ -3,24 +3,26 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronDown, Mail, MessageSquareQuote, Quote, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Globe, Mail, MessageSquareQuote, Quote, Trash2 } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
 import { useToast } from "@/components/admin/ui/Toast";
 import {
   deleteFeedbackAction,
+  setFeedbackHomepageAction,
   toggleFeedbackHandledAction,
 } from "@/app/admin/(dashboard)/feedback/actions";
 import { UNHAPPY_AT_OR_BELOW } from "@/lib/feedback/questions";
 import type { StoredFeedback } from "@/lib/feedback/data";
 import { questionLabel, scaleLabel, type FeedbackLabels } from "@/lib/feedback/label-types";
 
-type Filter = "all" | "followup" | "comments" | "quote" | "handled";
+type Filter = "all" | "followup" | "comments" | "quote" | "homepage" | "handled";
 
 const FILTERS: { id: Filter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "followup", label: "Needs follow-up" },
   { id: "comments", label: "With a comment" },
   { id: "quote", label: "OK to quote" },
+  { id: "homepage", label: "On homepage" },
   { id: "handled", label: "Handled" },
 ];
 
@@ -80,6 +82,20 @@ export default function FeedbackResponses({
     });
   }
 
+  const [homepageOverride, setHomepageOverride] = useState<Record<string, boolean>>({});
+  const onHomepage = (item: StoredFeedback) => homepageOverride[item.id] ?? item.showOnHomepage;
+
+  function toggleHomepage(item: StoredFeedback) {
+    const next = !onHomepage(item);
+    setHomepageOverride((prev) => ({ ...prev, [item.id]: next }));
+    startTransition(async () => {
+      const result = await setFeedbackHomepageAction(item.id, next);
+      toast(result.message, result.ok ? "success" : "error");
+      // Put the switch back if the server refused.
+      if (!result.ok) setHomepageOverride((prev) => ({ ...prev, [item.id]: !next }));
+    });
+  }
+
   const isHandled = (item: StoredFeedback) => handledOverride[item.id] ?? Boolean(item.handledAt);
   const needsFollowUp = (item: StoredFeedback) =>
     (item.recommend ?? 99) <= UNHAPPY_AT_OR_BELOW && !isHandled(item);
@@ -93,6 +109,8 @@ export default function FeedbackResponses({
         return Boolean(item.comment);
       case "quote":
         return Boolean(item.comment && item.quoteOk);
+      case "homepage":
+        return onHomepage(item);
       case "handled":
         return isHandled(item);
       default:
@@ -124,6 +142,8 @@ export default function FeedbackResponses({
                   return Boolean(item.comment);
                 case "quote":
                   return Boolean(item.comment && item.quoteOk);
+                case "homepage":
+                  return onHomepage(item);
                 case "handled":
                   return isHandled(item);
                 default:
@@ -195,6 +215,11 @@ export default function FeedbackResponses({
                           <Quote size={11} /> OK to quote
                         </span>
                       )}
+                      {onHomepage(item) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-heading px-2 py-0.5 text-xs font-semibold text-white">
+                          <Globe size={11} /> On homepage
+                        </span>
+                      )}
                       {handled && (
                         <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2 py-0.5 text-xs font-semibold text-success">
                           <Check size={11} /> Handled
@@ -239,6 +264,37 @@ export default function FeedbackResponses({
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
+                    {item.comment && (
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={onHomepage(item)}
+                        onClick={() => toggleHomepage(item)}
+                        disabled={pending || (!item.quoteOk && !onHomepage(item))}
+                        title={
+                          item.quoteOk || onHomepage(item)
+                            ? onHomepage(item)
+                              ? "Showing on the homepage — click to hide"
+                              : "Show this comment on the homepage"
+                            : "This customer didn't tick “you may quote my comment”"
+                        }
+                        className="flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 text-xs font-semibold text-body-text transition-colors hover:bg-canvas disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <span
+                          aria-hidden
+                          className={`relative h-4 w-7 rounded-full transition-colors ${
+                            onHomepage(item) ? "bg-success" : "bg-faint/50"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${
+                              onHomepage(item) ? "left-3.5" : "left-0.5"
+                            }`}
+                          />
+                        </span>
+                        Homepage
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => toggle(item)}

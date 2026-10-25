@@ -33,6 +33,8 @@ export interface StoredFeedback {
   contactName: string | null;
   contactEmail: string | null;
   handledAt: string | null;
+  /** Shown as a quote on the public site (migration 0025). Needs a comment and `quoteOk`. */
+  showOnHomepage: boolean;
 }
 
 interface FeedbackRow {
@@ -55,6 +57,8 @@ interface FeedbackRow {
   contact_name: string | null;
   contact_email: string | null;
   handled_at: string | null;
+  /** Absent until migration 0025 has been run. */
+  show_on_homepage?: boolean | null;
 }
 
 function map(row: FeedbackRow): StoredFeedback {
@@ -78,6 +82,7 @@ function map(row: FeedbackRow): StoredFeedback {
     contactName: row.contact_name,
     contactEmail: row.contact_email,
     handledAt: row.handled_at,
+    showOnHomepage: Boolean(row.show_on_homepage),
   };
 }
 
@@ -225,4 +230,99 @@ export async function toggleHandled(id: string): Promise<boolean | null> {
   const { error: updateError } = await db.from("feedback").update({ handled_at: next }).eq("id", id);
   if (updateError) throw new Error(updateError.message);
   return next !== null;
+}
+
+/**
+ * Switch a response on or off the public site. Refuses (returns the reason) unless it has a
+ * comment and the customer ticked "you may quote my comment" — the switch is one click, so the
+ * consent check lives here, not in the button. `not_ready` = migration 0025 hasn't been run.
+ */
+export async function setShowOnHomepage(
+  id: string,
+  on: boolean
+): Promise<{ ok: true } | { ok: false; reason: "missing" | "no_consent" | "not_ready" | "failed" }> {
+  const db = supabaseAdmin();
+  const { data: row, error } = await db
+    .from("feedback")
+    .select("comment, quote_ok, recommend")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) {
+    console.error("[feedback] could not read response:", error.message);
+    return { ok: false, reason: "failed" };
+  }
+  if (!row) return { ok: false, reason: "missing" };
+  if (on && (!row.comment || !row.quote_ok || row.recommend == null)) {
+    return { ok: false, reason: "no_consent" };
+  }
+
+  const { error: updateError } = await db.from("feedback").update({ show_on_homepage: on }).eq("id", id);
+  if (updateError) {
+    if (/show_on_homepage/.test(updateError.message) || updateError.code === "42703") {
+      console.error("[feedback] run migration 0025 to switch quotes on:", updateError.message);
+      return { ok: false, reason: "not_ready" };
+    }
+    console.error("[feedback] could not update:", updateError.message);
+    return { ok: false, reason: "failed" };
+  }
+  return { ok: true };
+}
+
+export interface HomepageQuote {
+  name: string;
+  rating: 1 | 2 | 3 | 4 | 5;
+  text: string;
+}
+
+let quoteCache: { at: number; value: HomepageQuote[] } | null = null;
+
+/**
+ * The comments switched on for the public site, newest first. Never throws — a missing column
+ * (migration 0025 not run) or a database hiccup means "no quotes", never a broken page. Cached
+ * for 15 s, like the rest of the site content.
+ *
+ * The author is shown by **first name only, and only if they left a name** (contact consent);
+ * otherwise "Klant"/"Customer" in the language they wrote it in.
+ */
+export async function listHomepageQuotes(): Promise<HomepageQuote[]> {
+  if (quoteCache && Date.now() - quoteCache.at < 15_000) return quoteCache.value;
+  let value: HomepageQuote[] = [];
+  try {
+    const { data, error } = await supabaseAdmin()
+      .from("feedback")
+      .select("comment, recommend, locale, contact_ok, contact_name, quote_ok")
+      .eq("show_on_homepage", true)
+      .eq("quote_ok", true)
+      .not("comment", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(24);
+    if (error) {
+      if (!tableMissing(error) && error.code !== "42703") {
+        console.error("[feedback] could not read homepage quotes:", error.message);
+      }
+    } else {
+      value = (data ?? []).flatMap((r) => {
+        const rating = Math.round(Number(r.recommend));
+        const text = (r.comment as string | null)?.trim();
+        if (!text || !(rating >= 1 && rating <= 5)) return [];
+        const first = r.contact_ok ? String(r.contact_name ?? "").trim().split(/\s+/)[0] : "";
+        return [
+          {
+            name: first || (r.locale === "en" ? "Customer" : "Klant"),
+            rating: rating as HomepageQuote["rating"],
+            text,
+          },
+        ];
+      });
+    }
+  } catch (error) {
+    console.error("[feedback] homepage quotes failed:", error);
+  }
+  quoteCache = { at: Date.now(), value };
+  return value;
+}
+
+/** Forget the cached quotes, so a switch in the admin shows up without the 15 s wait. */
+export function forgetHomepageQuotes() {
+  quoteCache = null;
 }

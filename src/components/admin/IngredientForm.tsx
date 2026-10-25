@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import {
   Field,
@@ -27,6 +27,18 @@ export default function IngredientForm({
 }) {
   const [state, formAction] = useActionState(action, EMPTY);
   const e = state.errors ?? {};
+
+  const [unit, setUnit] = useState<string>(ingredient?.unit ?? "kg");
+  const [quantity, setQuantity] = useState(String(ingredient?.stockQuantity ?? ""));
+  const [total, setTotal] = useState(String(ingredient?.stockTotalCost ?? ""));
+  const [perUnit, setPerUnit] = useState(String(ingredient?.costPerUnit ?? ""));
+  // Same rule as the server: total price ÷ total quantity, once both are filled in.
+  const q = Number(quantity);
+  const t = Number(total);
+  const derived =
+    quantity.trim() !== "" && total.trim() !== "" && q > 0 && t >= 0
+      ? Math.round((t / q) * 10000) / 10000
+      : null;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -65,7 +77,8 @@ export default function IngredientForm({
         >
           <Select
             name="unit"
-            defaultValue={ingredient?.unit ?? "kg"}
+            value={unit}
+            onChange={(ev) => setUnit(ev.target.value)}
             invalid={Boolean(e.unit)}
           >
             {UNITS.map((u) => (
@@ -77,16 +90,57 @@ export default function IngredientForm({
         </Field>
 
         <Field
-          label="Cost per unit (€)"
-          hint="Drives every food-cost and margin figure."
+          label={`Quantity you have (${unit})`}
+          hint={`The total you bought, e.g. 10 for a 10 ${unit} sack.`}
+          error={e.stockQuantity}
+        >
+          <Input
+            name="stockQuantity"
+            type="number"
+            step="any"
+            min="0"
+            value={quantity}
+            onChange={(ev) => setQuantity(ev.target.value)}
+            placeholder="10"
+            invalid={Boolean(e.stockQuantity)}
+          />
+        </Field>
+
+        <Field
+          label="Total price paid (€)"
+          hint="What all of that quantity cost together."
+          error={e.stockTotalCost}
+        >
+          <Input
+            name="stockTotalCost"
+            type="number"
+            step="0.01"
+            min="0"
+            value={total}
+            onChange={(ev) => setTotal(ev.target.value)}
+            placeholder="22.00"
+            invalid={Boolean(e.stockTotalCost)}
+          />
+        </Field>
+
+        <Field
+          label={`Cost per ${unit} (€)`}
+          hint={
+            derived !== null
+              ? `Worked out for you: ${total} ÷ ${quantity} ${unit}. Clear the quantity or price to type it yourself.`
+              : "Drives every food-cost and margin figure. Fill in quantity and total price above and this works itself out."
+          }
           error={e.costPerUnit}
+          className="sm:col-span-2"
         >
           <Input
             name="costPerUnit"
             type="number"
-            step="0.01"
+            step="0.0001"
             min="0"
-            defaultValue={ingredient?.costPerUnit ?? ""}
+            value={derived !== null ? String(derived) : perUnit}
+            onChange={(ev) => setPerUnit(ev.target.value)}
+            readOnly={derived !== null}
             placeholder="2.20"
             invalid={Boolean(e.costPerUnit)}
             required

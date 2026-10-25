@@ -19,6 +19,7 @@ import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 import { listStockAlerts, releaseOrderStock } from "@/lib/stock";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { parseAddressLine } from "@/lib/address-parse";
+import { listSavedContactKeys } from "@/lib/admin/customer-contacts";
 
 /**
  * Real orders, customers, dashboard and report data — replaces
@@ -580,6 +581,7 @@ function buildCustomers(
       preferredChannel: topChannel(own),
       status: deriveCustomerStatus(own.length, lastOrder?.placedAt ?? null),
       accountType: "registered",
+      contactSaved: false,
     };
   });
 }
@@ -646,23 +648,25 @@ function buildGuestCustomers(orders: AdminOrder[]): AdminCustomer[] {
       preferredChannel: topChannel(sorted),
       status: deriveCustomerStatus(sorted.length, lastOrder.placedAt),
       accountType: "guest",
+      contactSaved: false,
     };
   });
 }
 
 export async function listCustomers(): Promise<AdminCustomer[]> {
-  const [{ data, error }, orders] = await Promise.all([
+  const [{ data, error }, orders, saved] = await Promise.all([
     supabaseAdmin()
       .from("customers")
       .select("id, name, phone, email, created_at"),
     listOrders(),
+    listSavedContactKeys(),
   ]);
 
   if (error) throw new Error(error.message);
   return [
     ...buildCustomers((data ?? []) as CustomerRow[], orders),
     ...buildGuestCustomers(orders),
-  ];
+  ].map((c) => ({ ...c, contactSaved: saved.has(c.id) }));
 }
 
 export async function getCustomer(id: string): Promise<AdminCustomer | null> {
