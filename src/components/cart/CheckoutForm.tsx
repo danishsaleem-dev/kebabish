@@ -453,7 +453,7 @@ function CheckoutFormInner({
                 onChange={(e) => setPromoInput(e.target.value.toUpperCase())}
                 placeholder={t("promoPlaceholder")}
                 aria-label={t("promoCode")}
-                className="h-11 min-w-0 flex-1 rounded-xl border border-charcoal-600/15 bg-cream-50 px-3.5 text-sm text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
+                className="h-11 min-w-0 flex-1 rounded-xl border border-charcoal-600/15 bg-cream-50 px-3.5 text-base text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
               />
               <button
                 type="button"
@@ -563,7 +563,7 @@ function CheckoutFormInner({
 }
 
 const inputClass =
-  "h-12 w-full rounded-2xl border border-charcoal-600/15 bg-cream-50 px-4 text-[0.95rem] text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none";
+  "h-12 w-full rounded-2xl border border-charcoal-600/15 bg-cream-50 px-4 text-base text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none";
 
 function Field({
   label,

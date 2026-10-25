@@ -167,7 +167,7 @@ function DialogBody({ onDismiss }: { onDismiss: () => void }) {
   }
 
   const input =
-    "h-12 w-full rounded-2xl border border-charcoal-600/15 bg-cream-50 px-4 text-[0.95rem] text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none";
+    "h-12 w-full rounded-2xl border border-charcoal-600/15 bg-cream-50 px-4 text-base text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none";
   const readOnlyInput = `${input} bg-charcoal-600/5 text-ink/70`;
   const label = "mb-1.5 block text-sm font-medium text-charcoal-600/80";
   const yes = outcome?.kind === "yes";

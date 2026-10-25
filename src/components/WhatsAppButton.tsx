@@ -24,7 +24,7 @@ export default function WhatsAppButton({ isOpen }: { isOpen: boolean }) {
       {/* Soft pulse ring — draws the eye without the button ever moving. */}
       <span
         aria-hidden="true"
-        className="absolute inset-0 animate-ping rounded-full bg-[#25D366] opacity-20 [animation-duration:2.6s]"
+        className="absolute inset-0 rounded-full bg-[#25D366] animate-[wa-pulse_2.6s_cubic-bezier(0,0,0.2,1)_infinite] motion-reduce:hidden"
       />
       {/* lucide has no WhatsApp glyph; this is the official mark. */}
       <svg

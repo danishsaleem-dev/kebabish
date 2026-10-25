@@ -32,8 +32,10 @@ export function Field({
   );
 }
 
+// 16px on phones: iPhone Safari zooms the page into any field smaller than that and
+// doesn't zoom back out (the sign-in and sign-up pages use these inputs too).
 const inputBase =
-  "w-full rounded-lg border bg-panel px-3 py-2.5 text-sm text-heading placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-ember-500/25";
+  "w-full rounded-lg border bg-panel px-3 py-2.5 text-base text-heading sm:text-sm placeholder:text-faint focus:outline-none focus:ring-2 focus:ring-ember-500/25";
 
 export function Input({
   invalid,

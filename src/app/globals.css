@@ -100,6 +100,24 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  /*
+   * Never scroll sideways. Phones let you pan to anything that pokes past the right
+   * edge — even a decorative ring on a fixed button (the WhatsApp pulse did exactly
+   * that) — and the whole page then wobbles left and right while scrolling.
+   * `clip`, not `hidden`: on body, `hidden` would turn it into a scroll container
+   * and break the sticky header, the sticky dish photo and window scroll events.
+   * Older browsers without `clip` get `hidden` on the root only, which is safe there.
+   */
+  html,
+  body {
+    overflow-x: clip;
+  }
+  @supports not (overflow: clip) {
+    html {
+      overflow-x: hidden;
+    }
+  }
+
   body {
     background-color: var(--color-cream-200);
     color: var(--color-ink);
@@ -297,6 +315,14 @@
   0% { transform: scale(0.5); }
   60% { transform: scale(1.25); }
   100% { transform: scale(1); }
+}
+
+/* The WhatsApp button's pulse. Tailwind's animate-ping grows to 2×, which with the
+   button 20px from the edge reached ~8px off screen and made phones scroll sideways;
+   1.45× stays inside it. */
+@keyframes wa-pulse {
+  0% { transform: scale(1); opacity: 0.35; }
+  80%, 100% { transform: scale(1.45); opacity: 0; }
 }
 
 /* …and a ring goes out from the add button. */

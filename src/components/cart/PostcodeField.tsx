@@ -150,7 +150,7 @@ export default function PostcodeField({
         role="combobox"
         aria-expanded={open}
         aria-autocomplete="list"
-        className="h-12 w-full rounded-2xl border border-charcoal-600/15 bg-cream-50 px-4 text-[0.95rem] text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
+        className="h-12 w-full rounded-2xl border border-charcoal-600/15 bg-cream-50 px-4 text-base text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
       />
 
       {open && (

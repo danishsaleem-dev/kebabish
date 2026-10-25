@@ -276,7 +276,7 @@ export default function ItemOrderPanel({
                 onChange={(e) => setInstructions(e.target.value)}
                 maxLength={300}
                 placeholder={t("instructionsPlaceholder")}
-                className="mt-2.5 w-full rounded-2xl border-2 border-charcoal-600/10 bg-cream-50 px-4 py-3 text-[0.95rem] text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
+                className="mt-2.5 w-full rounded-2xl border-2 border-charcoal-600/10 bg-cream-50 px-4 py-3 text-base text-ink placeholder:text-ink/35 focus:border-ember-600 focus:outline-none"
               />
               <p className="mt-1 flex justify-between text-xs text-ink/50">
                 <span>{t("instructionsHint")}</span>
