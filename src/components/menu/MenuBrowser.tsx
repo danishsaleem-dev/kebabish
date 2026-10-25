@@ -1,347 +1,363 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
-import {
-  Check,
-  EyeOff,
-  Flame,
-  Leaf,
-  Search,
-  SlidersHorizontal,
-  X,
-} from "lucide-react";
+import { EyeOff, Flame, Leaf, Search, SlidersHorizontal, X } from "lucide-react";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
 import type { PublicMenuCategory, PublicMenuItem } from "@/lib/public-menu";
-import SpiceMeter from "@/components/menu/SpiceMeter";
+import SpiceMeter, { Chili } from "@/components/menu/SpiceMeter";
 import ReorderCard from "@/components/reorder/ReorderCard";
 
 type Toggle = "vegetarian" | "spicy" | "hideSoldOut";
 
 /**
- * The full menu with client-side filtering. Everything renders unfiltered
- * on the server first, so a crawler still sees every dish (SEO is priority
- * #1) — the filters only ever narrow what's already in the HTML.
+ * The full menu, laid out the way delivery apps have taught everyone to read one:
  *
- * Two presentations of the same state, chosen by width:
+ * - **A sticky toolbar** under the site header: search, the filters, and a row of
+ *   category tabs. The tabs follow the scroll (the section you are reading is lit, and
+ *   the tab row slides it into view) and tapping one jumps to that section — browsing
+ *   the whole menu stays one continuous scroll instead of a filter that hides the rest.
+ * - **"Popular now"** leads (the most-ordered dishes, `getPopularItems`), and steps
+ *   aside while someone is searching or filtering.
+ * - **Every section** is a heading with its count and description over a grid: two
+ *   cards per row on a phone, three from `lg`, four from `xl`.
  *
- * - **Desktop (lg+)** gets a sticky sidebar — search, categories as a list
- *   with live counts, dietary toggles — with the dishes alone on the right.
- *   The filters used to sit in dropdowns beside the search bar, which hid
- *   the categories behind a click and wasted the whole left gutter.
- * - **Narrower** keeps the compact row: search plus one filters button that
- *   opens a panel of chips, so the dishes stay near the top of a phone
- *   screen rather than being pushed below a tall column of controls.
- *
- * Categories arrive with their labels already resolved by the server,
- * since the six original ones are translated while any category Danish
- * adds in /admin has only the label he typed.
+ * Everything renders unfiltered on the server first, so a crawler sees every dish
+ * (SEO is priority #1) — search and filters only narrow what is already in the HTML.
+ * The toolbar's sticky offset follows the real header height (the open/closed banner
+ * lives inside the header and changes it), measured into `--menu-top`.
  */
 export default function MenuBrowser({
   categories,
+  popular,
   isOpen,
 }: {
   categories: PublicMenuCategory[];
+  popular: PublicMenuItem[];
   isOpen: boolean;
 }) {
   const t = useTranslations("menu");
   const tStatus = useTranslations("status");
 
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState<string>("all");
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [toggles, setToggles] = useState<Record<Toggle, boolean>>({
     vegetarian: false,
     spicy: false,
     hideSoldOut: false,
   });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [active, setActive] = useState<string>(categories[0]?.id ?? "");
+  const tabRow = useRef<HTMLDivElement>(null);
+  const toolbar = useRef<HTMLDivElement>(null);
 
-  const toggle = (key: Toggle) =>
-    setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggle = (key: Toggle) => setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
 
-  /** Everything except the category filter, so each category can be counted. */
-  const passesToggles = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (item: PublicMenuItem) => {
+  const q = query.trim().toLowerCase();
+  const filtering = q !== "" || Object.values(toggles).some(Boolean);
+
+  const passes = useMemo(
+    () => (item: PublicMenuItem) => {
       if (q && !matches(item, q)) return false;
       if (toggles.vegetarian && !item.vegetarian) return false;
       if (toggles.spicy && !item.spicy) return false;
       if (toggles.hideSoldOut && item.soldOut) return false;
       return true;
-    };
-  }, [query, toggles]);
+    },
+    [q, toggles]
+  );
 
   const filtered = useMemo(
     () =>
       categories
-        .filter((c) => category === "all" || c.id === category)
-        .map((c) => ({ ...c, items: c.items.filter(passesToggles) }))
+        .map((c) => ({ ...c, items: c.items.filter(passes) }))
         .filter((c) => c.items.length > 0),
-    [categories, category, passesToggles]
+    [categories, passes]
   );
-
-  // The number each category would show under the *other* filters — so the
-  // sidebar can say "Kebabs 4" and grey out one that nothing matches,
-  // instead of letting someone click into an empty result.
-  const countsByCategory = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const c of categories) {
-      counts.set(c.id, c.items.filter(passesToggles).length);
-    }
-    return counts;
-  }, [categories, passesToggles]);
-
   const count = filtered.reduce((sum, c) => sum + c.items.length, 0);
-  const totalShown = [...countsByCategory.values()].reduce((a, b) => a + b, 0);
-  const isFiltered =
-    query.trim() !== "" ||
-    category !== "all" ||
-    toggles.vegetarian ||
-    toggles.spicy ||
-    toggles.hideSoldOut;
 
   const clear = () => {
     setQuery("");
-    setCategory("all");
     setToggles({ vegetarian: false, spicy: false, hideSoldOut: false });
   };
 
-  const toggleOptions: { key: Toggle; label: string; icon: typeof Leaf }[] = [
-    { key: "vegetarian", label: t("vegetarian"), icon: Leaf },
-    { key: "spicy", label: t("spicy"), icon: Flame },
-    { key: "hideSoldOut", label: t("hideSoldOut"), icon: EyeOff },
+  // The header's real height (the status banner lives inside it), so the toolbar sticks
+  // right under it and section jumps land below both.
+  useEffect(() => {
+    const header = document.querySelector("header");
+    if (!header) return;
+    const set = () =>
+      document.documentElement.style.setProperty("--menu-top", `${header.getBoundingClientRect().height}px`);
+    set();
+    const observer = new ResizeObserver(set);
+    observer.observe(header);
+    return () => {
+      observer.disconnect();
+      document.documentElement.style.removeProperty("--menu-top");
+    };
+  }, []);
+
+  // Scroll-spy: the section nearest the top (just under the toolbar) is "active".
+  useEffect(() => {
+    const sections = filtered
+      .map((c) => document.getElementById(c.id))
+      .filter((el): el is HTMLElement => Boolean(el));
+    if (sections.length === 0) return;
+    const onScroll = () => {
+      const line = (toolbar.current?.getBoundingClientRect().bottom ?? 120) + 24;
+      let current = sections[0].id;
+      for (const section of sections) {
+        if (section.getBoundingClientRect().top - line <= 0) current = section.id;
+      }
+      setActive(current);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [filtered]);
+
+  // Keep the lit tab in view inside the (horizontally scrolling) tab row.
+  useEffect(() => {
+    const row = tabRow.current;
+    const tab = row?.querySelector<HTMLElement>(`[data-tab="${active}"]`);
+    if (!row || !tab) return;
+    const left = tab.offsetLeft - row.clientWidth / 2 + tab.clientWidth / 2;
+    row.scrollTo({ left, behavior: "smooth" });
+  }, [active]);
+
+  const jumpTo = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const offset = (toolbar.current?.getBoundingClientRect().bottom ?? 120) + 8;
+    window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - offset, behavior: "smooth" });
+    setActive(id);
+  };
+
+  const toggleOptions: { key: Toggle; label: string; icon: React.ReactNode }[] = [
+    { key: "vegetarian", label: t("vegetarian"), icon: <Leaf size={15} aria-hidden="true" /> },
+    { key: "spicy", label: t("spicy"), icon: <Chili className="h-4 w-4" /> },
+    { key: "hideSoldOut", label: t("hideSoldOut"), icon: <EyeOff size={15} aria-hidden="true" /> },
   ];
+  const activeToggles = Object.values(toggles).filter(Boolean).length;
 
-  // Drives the little count badge on the collapsed button, so the number of
-  // hidden-away active filters is visible without opening it.
-  const activeToggleCount = Object.values(toggles).filter(Boolean).length;
-  const mobileBadge = activeToggleCount + (category === "all" ? 0 : 1);
-
-  const searchField = (
-    <label className="relative block">
-      <span className="sr-only">{t("searchLabel")}</span>
-      <Search
-        size={18}
-        aria-hidden="true"
-        className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink/40"
-      />
-      <input
-        type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder={t("searchPlaceholder")}
-        className="h-12 w-full rounded-full border border-charcoal-600/15 bg-cream-50 pl-11 pr-4 text-base text-ink placeholder:text-ink/40 focus:border-ember-600 focus:outline-none"
-      />
-    </label>
+  const card = (item: PublicMenuItem) => (
+    <FeaturedDishCard
+      key={item.slug}
+      item={item}
+      addLabel={t("addToOrder")}
+      priceOnRequestLabel={t("priceOnRequest")}
+      vegetarianLabel={t("vegetarian")}
+      soldOutLabel={t("soldOut")}
+      lowStockLabel={t("lowStock")}
+      isOpen={isOpen}
+      unavailableLabel={tStatus("menuUnavailable")}
+      reveal={false}
+    />
   );
 
   return (
-    <div className="mt-10 lg:grid lg:grid-cols-[16.5rem_minmax(0,1fr)] lg:items-start lg:gap-10">
-      {/* ---- desktop sidebar -------------------------------------------- */}
-      <aside className="hidden lg:sticky lg:top-28 lg:block">
-        <div className="rounded-3xl border border-charcoal-600/12 bg-cream-50 p-5">
-          {searchField}
-
-          <nav className="mt-6" aria-label={t("categoryLabel")}>
-            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
-              {t("categoryLabel")}
-            </p>
-            <ul role="radiogroup" aria-label={t("categoryLabel")} className="mt-3 space-y-0.5">
-              <li>
-                <CategoryRow
-                  label={t("allCategories")}
-                  count={totalShown}
-                  active={category === "all"}
-                  onSelect={() => setCategory("all")}
-                />
-              </li>
-              {categories.map((c) => (
-                <li key={c.id}>
-                  <CategoryRow
-                    label={c.label}
-                    count={countsByCategory.get(c.id) ?? 0}
-                    active={category === c.id}
-                    onSelect={() => setCategory(c.id)}
-                  />
-                </li>
-              ))}
-            </ul>
-          </nav>
-
-          <div className="mt-6 border-t border-charcoal-600/10 pt-5">
-            <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
-              {t("filtersLabel")}
-            </p>
-            <div role="group" aria-label={t("filtersLabel")} className="mt-3 space-y-0.5">
-              {toggleOptions.map(({ key, label, icon: Icon }) => (
-                <FilterRow
-                  key={key}
-                  label={label}
-                  icon={<Icon size={15} aria-hidden="true" />}
-                  checked={toggles[key]}
-                  onToggle={() => toggle(key)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <SpiceLegend className="mt-6 border-t border-charcoal-600/10 pt-5" />
-
-          {isFiltered && (
-            <button
-              type="button"
-              onClick={clear}
-              className="mt-6 inline-flex w-full items-center justify-center gap-1.5 rounded-full border border-charcoal-600/15 py-2.5 text-sm font-semibold text-charcoal-600 transition-colors hover:border-ember-600/50 hover:text-ember-700"
-            >
-              <X size={14} aria-hidden="true" />
-              {t("clearFilters")}
-            </button>
-          )}
-        </div>
-      </aside>
-
-      {/* ---- results (and the compact controls above them) -------------- */}
-      <div className="min-w-0">
-        <ReorderCard variant="compact" className="mb-5" />
-
-        <div className="space-y-4 lg:hidden">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="min-w-0 flex-1">{searchField}</div>
-
-            <button
-              type="button"
-              onClick={() => setMobileFiltersOpen((v) => !v)}
-              aria-expanded={mobileFiltersOpen}
-              aria-controls="menu-filter-panel"
-              className={`relative flex h-12 shrink-0 items-center gap-2 rounded-full border px-4 font-display text-sm font-semibold transition-colors ${
-                mobileFiltersOpen || mobileBadge > 0
-                  ? "border-ember-600 bg-ember-600 text-cream-50"
-                  : "border-charcoal-600/20 bg-cream-50 text-charcoal-600/80"
-              }`}
-            >
-              <SlidersHorizontal size={17} aria-hidden="true" />
-              <span className="hidden sm:inline">{t("filtersLabel")}</span>
-              {mobileBadge > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-cream-50 px-1 text-xs font-bold text-ember-700">
-                  {mobileBadge}
-                </span>
-              )}
-            </button>
-          </div>
-
-          {mobileFiltersOpen && (
-            <div
-              id="menu-filter-panel"
-              className="rounded-2xl border border-charcoal-600/15 bg-cream-50 p-4"
-            >
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-charcoal-600/60">
-                {t("categoryLabel")}
-              </p>
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                <Chip active={category === "all"} onClick={() => setCategory("all")}>
-                  {t("allCategories")}
-                </Chip>
-                {categories.map((c) => (
-                  <Chip
-                    key={c.id}
-                    active={category === c.id}
-                    onClick={() => setCategory(c.id)}
-                  >
-                    {c.label}
-                  </Chip>
-                ))}
-              </div>
-
-              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.14em] text-charcoal-600/60">
-                {t("filtersLabel")}
-              </p>
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                {toggleOptions.map(({ key, label, icon: Icon }) => (
-                  <Chip key={key} active={toggles[key]} onClick={() => toggle(key)} accent>
-                    <Icon size={14} aria-hidden="true" />
-                    {label}
-                  </Chip>
-                ))}
-              </div>
-
-              <SpiceLegend className="mt-5" />
-
+    <div className="mt-8">
+      {/* ---- the sticky toolbar ------------------------------------------ */}
+      <div
+        ref={toolbar}
+        className="sticky top-[var(--menu-top,4rem)] z-30 -mx-5 border-b border-charcoal-600/10 bg-cream-200/92 px-5 pb-2 pt-3 backdrop-blur-lg sm:-mx-6 sm:px-6"
+      >
+        <div className="flex items-center gap-2">
+          <label className="relative block min-w-0 flex-1">
+            <span className="sr-only">{t("searchLabel")}</span>
+            <Search
+              size={18}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink/40"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("searchPlaceholder")}
+              className="h-12 w-full rounded-full border border-charcoal-600/12 bg-cream-50 pl-11 pr-10 text-base text-ink shadow-sm shadow-charcoal-950/5 placeholder:text-ink/40 focus:border-ember-600 focus:outline-none"
+            />
+            {query && (
               <button
                 type="button"
-                onClick={() => setMobileFiltersOpen(false)}
-                className="mt-5 w-full rounded-full bg-charcoal-600 py-2.5 font-display text-sm font-semibold text-cream-100"
+                onClick={() => setQuery("")}
+                aria-label={t("clearSearch")}
+                className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full text-ink/50 hover:bg-cream-200"
               >
-                {t("closeFilters")}
+                <X size={16} />
               </button>
-            </div>
-          )}
-        </div>
+            )}
+          </label>
 
-        <div
-          aria-live="polite"
-          className="mt-4 flex flex-wrap items-center gap-3 text-sm text-ink/60 lg:mt-0"
-        >
-          <span>{t("resultCount", { count })}</span>
-          {isFiltered && (
-            <button
-              type="button"
-              onClick={clear}
-              className="inline-flex items-center gap-1.5 font-semibold text-ember-600 hover:text-ember-500 lg:hidden"
-            >
-              <X size={14} aria-hidden="true" />
-              {t("clearFilters")}
-            </button>
-          )}
-        </div>
-
-        {count === 0 ? (
-          <p className="mt-16 text-center text-base text-ink/60">{t("noResults")}</p>
-        ) : (
-          <div className="mt-6 space-y-14">
-            {filtered.map((c) => (
-              // scroll-mt clears the sticky header when the homepage's
-              // category cards link straight to one of these anchors.
-              <section key={c.id} id={c.id} className="scroll-mt-28">
-                <h2 className="font-display text-2xl font-semibold text-charcoal-600">
-                  {c.label}
-                </h2>
-                {c.description && (
-                  <p className="mt-1.5 text-sm text-ink/55">{c.description}</p>
-                )}
-                <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
-                  {c.items.map((item) => (
-                    <FeaturedDishCard
-                      key={item.slug}
-                      item={item}
-                      addLabel={t("addToOrder")}
-                      priceOnRequestLabel={t("priceOnRequest")}
-                      vegetarianLabel={t("vegetarian")}
-                      soldOutLabel={t("soldOut")}
-                      lowStockLabel={t("lowStock")}
-                      isOpen={isOpen}
-                      unavailableLabel={tStatus("menuUnavailable")}
-                      reveal={false}
-                    />
-                  ))}
-                </div>
-              </section>
+          {/* Filters: inline chips from md, one button + panel below that. */}
+          <div className="hidden items-center gap-2 md:flex">
+            {toggleOptions.map(({ key, label, icon }) => (
+              <FilterChip key={key} active={toggles[key]} onClick={() => toggle(key)}>
+                {icon}
+                {label}
+              </FilterChip>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((v) => !v)}
+            aria-expanded={filtersOpen}
+            aria-controls="menu-filter-panel"
+            aria-label={t("filtersLabel")}
+            className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border transition-colors md:hidden ${
+              filtersOpen || activeToggles > 0
+                ? "border-ember-600 bg-ember-600 text-cream-50"
+                : "border-charcoal-600/12 bg-cream-50 text-charcoal-600/80"
+            }`}
+          >
+            <SlidersHorizontal size={18} aria-hidden="true" />
+            {activeToggles > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-charcoal-700 px-1 text-[0.65rem] font-bold text-cream-50 ring-2 ring-cream-200">
+                {activeToggles}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {filtersOpen && (
+          <div id="menu-filter-panel" className="mt-3 rounded-2xl border border-charcoal-600/10 bg-cream-50 p-4 md:hidden">
+            <div className="flex flex-wrap gap-2">
+              {toggleOptions.map(({ key, label, icon }) => (
+                <FilterChip key={key} active={toggles[key]} onClick={() => toggle(key)}>
+                  {icon}
+                  {label}
+                </FilterChip>
+              ))}
+            </div>
+            <SpiceLegend className="mt-4 border-t border-charcoal-600/8 pt-4" />
+          </div>
         )}
+
+        {/* Category tabs — follow the scroll, tap to jump. */}
+        <nav aria-label={t("categoryLabel")} className="mt-3">
+          <div
+            ref={tabRow}
+            className="-mx-5 flex gap-1.5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] sm:-mx-6 sm:px-6"
+          >
+            {filtered.map((c) => {
+              const lit = active === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  data-tab={c.id}
+                  onClick={() => jumpTo(c.id)}
+                  aria-current={lit ? "true" : undefined}
+                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-2 font-display text-sm font-semibold transition-[background-color,color] duration-300 ${
+                    lit
+                      ? "bg-charcoal-700 text-cream-50 shadow-md shadow-charcoal-950/15"
+                      : "text-charcoal-600/75 hover:bg-cream-50 hover:text-charcoal-600"
+                  }`}
+                >
+                  {c.label}
+                  <span className={`text-xs tabular-nums ${lit ? "text-cream-50/60" : "text-ink/35"}`}>
+                    {c.items.length}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
       </div>
+
+      <ReorderCard variant="compact" className="mt-6" />
+
+      {/* ---- results ------------------------------------------------------ */}
+      <div aria-live="polite" className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <span className="text-sm text-ink/60">{t("resultCount", { count })}</span>
+        {filtering && (
+          <button
+            type="button"
+            onClick={clear}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-ember-600 hover:text-ember-700"
+          >
+            <X size={14} aria-hidden="true" />
+            {t("clearFilters")}
+          </button>
+        )}
+        {!filtering && <SpiceLegend inline className="hidden md:flex" />}
+      </div>
+
+      {!filtering && popular.length > 0 && (
+        <section aria-labelledby="menu-popular" className="mt-6">
+          <div className="flex items-end justify-between gap-3">
+            <h2 id="menu-popular" className="flex items-center gap-2 font-display text-2xl font-semibold text-charcoal-600">
+              <Flame size={22} aria-hidden="true" className="text-ember-600" />
+              {t("popularTitle")}
+            </h2>
+            <span className="text-sm text-ink/50">{t("popularSub")}</span>
+          </div>
+          <div className="-mx-5 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-3 [scrollbar-width:none] sm:-mx-6 sm:gap-4 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-4 lg:overflow-visible lg:px-0">
+            {popular.map((item) => (
+              <div key={item.slug} className="w-[15rem] shrink-0 snap-start sm:w-[17rem] lg:w-auto">
+                {card(item)}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {count === 0 ? (
+        <div className="mt-12 flex flex-col items-center gap-4 rounded-3xl border border-dashed border-charcoal-600/20 bg-cream-50/60 px-6 py-14 text-center">
+          <Search size={28} aria-hidden="true" className="text-ink/30" />
+          <p className="max-w-sm text-base text-ink/65">{t("noResults")}</p>
+          <button
+            type="button"
+            onClick={clear}
+            className="rounded-full bg-charcoal-600 px-6 py-3 font-display text-sm font-semibold text-cream-50 hover:bg-ember-600"
+          >
+            {t("clearFilters")}
+          </button>
+        </div>
+      ) : (
+        <div className="mt-10 space-y-14">
+          {filtered.map((c) => (
+            <section key={c.id} id={c.id} aria-labelledby={`h-${c.id}`} className="scroll-mt-48">
+              <div className="flex items-end justify-between gap-3 border-b border-charcoal-600/10 pb-3">
+                <div>
+                  <h2 id={`h-${c.id}`} className="font-display text-2xl font-semibold text-charcoal-600 sm:text-[1.75rem]">
+                    {c.label}
+                  </h2>
+                  {c.description && <p className="mt-1 text-sm text-ink/55">{c.description}</p>}
+                </div>
+                <span className="shrink-0 rounded-full bg-cream-50 px-3 py-1 text-xs font-semibold tabular-nums text-charcoal-600/70 ring-1 ring-charcoal-600/8">
+                  {t("resultCount", { count: c.items.length })}
+                </span>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+                {c.items.map(card)}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
+function matches(item: PublicMenuItem, q: string) {
+  if (item.name.toLowerCase().includes(q)) return true;
+  if (item.description.toLowerCase().includes(q)) return true;
+  return item.variants.some((v) => v.toLowerCase().includes(q));
+}
+
 /** The spice scale in one glance, so the chillies on the cards mean something. */
-function SpiceLegend({ className = "" }: { className?: string }) {
+function SpiceLegend({ className = "", inline = false }: { className?: string; inline?: boolean }) {
   const t = useTranslations("menu");
   return (
-    <div className={className}>
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55">
+    <div className={`${inline ? "items-center gap-3" : ""} ${className}`}>
+      <p
+        className={`text-[0.7rem] font-semibold uppercase tracking-[0.16em] text-charcoal-600/55 ${
+          inline ? "" : "mb-3"
+        }`}
+      >
         {t("spiceScale")}
       </p>
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 lg:flex-col">
+      <ul className="flex flex-wrap gap-x-4 gap-y-2">
         {[1, 2, 3].map((level) => (
           <li key={level}>
             <SpiceMeter level={level} size="sm" />
@@ -352,102 +368,13 @@ function SpiceLegend({ className = "" }: { className?: string }) {
   );
 }
 
-function matches(item: PublicMenuItem, q: string) {
-  if (item.name.toLowerCase().includes(q)) return true;
-  return item.variants.some((v) => v.toLowerCase().includes(q));
-}
-
-/** One category in the sidebar: name, how many it would show, selected state. */
-function CategoryRow({
-  label,
-  count,
-  active,
-  onSelect,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const empty = count === 0;
-  return (
-    <button
-      type="button"
-      role="radio"
-      aria-checked={active}
-      onClick={onSelect}
-      disabled={empty && !active}
-      className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-        active
-          ? "bg-ember-600/10 font-semibold text-ember-700"
-          : empty
-            ? "cursor-not-allowed text-ink/30"
-            : "text-ink/75 hover:bg-charcoal-600/5 hover:text-charcoal-600"
-      }`}
-    >
-      <span className="min-w-0 truncate">{label}</span>
-      <span
-        className={`shrink-0 text-xs tabular-nums ${
-          active ? "text-ember-700" : "text-ink/40"
-        }`}
-      >
-        {count}
-      </span>
-    </button>
-  );
-}
-
-/** One dietary toggle in the sidebar, as a real checkbox for assistive tech. */
-function FilterRow({
-  label,
-  icon,
-  checked,
-  onToggle,
-}: {
-  label: string;
-  icon: React.ReactNode;
-  checked: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={checked}
-      onClick={onToggle}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-ink/75 transition-colors hover:bg-charcoal-600/5 hover:text-charcoal-600"
-    >
-      <span
-        aria-hidden="true"
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-colors ${
-          checked
-            ? "border-ember-600 bg-ember-600 text-cream-50"
-            : "border-charcoal-600/25 text-transparent"
-        }`}
-      >
-        <Check size={13} strokeWidth={3} />
-      </span>
-      <span
-        className={`flex min-w-0 items-center gap-2 ${
-          checked ? "font-semibold text-charcoal-600" : ""
-        }`}
-      >
-        <span className="text-ink/45">{icon}</span>
-        <span className="truncate">{label}</span>
-      </span>
-    </button>
-  );
-}
-
-function Chip({
+function FilterChip({
   children,
   active,
-  accent,
   onClick,
 }: {
   children: React.ReactNode;
   active: boolean;
-  accent?: boolean;
   onClick: () => void;
 }) {
   return (
@@ -455,12 +382,10 @@ function Chip({
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2 font-display text-sm font-semibold transition-colors duration-300 ${
+      className={`inline-flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors duration-300 ${
         active
-          ? accent
-            ? "border-ember-600 bg-ember-600 text-cream-50"
-            : "border-charcoal-600 bg-charcoal-600 text-cream-100"
-          : "border-charcoal-600/20 bg-cream-50 text-charcoal-600/80 hover:border-charcoal-600/45"
+          ? "border-ember-600 bg-ember-600 text-cream-50"
+          : "border-charcoal-600/12 bg-cream-50 text-charcoal-600/80 hover:border-charcoal-600/35"
       }`}
     >
       {children}

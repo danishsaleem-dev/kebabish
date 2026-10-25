@@ -4,7 +4,7 @@ import { Link } from "@/i18n/navigation";
 import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
-import { getFeaturedItems } from "@/lib/public-menu";
+import { getPopularItems } from "@/lib/public-menu";
 
 export default async function Popular({
   locale,
@@ -14,8 +14,9 @@ export default async function Popular({
   isOpen: boolean;
 }) {
   const t = await getTranslations({ locale });
-  // The dishes flagged "featured" in /admin (at most four), not a list in code.
-  const dishes = await getFeaturedItems(locale);
+  // The most-ordered dishes, topped up with the ones ticked "featured" in /admin
+  // while there are not enough orders yet (see getPopularItems).
+  const dishes = await getPopularItems(locale);
 
   return (
     <section className="grain bg-cream-100 py-20 sm:py-28 lg:py-32">

@@ -3,7 +3,7 @@ import BrandLogo from "@/components/shared/BrandLogo";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import Image from "next/image";
-import { ArrowLeft, Bike, Check, ChevronRight, Flame, Leaf, Lock, MapPin, PlayCircle, ShieldAlert, Sparkles } from "lucide-react";
+import { ArrowLeft, Bike, Check, ChevronRight, Flame, Leaf, Lock, MapPin, PlayCircle, ShieldAlert } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { getPublicItem, getPublicItemSlugs, getRelatedItems } from "@/lib/public-menu";
 import { getPublicSettings } from "@/lib/admin/store";
@@ -22,6 +22,7 @@ import SpiceMeter, { Chili } from "@/components/menu/SpiceMeter";
 import ExpandableText from "@/components/menu/ExpandableText";
 import ShareButton from "@/components/menu/ShareButton";
 import PaymentMarks from "@/components/home/PaymentMarks";
+import Testimonials from "@/components/home/Testimonials";
 
 export async function generateStaticParams() {
   const slugs = await getPublicItemSlugs();
@@ -201,7 +202,7 @@ export default async function ItemPage({
                   </div>
                 </div>
               )}
-              <GoodToKnow t={t} className="mt-5 hidden lg:block" />
+              <GoodToKnow t={t} className="mt-5 hidden lg:grid" />
             </div>
 
             {/* ---- the buy box ------------------------------------------ */}
@@ -410,6 +411,15 @@ export default async function ItemPage({
             )}
           </section>
 
+        </div>
+
+        {/* What customers say — renders nothing until there are reviews. Full width,
+            so it sits between the dish details and the related dishes. */}
+        <div className="mt-16 sm:mt-20">
+          <Testimonials locale={locale} compact />
+        </div>
+
+        <div className="mx-auto max-w-6xl px-5 sm:px-6">
           {related.length > 0 && (
             <section className="mt-16 sm:mt-20">
               <div className="flex flex-wrap items-end justify-between gap-4">
@@ -451,6 +461,11 @@ export default async function ItemPage({
 }
 
 /** Fresh, halal, delivered — beside the photo on a laptop, in the details grid on a phone. */
+/**
+ * Fresh, halal, delivered — three short facts, each an icon, a title and a few words.
+ * Beside the photo on a laptop, in the details grid on a phone. Kept deliberately
+ * brief (Danish's call): the dish is the subject of this page, not our selling points.
+ */
 function GoodToKnow({
   t,
   className = "",
@@ -459,38 +474,33 @@ function GoodToKnow({
   className?: string;
 }) {
   const facts = [
-    { icon: <Flame size={16} aria-hidden="true" />, title: t("item.freshTitle"), text: t("item.freshText") },
+    { icon: <Flame size={17} aria-hidden="true" />, title: t("item.freshTitle"), text: t("item.freshShort") },
     {
-      icon: <Image src="/halal.png" alt="" width={18} height={18} sizes="18px" className="h-[18px] w-[18px]" />,
+      icon: <Image src="/halal.png" alt="" width={20} height={20} sizes="20px" className="h-5 w-5" />,
       title: t("home.why5Title"),
-      text: t("item.halalText"),
+      text: t("item.halalShort"),
     },
     {
-      icon: <MapPin size={16} aria-hidden="true" />,
-      title: t("item.deliveredTitle"),
-      text: t("item.deliveredText", { km: siteConfig.deliveryRadiusKm }),
+      icon: <MapPin size={17} aria-hidden="true" />,
+      title: t("item.deliveredShortTitle", { km: siteConfig.deliveryRadiusKm }),
+      text: t("item.deliveredShort"),
     },
   ];
   return (
-    <article className={`rounded-3xl bg-cream-50 p-6 ring-1 ring-charcoal-600/8 ${className}`}>
-      <h3 className="flex items-center gap-2.5 font-display text-lg font-semibold text-charcoal-600">
-        <Sparkles size={18} aria-hidden="true" className="text-ember-600" />
-        {t("item.goodToKnow")}
-      </h3>
-      <ul className="mt-4 grid gap-3.5 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
-        {facts.map((fact) => (
-          <li key={fact.title} className="flex gap-3 xl:flex-col xl:gap-2">
-            <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-cream-200 text-ember-600">
-              {fact.icon}
-            </span>
-            <span>
-              <span className="block text-sm font-semibold text-charcoal-600">{fact.title}</span>
-              <span className="block text-sm leading-snug text-ink/60">{fact.text}</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </article>
+    <ul
+      aria-label={t("item.goodToKnow")}
+      className={`grid grid-cols-3 divide-x divide-charcoal-600/8 rounded-3xl bg-cream-50 py-4 ring-1 ring-charcoal-600/8 ${className}`}
+    >
+      {facts.map((fact) => (
+        <li key={fact.title} className="flex flex-col items-center gap-1.5 px-2 text-center">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-cream-200 text-ember-600">
+            {fact.icon}
+          </span>
+          <span className="text-[0.8rem] font-semibold leading-tight text-charcoal-600 sm:text-sm">{fact.title}</span>
+          <span className="text-[0.7rem] leading-tight text-ink/55 sm:text-xs">{fact.text}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 

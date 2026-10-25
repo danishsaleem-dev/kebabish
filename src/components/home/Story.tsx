@@ -46,17 +46,17 @@ export default async function Story({ locale }: { locale: string }) {
             {t("home.aboutText")}
           </p>
 
-          <ul data-reveal-group className="mt-10 grid grid-cols-3 gap-4">
+          <ul data-reveal-group className="mt-10 grid grid-cols-3 gap-3 sm:gap-4">
             {stats.map((stat) => (
               <li
                 key={stat.label}
                 data-reveal
-                className="border-l-2 border-ember-600/35 pl-4"
+                className="min-w-0 border-l-2 border-ember-600/35 pl-3 sm:pl-4"
               >
                 <span className="block font-display text-2xl font-semibold text-charcoal-600 sm:text-3xl">
                   {stat.value}
                 </span>
-                <span className="mt-1 block text-xs leading-snug text-ink/60 sm:text-sm">
+                <span className="mt-1 block hyphens-auto text-xs leading-snug text-ink/60 sm:text-sm">
                   {stat.label}
                 </span>
               </li>

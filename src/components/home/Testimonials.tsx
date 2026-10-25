@@ -41,11 +41,22 @@ function fill(list: Review[]): Review[] {
   return out;
 }
 
-export default async function Testimonials({ locale }: { locale: string }) {
+export default async function Testimonials({
+  locale,
+  compact = false,
+}: {
+  locale: string;
+  /** Less padding and a smaller heading, for pages where the quotes are not the main event (a dish, the feedback form). */
+  compact?: boolean;
+}) {
   const reviews = await getReviews();
   if (reviews.length === 0) return null;
 
   const t = await getTranslations({ locale });
+  // The compact version goes on pages without the Motion island (a dish, the feedback
+  // form), where scroll-reveal attributes would leave it invisible — so it has none.
+  const reveal = !compact;
+  const r = (value = "") => (reveal ? value : undefined);
   const average = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   const averageLabel = new Intl.NumberFormat(locale === "nl" ? "nl-NL" : "en-GB", {
     minimumFractionDigits: 1,
@@ -57,7 +68,11 @@ export default async function Testimonials({ locale }: { locale: string }) {
   const rows = [fill(reviews), fill([...reviews.slice(shift), ...reviews.slice(0, shift)])];
 
   return (
-    <section className="relative overflow-hidden bg-charcoal-900 py-20 text-cream-100 sm:py-28 lg:py-32">
+    <section
+      className={`relative overflow-hidden bg-charcoal-900 text-cream-100 ${
+        compact ? "py-14 sm:py-16" : "py-20 sm:py-28 lg:py-32"
+      }`}
+    >
       {/* Ember bloom low-left and a softer one top-right, so the band is lit
           rather than reading as a flat dark slab. */}
       <div className="absolute inset-0 bg-[radial-gradient(65%_55%_at_12%_100%,rgba(169,80,38,0.22),transparent_70%),radial-gradient(40%_40%_at_90%_0%,rgba(169,80,38,0.14),transparent_70%)]" />
@@ -66,16 +81,18 @@ export default async function Testimonials({ locale }: { locale: string }) {
       <div className="relative z-10 mx-auto max-w-6xl px-5 sm:px-6">
         <div className="flex flex-wrap items-end justify-between gap-8">
           <div className="max-w-2xl">
-            <SectionEyebrow tone="light">{t("home.reviewsEyebrow")}</SectionEyebrow>
+            <SectionEyebrow tone="light" reveal={reveal}>{t("home.reviewsEyebrow")}</SectionEyebrow>
             <h2
-              data-reveal-mask
-              className="mt-5 text-balance font-display text-3xl font-semibold leading-[1.15] text-cream-100 sm:text-4xl lg:text-[2.75rem]"
+              data-reveal-mask={r()}
+              className={`mt-5 text-balance font-display font-semibold leading-[1.15] text-cream-100 ${
+                compact ? "text-2xl sm:text-3xl" : "text-3xl sm:text-4xl lg:text-[2.75rem]"
+              }`}
             >
               <MaskedWords text={t("home.reviewsTitle")} />
             </h2>
           </div>
 
-          <div data-reveal className="flex items-center gap-5">
+          <div data-reveal={r()} className="flex items-center gap-5">
             <div className="flex items-center gap-4 rounded-2xl border border-cream-200/12 bg-cream-50/[0.04] px-5 py-3.5">
               <span className="font-display text-4xl font-bold text-cream-50">{averageLabel}</span>
               <span>
@@ -109,7 +126,7 @@ export default async function Testimonials({ locale }: { locale: string }) {
         </div>
       </div>
 
-      <div data-reveal className="relative z-10 mt-12 space-y-5 sm:mt-14 sm:space-y-6">
+      <div data-reveal={r()} className={`relative z-10 space-y-5 sm:space-y-6 ${compact ? "mt-8" : "mt-12 sm:mt-14"}`}>
         {rows.map((row, r) => (
           <div
             key={r}

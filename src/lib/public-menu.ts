@@ -5,7 +5,7 @@ import { buildSeed } from "@/lib/admin/store/seed";
 import { dishImage } from "@/lib/dish-images";
 import { readStockMap, type StockMap } from "@/lib/stock";
 import { stockLevel } from "@/lib/stock-status";
-import { getBestsellerSlugs } from "@/lib/bestsellers";
+import { getBestsellerSlugs, getOrderCounts, POPULAR_WINDOW_DAYS } from "@/lib/bestsellers";
 import type { StoreShape, StoredOptionGroup } from "@/lib/admin/store/types";
 
 /**
@@ -344,7 +344,33 @@ export async function getRelatedItems(
 }
 
 /**
- * The homepage's dishes: the ones flagged "featured" in the admin, in menu
+ * The homepage's Popular dishes: **ranked by real orders** — the dishes that appeared in
+ * the most paid orders over the last `POPULAR_WINDOW_DAYS` (lib/bestsellers.ts) lead.
+ * While there aren't enough orders to fill the row, the dishes the owner ticked
+ * "featured" come next, then the rest of the menu, so the section is never thin.
+ * A dish that can't be ordered (no price, or sold out) never leads the row: unpriced
+ * dishes are left out entirely and sold-out ones go to the back.
+ */
+export async function getPopularItems(locale = "nl", limit = FEATURED_LIMIT): Promise<PublicMenuItem[]> {
+  const [all, counts] = await Promise.all([
+    getPublicMenu(locale).then((categories) => categories.flatMap((c) => c.items)),
+    getOrderCounts(POPULAR_WINDOW_DAYS),
+  ]);
+  const position = new Map(all.map((item, i) => [item.slug, i]));
+  return all
+    .filter((item) => item.price != null)
+    .sort(
+      (a, b) =>
+        Number(a.soldOut) - Number(b.soldOut) ||
+        (counts.get(b.slug) ?? 0) - (counts.get(a.slug) ?? 0) ||
+        Number(b.featured) - Number(a.featured) ||
+        (position.get(a.slug) ?? 0) - (position.get(b.slug) ?? 0)
+    )
+    .slice(0, limit);
+}
+
+/**
+ * The owner's featured dishes: the ones flagged "featured" in the admin, in menu
  * order, at most FEATURED_LIMIT. Nothing flagged yet falls back to the first
  * dishes on the menu rather than leaving the section empty — and only ones
  * that can actually be ordered lead the fallback, so a "price on request"

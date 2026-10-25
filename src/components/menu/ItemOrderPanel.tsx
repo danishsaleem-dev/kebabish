@@ -151,7 +151,7 @@ export default function ItemOrderPanel({
   const missingNames = missingRequired.map((g) => g.label).join(", ");
 
   return (
-    <div className="space-y-7">
+    <div className="space-y-6">
       {item.optionGroups.map((group) => {
         const picked = selected[group.id] ?? [];
         const single = group.maxChoices === 1;
@@ -179,7 +179,7 @@ export default function ItemOrderPanel({
             <legend className="block w-full">
               <span className="flex flex-wrap items-center justify-between gap-2">
                 <span className="flex items-center gap-2.5">
-                  <span className="font-display text-lg font-semibold text-charcoal-600">{group.label}</span>
+                  <span className="font-display text-base font-semibold text-charcoal-600">{group.label}</span>
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-wider ${
                       required ? "bg-ember-600 text-cream-50" : "bg-charcoal-600/8 text-charcoal-600/70"
@@ -206,7 +206,7 @@ export default function ItemOrderPanel({
               </p>
             )}
 
-            <div className="mt-3 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className="mt-2.5 grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
               {group.options.map((option) => {
                 const isPicked = picked.includes(option.id);
                 const atLimit = !single && picked.length >= group.maxChoices;
@@ -214,7 +214,7 @@ export default function ItemOrderPanel({
                 return (
                   <label
                     key={option.id}
-                    className={`group/opt relative flex cursor-pointer items-center gap-3 rounded-2xl border-2 px-3.5 py-3 transition-[border-color,background-color,transform] duration-200 active:scale-[0.98] ${
+                    className={`group/opt relative flex cursor-pointer items-center gap-2.5 rounded-xl border-2 px-3 py-2.5 transition-[border-color,background-color,transform] duration-200 active:scale-[0.98] ${
                       isPicked
                         ? "border-ember-600 bg-ember-600/[0.06]"
                         : "border-charcoal-600/10 bg-cream-50 hover:border-charcoal-600/25"
@@ -231,22 +231,22 @@ export default function ItemOrderPanel({
                     {/* The mark: a ring for one-of, a square for several. */}
                     <span
                       aria-hidden="true"
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ember-500 peer-focus-visible:ring-offset-2 ${
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ember-500 peer-focus-visible:ring-offset-2 ${
                         single ? "rounded-full" : "rounded-md"
                       } ${isPicked ? "border-ember-600 bg-ember-600 text-cream-50" : "border-charcoal-600/30 bg-cream-50"}`}
                     >
                       {isPicked &&
                         (single ? (
-                          <span className="h-2 w-2 rounded-full bg-cream-50" />
+                          <span className="h-1.5 w-1.5 rounded-full bg-cream-50" />
                         ) : (
-                          <Check size={12} strokeWidth={3.5} />
+                          <Check size={10} strokeWidth={4} />
                         ))}
                     </span>
-                    <span className="min-w-0 flex-1 text-[0.92rem] font-medium leading-snug text-ink">
+                    <span className="min-w-0 flex-1 text-sm leading-snug text-ink">
                       {option.label}
                     </span>
                     <span
-                      className={`shrink-0 text-xs font-semibold tabular-nums ${
+                      className={`shrink-0 text-[0.7rem] font-semibold tabular-nums ${
                         option.price > 0 ? "text-charcoal-600/80" : "text-ink/40"
                       }`}
                     >

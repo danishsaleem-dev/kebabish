@@ -4,7 +4,8 @@
     "menu": "Menu",
     "about": "Over ons",
     "contact": "Contact",
-    "order": "Bestellen"
+    "order": "Bestellen",
+    "catering": "Catering"
   },
   "hero": {
     "eyebrow": "Nieuw in Hoogkarspel",
@@ -208,7 +209,11 @@
     "ctaTitle": "Check of wij bij jou bezorgen",
     "ctaText": "Twijfel je of jouw adres binnen ons bezorggebied valt? Stuur ons je postcode via WhatsApp.",
     "ctaWhatsapp": "Vraag het via WhatsApp",
-    "ctaMenu": "Bekijk het menu"
+    "ctaMenu": "Bekijk het menu",
+    "noMinimum": "Geen minimum",
+    "timesTitle": "Wanneer we bezorgen",
+    "timesText": "Bij het afrekenen kies je zelf een tijdvak, vandaag of een paar dagen vooruit. Elk tijdvak heeft beperkt plek, zodat jouw bestelling ook echt op tijd komt.",
+    "closingTitle": "Zin gekregen?"
   },
   "menu": {
     "title": "Ons Menu",
@@ -246,7 +251,10 @@
     "chefsPick": "Tip van de chef",
     "bestseller": "Bestseller",
     "quickAddAria": "{name} toevoegen aan je mandje",
-    "quickAdded": "Toegevoegd"
+    "quickAdded": "Toegevoegd",
+    "popularTitle": "Populair nu",
+    "popularSub": "Het vaakst besteld",
+    "clearSearch": "Zoekopdracht wissen"
   },
   "contact": {
     "title": "Contact & Bezorggebied",
@@ -264,7 +272,11 @@
     "deliveryCheckWhatsapp": "Hoi Kebabish, kunnen jullie bij mij bezorgen?",
     "deliveryCheckDistance": "Ongeveer {km} km van onze keuken.",
     "deliveryCheckFailed": "We konden die postcode niet vinden. Controleer hem even of stuur ons een appje.",
-    "socialsTitle": "Volg ons"
+    "socialsTitle": "Volg ons",
+    "whatsappMessage": "Hoi Kebabish, ik heb een vraag:",
+    "whatsappText": "Voor vragen en allergieën",
+    "emailTitle": "E-mail",
+    "today": "Vandaag"
   },
   "cart": {
     "title": "Jouw bestelling",
@@ -371,10 +383,6 @@
     "spiceThis": "Zo pittig is dit gerecht:",
     "goodToKnow": "Goed om te weten",
     "freshTitle": "Vers bereid",
-    "freshText": "We maken je bestelling vers in onze keuken in Hoogkarspel.",
-    "halalText": "Al ons eten is 100% halal.",
-    "deliveredTitle": "Bezorgd aan je deur",
-    "deliveredText": "Binnen {km} km van Hoogkarspel, in het tijdvak dat jij kiest.",
     "videoTitle": "Zo maken we het",
     "chooseOne": "Kies er 1",
     "pickedCount": "{count}/{max} gekozen",
@@ -382,7 +390,11 @@
     "free": "Gratis",
     "addNote": "Opmerking voor de keuken toevoegen",
     "chooseShort": "Maak je keuze",
-    "addedShort": "Toegevoegd"
+    "addedShort": "Toegevoegd",
+    "freshShort": "Elke dag, in onze keuken",
+    "halalShort": "Al ons eten",
+    "deliveredShortTitle": "Bezorgd binnen {km} km",
+    "deliveredShort": "Op jouw tijdvak"
   },
   "checkout": {
     "title": "Afrekenen",
@@ -541,7 +553,8 @@
     "orderGeneric": "Hallo Kebabish! Ik wil graag een bestelling plaatsen.",
     "orderItem": "Hallo Kebabish! Ik wil graag bestellen: {item}",
     "orderItemVariant": "Hallo Kebabish! Ik wil graag bestellen: {item} (smaak: ___)",
-    "cateringInquiry": "Hallo Kebabish! Ik wil graag de mogelijkheden voor catering bespreken."
+    "cateringInquiry": "Hallo Kebabish! Ik wil graag de mogelijkheden voor catering bespreken.",
+    "cateringDetailed": "Hallo Kebabish! Ik wil graag catering bespreken.\nAantal personen: \nDatum en tijd: \nAdres: \nWensen/allergieën: "
   },
   "catering": {
     "title": "Catering",
@@ -568,7 +581,18 @@
     "ctaTitle": "Iets te vieren?",
     "ctaText": "Neem contact met ons op om de mogelijkheden voor jouw evenement te bespreken — we denken graag met je mee.",
     "ctaWhatsapp": "Bespreek het via WhatsApp",
-    "ctaCall": "Bel ons"
+    "ctaCall": "Bel ons",
+    "menuEyebrow": "Op het menu",
+    "menuTitle": "Stel je menu samen uit onze gerechten",
+    "menuText": "Je kiest uit de gerechten van onze kaart. Samen bepalen we wat het beste past bij jouw gelegenheid.",
+    "briefEyebrow": "Je aanvraag",
+    "briefTitle": "Dit willen we graag van je weten",
+    "briefText": "Stuur het ons via WhatsApp — het bericht staat al voor je klaar, je vult alleen nog in.",
+    "brief1": "Het aantal personen",
+    "brief2": "De datum en tijd",
+    "brief3": "Het adres",
+    "brief4": "Wensen en allergieën",
+    "briefCta": "Stuur je aanvraag via WhatsApp"
   },
   "reviews": {
     "title": "Reviews",

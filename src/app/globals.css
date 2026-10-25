@@ -104,16 +104,18 @@
    * Never scroll sideways. Phones let you pan to anything that pokes past the right
    * edge — even a decorative ring on a fixed button (the WhatsApp pulse did exactly
    * that) — and the whole page then wobbles left and right while scrolling.
-   * `clip`, not `hidden`: on body, `hidden` would turn it into a scroll container
-   * and break the sticky header, the sticky dish photo and window scroll events.
-   * Older browsers without `clip` get `hidden` on the root only, which is safe there.
+   * On `body` only, never on `html` as well: with `html` left alone, the browser hands
+   * body's overflow to the window itself, so (a) the sticky header, the sticky dish
+   * photo and the menu's sticky tabs keep working, and (b) the popups' scroll lock
+   * (`body.style.overflow = "hidden"`) still freezes the page behind them. Putting it
+   * on `html` too broke both: body became a scroll container of its own. `clip` rather
+   * than `hidden` so body's vertical overflow stays `visible`.
    */
-  html,
   body {
     overflow-x: clip;
   }
   @supports not (overflow: clip) {
-    html {
+    body {
       overflow-x: hidden;
     }
   }

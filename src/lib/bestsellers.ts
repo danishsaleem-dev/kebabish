@@ -2,33 +2,40 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 /**
- * Which dishes carry the "Bestseller" badge — counted from real orders, never set by
- * hand (Danish's call: a badge that says "bestseller" should be true).
+ * What sells, counted from real orders — never set by hand (Danish's call: a badge that
+ * says "bestseller", and a section called "popular", should be true).
  *
- * The rule: the dishes that appeared in the most **paid** orders over the last
- * `WINDOW_DAYS`, at most `LIMIT` of them, and only if a dish was in at least
- * `MIN_ORDERS` different orders. That floor is what keeps a quiet week honest — with
- * two orders in total, "bestseller" would mean "somebody ordered it once", so no dish
- * gets the badge until there is something to count. Counted per order, not per
- * portion, so one party order of twenty kebabs doesn't crown them.
+ * Two uses of the same count (in how many **paid** orders a dish appeared, per order,
+ * not per portion, so one party order of twenty kebabs doesn't crown them):
  *
- * Cached for ten minutes per server instance and never throws: no history (or no
- * database) simply means no badges.
+ * - **The "Bestseller" badge** (`getBestsellerSlugs`): the dishes in the most paid orders
+ *   over the last `BADGE_WINDOW_DAYS`, at most `BADGE_LIMIT`, and only if a dish was in at
+ *   least `BADGE_MIN_ORDERS` different orders. That floor keeps a quiet week honest —
+ *   with two orders in total, "bestseller" would mean "somebody ordered it once".
+ * - **The homepage's Popular dishes** (`getOrderCounts(POPULAR_WINDOW_DAYS)`, used by
+ *   `getPopularItems` in public-menu.ts): a longer window, so the ranking has enough to go
+ *   on, with the owner's "featured" ticks filling in while it doesn't.
+ *
+ * Cached for ten minutes per server instance and per window; never throws — no history
+ * (or no database) simply means no counts.
  */
 
-const WINDOW_DAYS = 30;
-const LIMIT = 3;
-const MIN_ORDERS = 3;
+const BADGE_WINDOW_DAYS = 30;
+const BADGE_LIMIT = 3;
+const BADGE_MIN_ORDERS = 3;
+export const POPULAR_WINDOW_DAYS = 90;
 const TTL_MS = 10 * 60_000;
 
-let cache: { at: number; slugs: Set<string> } | null = null;
+type Row = { order_id: string; item_slug: string };
+const cache = new Map<number, { at: number; rows: Row[] }>();
 
-export async function getBestsellerSlugs(): Promise<Set<string>> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.slugs;
+async function paidOrderLines(windowDays: number): Promise<Row[]> {
+  const hit = cache.get(windowDays);
+  if (hit && Date.now() - hit.at < TTL_MS) return hit.rows;
 
-  let slugs = new Set<string>();
+  let rows: Row[] = [];
   try {
-    const since = new Date(Date.now() - WINDOW_DAYS * 86_400_000).toISOString();
+    const since = new Date(Date.now() - windowDays * 86_400_000).toISOString();
     const { data, error } = await supabaseAdmin()
       .from("order_items")
       .select("order_id, item_slug, orders!inner(payment_status, created_at)")
@@ -36,30 +43,44 @@ export async function getBestsellerSlugs(): Promise<Set<string>> {
       .gte("orders.created_at", since)
       .limit(6000);
     if (error) throw new Error(error.message);
-    slugs = rankBestsellers((data ?? []) as { order_id: string; item_slug: string }[]);
+    rows = (data ?? []) as Row[];
   } catch (error) {
     console.error("[bestsellers] couldn't read order history:", error);
   }
 
-  cache = { at: Date.now(), slugs };
-  return slugs;
+  cache.set(windowDays, { at: Date.now(), rows });
+  return rows;
 }
 
-/** Pure: order lines in, the badge's dishes out. Exported for the check script. */
-export function rankBestsellers(
-  rows: { order_id: string; item_slug: string }[],
-  limit = LIMIT,
-  minOrders = MIN_ORDERS
-): Set<string> {
+/** Pure: for each dish, in how many different orders it appeared. */
+export function countOrders(rows: Row[]): Map<string, number> {
   const orders = new Map<string, Set<string>>();
   for (const row of rows) {
     const set = orders.get(row.item_slug) ?? new Set<string>();
     set.add(row.order_id);
     orders.set(row.item_slug, set);
   }
+  return new Map([...orders].map(([slug, ids]) => [slug, ids.size]));
+}
+
+/** In how many paid orders each dish appeared over the last `windowDays`. */
+export async function getOrderCounts(windowDays: number): Promise<Map<string, number>> {
+  return countOrders(await paidOrderLines(windowDays));
+}
+
+export async function getBestsellerSlugs(): Promise<Set<string>> {
+  return rankBestsellers(await paidOrderLines(BADGE_WINDOW_DAYS));
+}
+
+/** Pure: order lines in, the badge's dishes out. */
+export function rankBestsellers(
+  rows: Row[],
+  limit = BADGE_LIMIT,
+  minOrders = BADGE_MIN_ORDERS
+): Set<string> {
   return new Set(
-    [...orders.entries()]
-      .map(([slug, ids]) => ({ slug, count: ids.size }))
+    [...countOrders(rows)]
+      .map(([slug, count]) => ({ slug, count }))
       .filter((r) => r.count >= minOrders)
       // Ties broken by slug so the badge doesn't hop between equal dishes per request.
       .sort((a, b) => b.count - a.count || a.slug.localeCompare(b.slug))

@@ -8,15 +8,18 @@ export default function SectionEyebrow({
   children,
   tone = "dark",
   className = "",
+  reveal = true,
 }: {
   children: ReactNode;
   /** "light" = sitting on a charcoal background. */
   tone?: "dark" | "light";
   className?: string;
+  /** False on pages without the Motion island, where a primed reveal would never be shown. */
+  reveal?: boolean;
 }) {
   return (
     <p
-      data-reveal
+      data-reveal={reveal ? "" : undefined}
       className={`inline-flex items-center gap-3 text-[0.7rem] font-semibold uppercase tracking-[0.2em] ${
         tone === "light" ? "text-ember-400" : "text-ember-600"
       } ${className}`}

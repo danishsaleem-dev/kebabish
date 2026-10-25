@@ -14,7 +14,16 @@ import SectionEyebrow from "@/components/home/SectionEyebrow";
  * The four original reasons keep their keys (`home.why1…4`), so text the owner has
  * already edited in Website content stays exactly as he left it.
  */
-export default async function Why({ locale }: { locale: string }) {
+export default async function Why({
+  locale,
+  eyebrow,
+  title,
+}: {
+  locale: string;
+  /** Another page (About) can keep its own heading over the same tiles. */
+  eyebrow?: string;
+  title?: string;
+}) {
   const t = await getTranslations({ locale });
 
   const tiles = [
@@ -73,12 +82,12 @@ export default async function Why({ locale }: { locale: string }) {
     <section className="grain bg-cream-100 py-20 sm:py-28 lg:py-32">
       <div className="relative z-10 mx-auto max-w-6xl px-5 sm:px-6">
         <div className="max-w-2xl">
-          <SectionEyebrow>{t("home.whyEyebrow")}</SectionEyebrow>
+          <SectionEyebrow>{eyebrow ?? t("home.whyEyebrow")}</SectionEyebrow>
           <h2
             data-reveal-mask
             className="mt-5 text-balance font-display text-3xl font-semibold leading-[1.15] text-charcoal-600 sm:text-4xl lg:text-[2.75rem]"
           >
-            <MaskedWords text={t("home.whyTitle")} />
+            <MaskedWords text={title ?? t("home.whyTitle")} />
           </h2>
         </div>
 

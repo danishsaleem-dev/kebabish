@@ -4,7 +4,8 @@
     "menu": "Menu",
     "about": "About",
     "contact": "Contact",
-    "order": "Order"
+    "order": "Order",
+    "catering": "Catering"
   },
   "hero": {
     "eyebrow": "New in Hoogkarspel",
@@ -208,7 +209,11 @@
     "ctaTitle": "Check if we deliver to you",
     "ctaText": "Not sure your address falls within our delivery area? Send us your postcode on WhatsApp.",
     "ctaWhatsapp": "Ask on WhatsApp",
-    "ctaMenu": "View the menu"
+    "ctaMenu": "View the menu",
+    "noMinimum": "No minimum",
+    "timesTitle": "When we deliver",
+    "timesText": "At checkout you pick your own time window, today or a few days ahead. Each window has limited room, so your order really arrives on time.",
+    "closingTitle": "Feeling hungry?"
   },
   "menu": {
     "title": "Our Menu",
@@ -246,7 +251,10 @@
     "chefsPick": "Chef’s pick",
     "bestseller": "Bestseller",
     "quickAddAria": "Add {name} to your basket",
-    "quickAdded": "Added"
+    "quickAdded": "Added",
+    "popularTitle": "Popular now",
+    "popularSub": "Ordered most often",
+    "clearSearch": "Clear search"
   },
   "contact": {
     "title": "Contact & Delivery Area",
@@ -264,7 +272,11 @@
     "deliveryCheckWhatsapp": "Hi Kebabish, can you deliver to my postcode?",
     "deliveryCheckDistance": "About {km} km from our kitchen.",
     "deliveryCheckFailed": "We couldn't find that postcode. Please check it, or message us instead.",
-    "socialsTitle": "Follow us"
+    "socialsTitle": "Follow us",
+    "whatsappMessage": "Hi Kebabish, I have a question:",
+    "whatsappText": "For questions and allergies",
+    "emailTitle": "Email",
+    "today": "Today"
   },
   "cart": {
     "title": "Your order",
@@ -371,10 +383,6 @@
     "spiceThis": "This is how hot this dish is:",
     "goodToKnow": "Good to know",
     "freshTitle": "Freshly made",
-    "freshText": "We cook your order fresh in our kitchen in Hoogkarspel.",
-    "halalText": "All our food is 100% halal.",
-    "deliveredTitle": "Delivered to your door",
-    "deliveredText": "Within {km} km of Hoogkarspel, in the time window you choose.",
     "videoTitle": "How we make it",
     "chooseOne": "Choose 1",
     "pickedCount": "{count}/{max} chosen",
@@ -382,7 +390,11 @@
     "free": "Free",
     "addNote": "Add a note for the kitchen",
     "chooseShort": "Make your choice",
-    "addedShort": "Added"
+    "addedShort": "Added",
+    "freshShort": "Every day, in our kitchen",
+    "halalShort": "All our food",
+    "deliveredShortTitle": "Delivered within {km} km",
+    "deliveredShort": "In your time window"
   },
   "checkout": {
     "title": "Checkout",
@@ -541,7 +553,8 @@
     "orderGeneric": "Hi Kebabish! I'd like to place an order.",
     "orderItem": "Hi Kebabish! I'd like to order: {item}",
     "orderItemVariant": "Hi Kebabish! I'd like to order: {item} (flavor: ___)",
-    "cateringInquiry": "Hi Kebabish! I'd like to discuss catering options."
+    "cateringInquiry": "Hi Kebabish! I'd like to discuss catering options.",
+    "cateringDetailed": "Hello Kebabish! I would like to discuss catering.\nNumber of guests: \nDate and time: \nAddress: \nWishes/allergies: "
   },
   "catering": {
     "title": "Catering",
@@ -568,7 +581,18 @@
     "ctaTitle": "Celebrating something?",
     "ctaText": "Get in touch to discuss what's possible for your event — we're happy to think it through with you.",
     "ctaWhatsapp": "Discuss it on WhatsApp",
-    "ctaCall": "Call us"
+    "ctaCall": "Call us",
+    "menuEyebrow": "On the menu",
+    "menuTitle": "Compose your menu from our dishes",
+    "menuText": "You choose from the dishes on our menu. Together we work out what suits your occasion best.",
+    "briefEyebrow": "Your request",
+    "briefTitle": "What we would like to know",
+    "briefText": "Send it to us on WhatsApp — the message is ready for you, you only fill it in.",
+    "brief1": "The number of guests",
+    "brief2": "The date and time",
+    "brief3": "The address",
+    "brief4": "Wishes and allergies",
+    "briefCta": "Send your request on WhatsApp"
   },
   "reviews": {
     "title": "Reviews",

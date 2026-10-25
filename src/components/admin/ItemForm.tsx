@@ -417,6 +417,10 @@ export default function ItemForm({
               label="Featured on the homepage"
               defaultChecked={item?.featured}
             />
+            <p className="-mt-1 pl-6 text-xs text-muted">
+              “Popular dishes” on the homepage shows the most-ordered dishes. Featured ones fill the
+              spots while there aren’t enough orders yet.
+            </p>
             {e.featured && (
               <p className="text-xs font-medium text-danger">{e.featured}</p>
             )}

@@ -10,6 +10,7 @@ import { orderHasFeedback } from "@/lib/feedback/data";
 import { parseSource } from "@/lib/feedback/questions";
 import { validReviewUrl } from "@/lib/feedback/review-url";
 import { pageMetadata } from "@/lib/seo";
+import Testimonials from "@/components/home/Testimonials";
 import FeedbackForm from "@/components/feedback/FeedbackForm";
 
 // The form changes with the query string (which order, where from), so this
@@ -138,6 +139,9 @@ export default async function FeedbackPage({
           )}
         </div>
       </div>
+
+      {/* What others said — renders nothing until there are reviews. */}
+      <Testimonials locale={locale} compact />
     </div>
   );
 }
