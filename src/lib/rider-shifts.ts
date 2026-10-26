@@ -242,3 +242,62 @@ export function deliveriesOnDay(orders: AdminOrder[], dateKey: string): AdminOrd
     return day === dateKey;
   });
 }
+
+/**
+ * Owner/staff correcting a round from /admin/riders: every value of the row at once — the day,
+ * both readings, both times and the note. Unlike `saveShiftReading` (the rider's own two-tap
+ * flow, which stamps the times itself) the times here are whatever staff typed, because the
+ * point of this screen is to put a wrong entry right.
+ *
+ * A null reading clears it. End-before-start is refused here and by the table's constraint.
+ */
+export async function updateShiftAdmin(input: {
+  id: string;
+  shiftDate: string;
+  startKm: number | null;
+  endKm: number | null;
+  startAt: string | null;
+  endAt: string | null;
+  note: string | null;
+  actorId: string;
+}): Promise<{ ok: true } | { ok: false; reason: "notSetUp" | "endBeforeStart" | "duplicate" | "missing" | "failed" }> {
+  if (input.startKm !== null && input.endKm !== null && input.endKm < input.startKm) {
+    return { ok: false, reason: "endBeforeStart" };
+  }
+  const { data, error } = await supabaseAdmin()
+    .from("rider_shifts")
+    .update({
+      shift_date: input.shiftDate,
+      start_km: input.startKm,
+      end_km: input.endKm,
+      start_at: input.startAt,
+      end_at: input.endAt,
+      note: input.note?.trim() ? input.note.trim() : null,
+      updated_by: input.actorId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.id)
+    .select("id");
+
+  if (error) {
+    if (isMissingTable(error)) return { ok: false, reason: "notSetUp" };
+    // The one-round-per-rider-per-day rule: moving a round onto a day that already has one.
+    if (error.code === "23505") return { ok: false, reason: "duplicate" };
+    if (error.code === "23514") return { ok: false, reason: "endBeforeStart" };
+    console.error("[rider-shifts] admin update failed:", error.message);
+    return { ok: false, reason: "failed" };
+  }
+  if (!data?.length) return { ok: false, reason: "missing" };
+  return { ok: true };
+}
+
+/** Remove one round for good. False when it was already gone. */
+export async function deleteShift(id: string): Promise<{ ok: boolean; reason?: "notSetUp" | "failed" }> {
+  const { data, error } = await supabaseAdmin().from("rider_shifts").delete().eq("id", id).select("id");
+  if (error) {
+    if (isMissingTable(error)) return { ok: false, reason: "notSetUp" };
+    console.error("[rider-shifts] delete failed:", error.message);
+    return { ok: false, reason: "failed" };
+  }
+  return { ok: (data ?? []).length > 0 };
+}

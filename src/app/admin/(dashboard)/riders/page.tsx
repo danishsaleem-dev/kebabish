@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { DatabaseZap, TriangleAlert } from "lucide-react";
+import { DatabaseZap } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import PrintButton from "@/components/admin/ui/PrintButton";
+import RiderShiftTable from "@/components/admin/RiderShiftTable";
 import { listRiders } from "@/lib/admin/auth-users";
 import { listOrders } from "@/lib/admin/orders-data";
 import {
@@ -23,13 +24,6 @@ const RANGES = [
   { days: 30, label: "Last 30 days" },
   { days: 90, label: "Last 90 days" },
 ];
-
-const dayLabel = (dateKey: string) =>
-  new Date(`${dateKey}T00:00:00`).toLocaleDateString("en-GB", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
 
 interface Row {
   shift: RiderShift;
@@ -176,7 +170,7 @@ export default async function RidersPage({
                     {formatKm(group.km)}
                   </p>
                 </div>
-                <ShiftTable rows={group.rows} />
+                <RiderShiftTable rows={group.rows} today={to} />
               </Card>
             ))}
 
@@ -190,7 +184,7 @@ export default async function RidersPage({
                     Their rounds stay in the figures above and here.
                   </p>
                 </div>
-                <ShiftTable rows={orphaned} showRider />
+                <RiderShiftTable rows={orphaned} showRider today={to} />
               </Card>
             )}
           </>
@@ -219,71 +213,6 @@ function Stat({
       >
         {value}
       </dd>
-    </div>
-  );
-}
-
-function ShiftTable({ rows, showRider = false }: { rows: Row[]; showRider?: boolean }) {
-  return (
-    <div className="overflow-x-auto border-t border-hairline">
-      <table className="w-full min-w-[42rem] text-sm">
-        <thead>
-          <tr className="border-b border-hairline text-left text-xs font-semibold uppercase tracking-wide text-muted">
-            <th className="px-5 py-3">Day</th>
-            {showRider && <th className="px-5 py-3">Rider</th>}
-            <th className="px-5 py-3 text-right">Start</th>
-            <th className="px-5 py-3 text-right">End</th>
-            <th className="px-5 py-3 text-right">Driven</th>
-            <th className="px-5 py-3 text-right">Deliveries</th>
-            <th className="px-5 py-3">Straight-line check</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ shift, deliveries, estimate }) => {
-            const verdict = compareToEstimate(shift.drivenKm, estimate);
-            return (
-              <tr key={shift.id} className="border-b border-hairline last:border-0">
-                <td className="px-5 py-3 text-body-text">{dayLabel(shift.shiftDate)}</td>
-                {showRider && (
-                  <td className="px-5 py-3 text-body-text">{shift.riderName ?? "—"}</td>
-                )}
-                <td className="px-5 py-3 text-right tabular-nums text-body-text">
-                  {shift.startKm?.toLocaleString("en-GB") ?? "—"}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-body-text">
-                  {shift.endKm?.toLocaleString("en-GB") ?? "—"}
-                </td>
-                <td className="px-5 py-3 text-right font-semibold tabular-nums text-heading">
-                  {shift.drivenKm === null ? "—" : formatKm(shift.drivenKm)}
-                </td>
-                <td className="px-5 py-3 text-right tabular-nums text-body-text">{deliveries}</td>
-                <td className="px-5 py-3 text-muted">
-                  {estimate ? (
-                    <span
-                      className={
-                        verdict === "belowStraightLine"
-                          ? "inline-flex items-center gap-1.5 font-semibold text-warn"
-                          : undefined
-                      }
-                    >
-                      {verdict === "belowStraightLine" && (
-                        <TriangleAlert size={13} className="shrink-0" />
-                      )}
-                      at least {formatKm(estimate.lowKm)}
-                      {estimate.unlocated > 0 && (
-                        <span className="text-faint"> (+{estimate.unlocated} unplaced)</span>
-                      )}
-                    </span>
-                  ) : (
-                    "—"
-                  )}
-                  {shift.note && <span className="block text-xs text-faint">{shift.note}</span>}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
     </div>
   );
 }

@@ -6,17 +6,21 @@ import { getSettings } from "@/lib/admin/store";
 import BackupReminder from "@/components/admin/BackupReminder";
 import StockAlertsCard from "@/components/admin/StockAlertsCard";
 import { listStockAlerts } from "@/lib/stock";
+import BusinessDayBanner from "@/components/admin/BusinessDayBanner";
+import { getBusinessCalendar } from "@/lib/business-days-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const [orders, customers, session, settings, stockAlerts] = await Promise.all([
+  const [orders, customers, session, settings, stockAlerts, calendar] = await Promise.all([
     listOrders(),
     listCustomers(),
     auth(),
     getSettings(),
     listStockAlerts().catch(() => []),
+    getBusinessCalendar(),
   ]);
+  const role = session?.user?.role;
 
   return (
     <AdminShell title="Dashboard">
@@ -26,6 +30,9 @@ export default async function AdminDashboardPage() {
           lastBackupAt={settings.lastBackupAt}
           hasPaidOrders={orders.some((o) => o.paymentStatus === "paid")}
         />
+      )}
+      {calendar.ready && (role === "owner" || role === "staff") && (
+        <BusinessDayBanner open={calendar.open} />
       )}
       <StockAlertsCard alerts={stockAlerts} />
       <DashboardView

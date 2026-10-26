@@ -10,6 +10,7 @@ import {
   HandHelping,
   Images,
   LayoutDashboard,
+  Lock,
   LogOut,
   PenLine,
   ReceiptText,
@@ -76,6 +77,7 @@ const MAIN: NavItem[] = [
   { label: "Dish requests", href: "/admin/requests", icon: HandHelping },
   { label: "Riders", href: "/admin/riders", icon: Truck },
   { label: "Reports", href: "/admin/reports", icon: ChartColumnIncreasing },
+  { label: "Close the day", href: "/admin/close-day", icon: Lock },
 ];
 
 const OTHERS: NavItem[] = [

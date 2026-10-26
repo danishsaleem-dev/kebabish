@@ -39,6 +39,7 @@ import {
 } from "@/lib/admin/reports";
 import type { AdminOrder } from "@/lib/admin/order-types";
 import type { RiderShift } from "@/lib/rider-shifts";
+import { makeDayOf, type ClosedDay, type OpenDay } from "@/lib/business-day";
 
 const CATEGORY_COLORS = ["#a95026", "#c9713e", "#3d3831", "#12b76a", "#f79009", "#98a2b3"];
 
@@ -50,6 +51,7 @@ const GRANULARITY_LABELS: Record<Granularity, string> = {
 
 const METRIC_LABELS: Record<SeriesMetric, string> = {
   revenue: "Revenue",
+  food: "Food sales",
   orders: "Orders",
   items: "Dishes sold",
 };
@@ -68,14 +70,26 @@ export default function ReportsView({
   categoryByDish,
   shifts,
   today,
+  closedDays,
+  openDay,
 }: {
   orders: AdminOrder[];
   categoryByDish: Map<string, string>;
   /** Rider odometer rounds; empty when migration 0023 hasn't been run. */
   shifts: RiderShift[];
-  /** Today's Amsterdam date key, from the server, so the first paint matches. */
+  /** The open business day's label (or today's date), from the server, so the first paint matches. */
   today: string;
+  /** Closed business days, oldest first — empty until a day has been closed (or without 0027). */
+  closedDays: ClosedDay[];
+  /** Null when business days aren't set up: every order then keeps its calendar day. */
+  openDay: OpenDay | null;
 }) {
+  // Every "which day is this order on" question goes through this one function, so a report
+  // can never put an order on a different day than the close-the-day screen did.
+  const dayOf = useMemo(
+    () => (openDay ? makeDayOf(closedDays, openDay) : undefined),
+    [closedDays, openDay]
+  );
   const [range, setRange] = useState<ReportRange>(() => presetRange("last30", today));
   const [granularity, setGranularity] = useState<Granularity | "auto">("auto");
   const [metric, setMetric] = useState<SeriesMetric>("revenue");
@@ -86,21 +100,27 @@ export default function ReportsView({
     : granularity;
 
   const rangeLabel = describeRange(range);
-  const inRange = useMemo(() => ordersInRange(orders, range), [orders, range]);
-  const before = useMemo(() => ordersInRange(orders, previousRange(range)), [orders, range]);
+  const inRange = useMemo(() => ordersInRange(orders, range, dayOf), [orders, range, dayOf]);
+  const before = useMemo(
+    () => ordersInRange(orders, previousRange(range), dayOf),
+    [orders, range, dayOf]
+  );
 
   const now = useMemo(() => summarise(inRange), [inRange]);
   const then = useMemo(() => summarise(before), [before]);
 
   const buckets = useMemo(() => bucketsFor(range, effective), [range, effective]);
-  const series = useMemo(() => seriesFor(inRange, buckets, metric), [inRange, buckets, metric]);
+  const series = useMemo(
+    () => seriesFor(inRange, buckets, metric, dayOf),
+    [inRange, buckets, metric, dayOf]
+  );
 
   const dishes = useMemo(() => byDish(inRange, categoryByDish), [inRange, categoryByDish]);
   const categories = useMemo(() => byCategory(inRange, categoryByDish), [inRange, categoryByDish]);
   const customers = useMemo(() => byCustomer(inRange), [inRange]);
-  const riders = useMemo(() => byRider(orders, range, shifts), [orders, range, shifts]);
+  const riders = useMemo(() => byRider(orders, range, shifts, dayOf), [orders, range, shifts, dayOf]);
   const hours = useMemo(() => byHour(inRange), [inRange]);
-  const weekdays = useMemo(() => byWeekday(inRange), [inRange]);
+  const weekdays = useMemo(() => byWeekday(inRange, dayOf), [inRange, dayOf]);
   const towns = useMemo(() => byTown(inRange), [inRange]);
   const channels = useMemo(() => byChannel(inRange), [inRange]);
 
@@ -109,6 +129,20 @@ export default function ReportsView({
 
   const headline = [
     { label: "Revenue", value: money(now.revenue), delta: delta(now.revenue, then.revenue) },
+    {
+      label: "Food sales",
+      value: money(now.foodSales),
+      delta: delta(now.foodSales, then.foodSales),
+      hint: "After discounts and refunds",
+    },
+    {
+      label: "Discounts given",
+      value: money(now.discounts),
+      hint:
+        now.foodBeforeDiscounts > 0
+          ? `${Math.round((now.discounts / now.foodBeforeDiscounts) * 100)}% of ${money(now.foodBeforeDiscounts)}`
+          : undefined,
+    },
     { label: "Orders", value: now.orders.toLocaleString("en-GB"), delta: delta(now.orders, then.orders) },
     {
       label: "Average order",
@@ -141,7 +175,10 @@ export default function ReportsView({
           <div>
             <p className="text-sm font-semibold text-heading">{rangeLabel}</p>
             <p className="mt-0.5 text-xs text-muted">
-              Compared with {describeRange(previousRange(range))}. Paid orders only.
+              Compared with {describeRange(previousRange(range))}. Paid orders only
+              {openDay && closedDays.length > 0
+                ? ", by business day (from one closing to the next)."
+                : "."}
             </p>
           </div>
           <button
@@ -158,13 +195,15 @@ export default function ReportsView({
           <DateRangePicker value={range} today={today} onChange={setRange} />
         </div>
 
-        <div className="grid divide-y divide-hairline sm:grid-cols-2 sm:divide-x lg:grid-cols-3 lg:divide-y-0 xl:grid-cols-6">
+        {/* gap-px over a hairline background draws the rules between tiles on every row count. */}
+        <div className="grid gap-px overflow-hidden rounded-b-2xl bg-hairline sm:grid-cols-2 lg:grid-cols-4">
           {headline.map((stat) => (
-            <div key={stat.label} className="p-5">
+            <div key={stat.label} className="bg-panel p-5">
               <p className="text-sm text-muted">{stat.label}</p>
               <p className="mt-1.5 font-display text-xl font-semibold text-heading">
                 {stat.value}
               </p>
+              {stat.hint && <p className="mt-0.5 text-xs text-faint">{stat.hint}</p>}
               {stat.delta !== undefined && (
                 <p className="mt-1.5 print:hidden">
                   <TrendBadge delta={stat.delta} />
@@ -217,7 +256,7 @@ export default function ReportsView({
           // One bucket is a number, not a line — a single point draws nothing readable.
           <p className="py-8 text-center">
             <span className="block font-display text-3xl font-semibold text-heading">
-              {metric === "revenue" ? money(series[0]) : series[0].toLocaleString("en-GB")}
+              {metric === "revenue" || metric === "food" ? money(series[0]) : series[0].toLocaleString("en-GB")}
             </span>
             <span className="mt-1 block text-sm text-muted">
               {METRIC_LABELS[metric]} on {rangeLabel}
@@ -230,7 +269,7 @@ export default function ReportsView({
               { label: METRIC_LABELS[metric], values: series, color: "#a95026" },
             ]}
             valueFormat={(v) =>
-              metric === "revenue"
+              metric === "revenue" || metric === "food"
                 ? v >= 1000
                   ? `${Math.round(v / 1000)}k`
                   : `€${Math.round(v)}`
@@ -243,7 +282,7 @@ export default function ReportsView({
       {/* ---- dishes ---- */}
       <ReportSection
         title="Dishes"
-        subtitle="Every dish sold in this period, most portions first"
+        subtitle="Every dish sold in this period, most portions first. Sales are what was really charged, after each order's coupon or manual discount and any refund."
         rangeLabel={rangeLabel}
         onExport={() =>
           downloadCsv(
@@ -253,7 +292,8 @@ export default function ReportsView({
               { header: "Category", value: (r) => r.category },
               { header: "Portions", value: (r) => r.quantity },
               { header: "Orders", value: (r) => r.orders },
-              { header: "Revenue", value: (r) => r.revenue.toFixed(2) },
+              { header: "Before discounts", value: (r) => r.grossRevenue.toFixed(2) },
+              { header: "Sales after discounts", value: (r) => r.revenue.toFixed(2) },
             ])
           )
         }
@@ -268,7 +308,8 @@ export default function ReportsView({
             { header: "Category", cell: (r) => r.category, muted: true },
             { header: "Portions", cell: (r) => r.quantity, align: "right" },
             { header: "Orders", cell: (r) => r.orders, align: "right", muted: true },
-            { header: "Revenue", cell: (r) => money(r.revenue), align: "right" },
+            { header: "Before discounts", cell: (r) => money(r.grossRevenue), align: "right", muted: true },
+            { header: "Sales", cell: (r) => money(r.revenue), align: "right" },
           ]}
         />
       </ReportSection>
@@ -276,7 +317,7 @@ export default function ReportsView({
       {/* ---- categories ---- */}
       <ReportSection
         title="Categories"
-        subtitle="Share of the period's dish revenue"
+        subtitle="Share of the period's food sales, after discounts"
         rangeLabel={rangeLabel}
         onExport={() =>
           downloadCsv(
@@ -284,7 +325,8 @@ export default function ReportsView({
             toCsv(categories, [
               { header: "Category", value: (r) => r.label },
               { header: "Portions", value: (r) => r.quantity },
-              { header: "Revenue", value: (r) => r.revenue.toFixed(2) },
+              { header: "Before discounts", value: (r) => r.grossRevenue.toFixed(2) },
+              { header: "Sales after discounts", value: (r) => r.revenue.toFixed(2) },
               { header: "Share %", value: (r) => r.share },
             ])
           )
@@ -308,7 +350,7 @@ export default function ReportsView({
               columns={[
                 { header: "Category", cell: (r) => <span className="font-medium text-heading">{r.label}</span> },
                 { header: "Portions", cell: (r) => r.quantity, align: "right" },
-                { header: "Revenue", cell: (r) => money(r.revenue), align: "right" },
+                { header: "Sales", cell: (r) => money(r.revenue), align: "right" },
                 { header: "Share", cell: (r) => `${r.share}%`, align: "right", muted: true },
               ]}
             />

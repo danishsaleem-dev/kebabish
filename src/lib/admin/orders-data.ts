@@ -64,6 +64,7 @@ interface OrderRow {
   status: string;
   payment_status: string;
   subtotal_cents: number;
+  discount_cents: number | null;
   delivery_fee_cents: number;
   total_cents: number;
   created_at: string;
@@ -105,6 +106,7 @@ function mapOrder(row: OrderRow): AdminOrder {
       // than reading a stored total, and there's no separate field for
       // extras in the shape they expect.
       unitPrice: fromCents(item.unit_price_cents + extrasCents),
+      lineTotal: fromCents(item.line_total_cents),
     };
   });
 
@@ -130,6 +132,7 @@ function mapOrder(row: OrderRow): AdminOrder {
     postcode: fulfilment === "delivery" ? (row.address_postcode ?? null) : null,
     lines,
     subtotal: fromCents(row.subtotal_cents),
+    discount: fromCents(row.discount_cents ?? 0),
     deliveryFee: fromCents(row.delivery_fee_cents),
     total: fromCents(row.total_cents),
     note: row.notes ?? undefined,
@@ -149,7 +152,7 @@ function mapOrder(row: OrderRow): AdminOrder {
 // assigned rider, and `created_by` for manual orders), and PostgREST refuses to
 // guess which one a bare `admin_users(...)` means — every order query would fail.
 const ORDER_SELECT =
-  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, channel_note, payment_method, status, payment_status, subtotal_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users!orders_assigned_rider_id_fkey(name), order_items(id, name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
+  "id, reference, customer_id, customer_name, customer_email, customer_phone, fulfilment, address_street, address_postcode, address_city, notes, channel, channel_note, payment_method, status, payment_status, subtotal_cents, discount_cents, delivery_fee_cents, total_cents, created_at, delivered_at, paid_at, accepted_at, refunded_cents, delivery_date, delivery_slot_start, delivery_slot_end, assigned_rider_id, assigned_rider:admin_users!orders_assigned_rider_id_fkey(name), order_items(id, name, item_slug, quantity, unit_price_cents, options, instructions, line_total_cents)";
 
 /**
  * Every order, newest first. A single kitchen's order volume stays small

@@ -78,6 +78,7 @@ export const BACKUP_TABLES: BackupTableSpec[] = [
   { name: "site_content_history", pk: ["id"] },
   { name: "delivery_slot_config", pk: ["id"] },
   { name: "delivery_slot_bookings", pk: ["delivery_date", "slot_start"] },
+  { name: "business_days", pk: ["id"] },
   { name: "invoice_counters", pk: ["year"] },
   { name: "credit_note_counters", pk: ["year"] },
   { name: "order_counters", pk: ["year"] },

@@ -54,6 +54,11 @@ export interface AdminOrderLine {
   slug: string;
   quantity: number;
   unitPrice: number;
+  /**
+   * What the line was actually charged in euros (the stored line total), before the order's
+   * discount. Equal to quantity × unitPrice except where staff set a price by hand.
+   */
+  lineTotal?: number;
 }
 
 export interface AdminOrder {
@@ -82,6 +87,8 @@ export interface AdminOrder {
   postcode: string | null;
   lines: AdminOrderLine[];
   subtotal: number;
+  /** Coupon + any discount staff typed in, in euros — taken off the dishes, not delivery. */
+  discount: number;
   deliveryFee: number;
   total: number;
   note?: string;

@@ -3,6 +3,7 @@ import ReportsView from "@/components/admin/ReportsView";
 import { getCategoryByDish, listOrders } from "@/lib/admin/orders-data";
 import { listShiftsBetween, todayKey } from "@/lib/rider-shifts";
 import { addDaysKey } from "@/lib/admin/report-range";
+import { getBusinessCalendar } from "@/lib/business-days-data";
 
 export const metadata = { title: "Reports" };
 export const dynamic = "force-dynamic";
@@ -15,12 +16,16 @@ export const dynamic = "force-dynamic";
  * deliveries with no kilometres.
  */
 export default async function ReportsPage() {
-  const today = todayKey();
-  const [orders, categoryByDish, { shifts }] = await Promise.all([
+  const calendarToday = todayKey();
+  const [orders, categoryByDish, { shifts }, calendar] = await Promise.all([
     listOrders(),
     getCategoryByDish(),
-    listShiftsBetween(addDaysKey(today, -365), today).catch(() => ({ shifts: [] })),
+    listShiftsBetween(addDaysKey(calendarToday, -365), calendarToday).catch(() => ({ shifts: [] })),
+    getBusinessCalendar(),
   ]);
+  // "Today" is the business day that is open, which after a late closing can already be
+  // tomorrow's date — and without migration 0027 it is simply the calendar day.
+  const today = calendar.ready ? calendar.open.businessDate : calendarToday;
 
   return (
     <AdminShell title="Reports">
@@ -29,6 +34,8 @@ export default async function ReportsPage() {
         categoryByDish={categoryByDish}
         shifts={shifts}
         today={today}
+        closedDays={calendar.ready ? calendar.closed : []}
+        openDay={calendar.ready ? calendar.open : null}
       />
     </AdminShell>
   );
