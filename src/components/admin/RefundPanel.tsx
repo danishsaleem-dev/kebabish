@@ -115,7 +115,9 @@ export default function RefundPanel({
             const how = viaMollie
               ? "It is sent back through Mollie and can't be undone."
               : "This only records it — you hand the money back yourself.";
-            if (!window.confirm(`Refund ${label}? ${how}`)) event.preventDefault();
+            const full = !amount.trim() || Math.round(Number(amount.replace(",", ".")) * 100) >= remainingCents;
+            const ends = full ? " Refunding everything also cancels the order." : "";
+            if (!window.confirm(`Refund ${label}? ${how}${ends}`)) event.preventDefault();
           }}
           className="mt-5 space-y-4 border-t border-hairline pt-5"
         >
@@ -124,7 +126,7 @@ export default function RefundPanel({
           <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
             <Field
               label="Amount (€)"
-              hint={`Leave empty to refund all ${remainingLabel}.`}
+              hint={`Leave empty to refund all ${remainingLabel} — that also cancels the order. A smaller amount leaves it running.`}
               error={e.amount}
             >
               <Input

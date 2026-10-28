@@ -2039,6 +2039,11 @@ in `src/lib/refunds.ts`:
   owner/staff only to refund), `/admin/orders/[id]/credit-note?n=`, customer
   `/api/credit-note?ref=&t=&n=` (token-guarded like the invoice), the customer's
   order page and `/dashboard`, and attached to the refund email.
+- **A full refund cancels the order** (Oct 2026, `cancelAfterFullRefund()` in `orders-data.ts`, called by
+  `refundOrderAction`): it was possible to refund everything and still move the order on to "Delivered".
+  Now status becomes `cancelled`; if it hadn't been delivered its seat (today or later) and stock go back and
+  the customer gets the "cancelled" email, a delivered one keeps `delivered_at`. `updateOrderStatus` refuses
+  any move on an order whose payment is `refunded`. A partial refund leaves the order running.
 - Declining a paid order refunds what's left automatically (and the customer gets
   the credit note). Revenue in reports is `total − refunded`; per-dish/category
   sales stay at original amounts (a partial refund isn't tied to a line).

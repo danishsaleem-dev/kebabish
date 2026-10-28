@@ -6,7 +6,7 @@ import { getOrderSummaryById, markOrderPaid } from "@/lib/orders";
 import { notifyRefund, refundOrder } from "@/lib/refunds";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { auth } from "@/lib/auth";
-import { updateOrderStatus, assignRider, cancelOrder } from "@/lib/admin/orders-data";
+import { updateOrderStatus, assignRider, cancelOrder, cancelAfterFullRefund } from "@/lib/admin/orders-data";
 import { ORDER_STATUS_LABELS, type OrderStatus } from "@/lib/admin/order-types";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
 
@@ -166,13 +166,26 @@ export async function refundOrderAction(
   });
   if (!result.ok) return { ok: false, message: result.message };
 
-  await notifyRefund(orderId, result, "refunded", reasonCustomer);
+  // Giving all the money back ends the order: it is cancelled, so it can't go on to "Delivered".
+  const cancelled = result.fullyRefunded ? await cancelAfterFullRefund(orderId) : null;
+
+  // An order that hadn't gone out yet gets the "cancelled" email (with the refund in it); one
+  // that was delivered gets the plain refund email.
+  await notifyRefund(
+    orderId,
+    result,
+    cancelled && !cancelled.wasDelivered ? "cancelled" : "refunded",
+    reasonCustomer
+  );
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");
+  revalidatePath("/admin");
   return {
     ok: true,
-    message: `${result.fullyRefunded ? "Refunded in full" : "Partly refunded"} — credit note ${result.creditNoteNumber}.`,
+    message: result.fullyRefunded
+      ? `Refunded in full — credit note ${result.creditNoteNumber}.${cancelled ? " The order is now cancelled." : ""}`
+      : `Partly refunded — credit note ${result.creditNoteNumber}. The order carries on.`,
   };
 }
 

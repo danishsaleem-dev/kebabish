@@ -16,6 +16,7 @@ import { getOrderSummaryById } from "@/lib/orders";
 import { notifyRefund, refundOrder } from "@/lib/refunds";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
+import { amsterdamNow } from "@/lib/delivery-slots";
 import { listStockAlerts, releaseOrderStock } from "@/lib/stock";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { parseAddressLine } from "@/lib/address-parse";
@@ -232,7 +233,7 @@ export async function updateOrderStatus(
 ): Promise<void> {
   const { data: row, error: fetchError } = await supabaseAdmin()
     .from("orders")
-    .select("status, assigned_rider_id, delivery_date")
+    .select("status, payment_status, assigned_rider_id, delivery_date")
     .eq("id", orderId)
     .maybeSingle();
 
@@ -240,6 +241,13 @@ export async function updateOrderStatus(
   if (!row) throw new Error("Order not found.");
 
   const currentStatus = row.status as OrderStatus;
+
+  // All the money went back: nothing is being made or delivered for it any more. A full
+  // refund cancels the order (`cancelAfterFullRefund`); this catches one refunded before
+  // that existed, and a screen that hadn't refreshed yet.
+  if (row.payment_status === "refunded") {
+    throw new Error("This order was refunded in full, so it is cancelled and can't move on.");
+  }
 
   // Accepting an order for a later day doesn't start the cooking: it is
   // *scheduled*, and becomes "preparing" when the kitchen starts it on the day.
@@ -388,6 +396,54 @@ export async function cancelOrder(
     after(() => sendOrderStatusEmail(order, "cancelled", refunded));
   }
   return result;
+}
+
+/**
+ * A refund that gave **all** the money back ends the order: it becomes `cancelled`, so it
+ * leaves the kitchen board and the rider's list, can't be moved on to "delivered", and never
+ * counts as a sale (reports already ignore a refunded payment; now the status says so too).
+ *
+ * If it hadn't been delivered yet, its delivery seat (today or later) and its portions go
+ * back, exactly as when an order is cancelled. A delivered one keeps its `delivered_at` — the
+ * food did go out — but is cancelled all the same: the owner chose to give the money back.
+ * A partial refund changes nothing here; the order carries on.
+ *
+ * Returns what it did, or null when there was nothing to do (not fully refunded, or already
+ * cancelled). Never throws: the refund itself has already happened.
+ */
+export async function cancelAfterFullRefund(
+  orderId: string
+): Promise<{ wasDelivered: boolean } | null> {
+  try {
+    const db = supabaseAdmin();
+    const { data: row, error } = await db
+      .from("orders")
+      .select("status, payment_status, delivery_date, delivery_slot_start")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (error || !row) return null;
+    if (row.payment_status !== "refunded" || row.status === "cancelled") return null;
+
+    const wasDelivered = row.status === "delivered";
+    const { data: updated, error: updateError } = await db
+      .from("orders")
+      .update({ status: "cancelled", updated_at: new Date().toISOString() })
+      .eq("id", orderId)
+      .neq("status", "cancelled")
+      .select("id");
+    if (updateError || !updated?.length) return null;
+
+    if (!wasDelivered) {
+      if (row.delivery_date && row.delivery_date >= amsterdamNow().dateKey) {
+        await releaseDeliverySlot(row.delivery_date, row.delivery_slot_start);
+      }
+      await releaseOrderStock(orderId);
+    }
+    return { wasDelivered };
+  } catch (error) {
+    console.error("[orders] could not cancel a fully refunded order:", error);
+    return null;
+  }
 }
 
 /**
