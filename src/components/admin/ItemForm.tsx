@@ -56,6 +56,7 @@ export default function ItemForm({
   dishes = [],
   recipe,
   ingredients,
+  ingredientAliases,
   recipeAction,
   stock,
 }: {
@@ -69,6 +70,7 @@ export default function ItemForm({
   dishes?: { slug: string; name: string }[];
   recipe?: StoredRecipe;
   ingredients?: StoredIngredient[];
+  ingredientAliases?: Record<string, string[]>;
   recipeAction?: (prev: FormState, formData: FormData) => Promise<FormState>;
   /**
    * Stock for this dish: `setUp` is false until migration 0022 has been run (the card then says so),
@@ -276,6 +278,7 @@ export default function ItemForm({
                   itemName={item.name}
                   sellPrice={item.price}
                   ingredients={ingredients}
+                  ingredientAliases={ingredientAliases}
                   allergens={allergens}
                   recipe={recipe}
                 />

@@ -11,6 +11,7 @@ import {
   SubmitButton,
   Textarea,
 } from "@/components/admin/ui/Form";
+import IngredientPicker from "@/components/admin/IngredientPicker";
 import {
   analyseRecipe,
   indexIngredients,
@@ -51,6 +52,7 @@ export default function RecipeForm({
   itemName,
   sellPrice,
   ingredients,
+  ingredientAliases,
   allergens,
   recipe,
 }: {
@@ -59,6 +61,8 @@ export default function RecipeForm({
   itemName: string;
   sellPrice: number | null;
   ingredients: StoredIngredient[];
+  /** Extra search words per ingredient id, e.g. the Roman Urdu name from the measurement chart. */
+  ingredientAliases?: Record<string, string[]>;
   allergens: StoredAllergen[];
   recipe?: StoredRecipe;
 }) {
@@ -205,20 +209,20 @@ export default function RecipeForm({
               />
 
               <div className="col-span-12 sm:col-span-4">
-                <Select
+                <IngredientPicker
                   name="lineIngredientId"
                   value={line.ingredientId}
-                  onChange={(ev) =>
-                    update(line.key, { ingredientId: ev.target.value })
+                  onChange={(id) => update(line.key, { ingredientId: id })}
+                  ingredients={ingredients}
+                  aliases={ingredientAliases}
+                  takenIds={
+                    new Set(
+                      lines
+                        .filter((l) => l.key !== line.key && l.ingredientId)
+                        .map((l) => l.ingredientId)
+                    )
                   }
-                >
-                  <option value="">Choose ingredient…</option>
-                  {ingredients.map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                    </option>
-                  ))}
-                </Select>
+                />
               </div>
 
               <div className="col-span-4 sm:col-span-2">

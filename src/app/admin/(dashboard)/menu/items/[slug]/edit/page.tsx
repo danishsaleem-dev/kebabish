@@ -12,6 +12,7 @@ import {
   listCategories,
   listIngredients,
   listItems,
+  listMeasurements,
   listMedia,
   listOptionGroups,
 } from "@/lib/admin/store";
@@ -54,6 +55,13 @@ export default async function EditItemPage({
     ]);
   if (!item) notFound();
 
+  // Extra search words for the recipe's ingredient picker: the chart's Roman Urdu / English names.
+  const ingredientAliases: Record<string, string[]> = {};
+  for (const m of await listMeasurements()) {
+    if (!m.ingredientId) continue;
+    ingredientAliases[m.ingredientId] = [m.nameEn, m.nameUr].filter((s): s is string => Boolean(s));
+  }
+
   return (
     <AdminShell title={item.name}>
       <div className="mx-auto max-w-5xl space-y-4 sm:space-y-6">
@@ -75,6 +83,7 @@ export default async function EditItemPage({
           dishes={items.filter((i) => i.slug !== slug).map((i) => ({ slug: i.slug, name: i.name }))}
           recipe={recipe}
           ingredients={ingredients}
+          ingredientAliases={ingredientAliases}
           recipeAction={saveRecipeAction}
           stock={{ setUp: stockMap !== null, entry: stockMap?.get(slug) ?? null }}
         />

@@ -1061,6 +1061,16 @@ migration; backed up with it); pure rules in `src/lib/measurements.ts`, tested b
   tested building block for it. Liquids priced per ml (lemon juice, soy sauce) also need the spoon's size in ml, which the chart
   doesn't give.
 
+### Recipe editor: searchable ingredient picker (Nov 2026)
+
+On a dish's recipe (`RecipeForm`), each line's ingredient is chosen from `IngredientPicker`, a search box (combobox: type to
+narrow, ↑/↓ and Enter to pick, Esc to close, × to clear) instead of a 68-item dropdown. Matching is
+`src/lib/ingredient-search.ts`: every typed word must appear in the ingredient's name, supplier or **aliases** (the linked
+measurement-chart row's English and Roman Urdu names, so "dhania" finds Coriander Powder), in any order, accents ignored; names
+starting with the first word rank first. An ingredient already on another line is marked "already added" but still selectable.
+It posts through a hidden `lineIngredientId` that is always present (the form's parallel arrays rely on it) and Enter inside the
+list never submits the recipe. Tested by `npx tsx scripts/check-ingredient-search.mts` (19 checks). **Not seen in a browser** (needs a sign-in).
+
 ### Closing the day, real sales in reports, editing rider rounds (Oct 2026)
 
 - **Business days are closed by hand** (migration `0027_business_days.sql`, `/admin/close-day`, owner/staff; a line on the dashboard links to it). A day = from one closing to the next, so late orders after midnight stay on the day that was open. Pure rules in `src/lib/business-day.ts` (`openDayFor`, `makeDayOf`, `dayChecklist`, `daySummary`); label = Amsterdam date the day opened, never the same as the previous day; before the first closing orders keep calendar days, and a first closing before 06:00 belongs to the evening before. **Checklist (blocking):** no paid order waiting to be accepted, nothing preparing/ready/on the way or scheduled for this day, no unpaid order from this day; then an **Audit done** tick against the day's totals and cash expected. Unfinished rider rounds are shown, not blocking. `closeDayAction` re-checks everything; the unique `business_date` stops a double close. The owner can **reopen** only the latest closed day. Reports use `makeDayOf` for every "which day" question (`DayOf` param in `reports.ts`); without 0027 they use calendar days. In `BACKUP_TABLES`. Tested by `npx tsx scripts/check-business-day.mts` (40 checks, incl. the October clock change).
