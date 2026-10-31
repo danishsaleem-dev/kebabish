@@ -68,6 +68,8 @@ export function buildSeed(): StoreShape {
     // Promo codes are entirely Danish's to create — no default codes.
     promoCodes: [],
 
+    supplies: [],
+
     ingredients: ingredients.map((i) => ({
       id: i.id,
       name: i.name,

@@ -90,6 +90,8 @@ export interface RecipeAnalysis {
   costPerBatch: number;
   costPerPortion: number;
   allergens: Allergen[];
+  /** "May contain" warnings from the ingredients, minus anything already confirmed above. */
+  mayContain: Allergen[];
   marginPct: number | null;
 }
 
@@ -114,6 +116,11 @@ export function analyseRecipe(
   const allergens = [
     ...new Set(lines.flatMap((l) => l.ingredient.allergens)),
   ].sort();
+  const mayContain = [
+    ...new Set(lines.flatMap((l) => l.ingredient.mayContain ?? [])),
+  ]
+    .filter((a) => !allergens.includes(a))
+    .sort();
 
   return {
     recipe,
@@ -124,6 +131,7 @@ export function analyseRecipe(
     costPerBatch,
     costPerPortion,
     allergens,
+    mayContain,
     marginPct:
       sellPrice && sellPrice > 0
         ? ((sellPrice - costPerPortion) / sellPrice) * 100

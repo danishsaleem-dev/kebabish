@@ -106,6 +106,10 @@ export default async function ItemPage({
     t.has(`allergenNames.${a.id}`) ? t(`allergenNames.${a.id}`) : a.label
   );
 
+  const mayContainLabels = item.mayContain.map((a) =>
+    t.has(`allergenNames.${a.id}`) ? t(`allergenNames.${a.id}`) : a.label
+  );
+
   const tSeo = await getTranslations({ locale, namespace: "seo" });
   const schemaDescription = dishDescription(item, tSeo, { forSnippet: false });
 
@@ -321,19 +325,38 @@ export default async function ItemPage({
                   <ShieldAlert size={20} aria-hidden="true" />
                 </span>
                 <h3 className="mt-4 font-display text-lg font-semibold text-charcoal-600">{t("item.allergens")}</h3>
-                {allergenLabels.length > 0 ? (
+                {allergenLabels.length > 0 || mayContainLabels.length > 0 ? (
                   <>
-                    <p className="mt-1 text-sm text-ink/60">{t("item.allergensContains")}</p>
-                    <ul className="mt-3 flex flex-wrap gap-2">
-                      {allergenLabels.map((label) => (
-                        <li
-                          key={label}
-                          className="rounded-full border border-ember-600/25 bg-ember-600/8 px-3 py-1 text-xs font-semibold text-ember-700"
-                        >
-                          {label}
-                        </li>
-                      ))}
-                    </ul>
+                    {allergenLabels.length > 0 && (
+                      <>
+                        <p className="mt-1 text-sm text-ink/60">{t("item.allergensContains")}</p>
+                        <ul className="mt-3 flex flex-wrap gap-2">
+                          {allergenLabels.map((label) => (
+                            <li
+                              key={label}
+                              className="rounded-full border border-ember-600/25 bg-ember-600/8 px-3 py-1 text-xs font-semibold text-ember-700"
+                            >
+                              {label}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    {mayContainLabels.length > 0 && (
+                      <>
+                        <p className="mt-4 text-sm text-ink/60">{t("item.allergensMayContain")}</p>
+                        <ul className="mt-3 flex flex-wrap gap-2">
+                          {mayContainLabels.map((label) => (
+                            <li
+                              key={label}
+                              className="rounded-full border border-dashed border-charcoal-600/30 px-3 py-1 text-xs font-semibold text-charcoal-600/80"
+                            >
+                              {label}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
                     <p className="mt-4 text-xs leading-relaxed text-ink/55">{t("item.allergensNote")}</p>
                   </>
                 ) : (

@@ -67,6 +67,7 @@ export interface Ingredient {
   /** Cost of one `unit` in euros. PLACEHOLDER. */
   costPerUnit: number;
   allergens: Allergen[];
+  mayContain?: Allergen[];
   supplier?: string;
 }
 

@@ -228,8 +228,37 @@ export interface StoredIngredient {
    * `stockTotalCost / stockQuantity` — worked out on the server when saving, never typed.
    */
   stockTotalCost?: number;
+  /** Confirmed ingredients ("Bevat"). */
   allergens: Allergen[];
+  /**
+   * Cross-contact warnings from the label ("Kan bevatten"). Never mixed into `allergens`:
+   * a "may contain" is not a confirmed ingredient. An allergen is in one list or the other.
+   */
+  mayContain?: Allergen[];
   supplier?: string;
+}
+
+export type SupplyKind = "per-order" | "running";
+
+/**
+ * A thing the kitchen buys that isn't food: boxes, bags, gloves, receipt paper. Not an
+ * ingredient — never in a recipe or an allergen list. Cost per unit is derived from
+ * `basePrice ÷ baseQuantity`, never stored. See `src/lib/supplies.ts`.
+ */
+export interface StoredSupply {
+  id: string;
+  name: string;
+  supplier?: string;
+  /** g, kg, ml, l, pcs or m (metres — cling film). */
+  unit: "g" | "kg" | "ml" | "l" | "pcs" | "m";
+  /** What the base price buys, in `unit` (e.g. 50 for a pack of 50). Optional until known. */
+  baseQuantity?: number;
+  /** What that whole quantity costs, in euros. Optional until known. */
+  basePrice?: number;
+  kind: SupplyKind;
+  /** Per-order supplies only: how many `unit`s one order uses. Never guessed — left empty until set. */
+  perOrderQuantity?: number;
+  note?: string;
 }
 
 export interface StoredRecipeLine {
@@ -305,6 +334,7 @@ export interface StoreShape {
   items: StoredItem[];
   optionGroups: StoredOptionGroup[];
   ingredients: StoredIngredient[];
+  supplies: StoredSupply[];
   recipes: StoredRecipe[];
   allergens: StoredAllergen[];
   promoCodes: StoredPromoCode[];

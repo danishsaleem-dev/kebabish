@@ -31,8 +31,8 @@ export default function IngredientForm({
   const [unit, setUnit] = useState<string>(ingredient?.unit ?? "kg");
   const [quantity, setQuantity] = useState(String(ingredient?.stockQuantity ?? ""));
   const [total, setTotal] = useState(String(ingredient?.stockTotalCost ?? ""));
-  const [perUnit, setPerUnit] = useState(String(ingredient?.costPerUnit ?? ""));
-  // Same rule as the server: total price ÷ total quantity, once both are filled in.
+  const [contains, setContains] = useState<string[]>(ingredient?.allergens ?? []);
+  // Same rule as the server: base price ÷ base quantity, once both are filled in.
   const q = Number(quantity);
   const t = Number(total);
   const derived =
@@ -71,8 +71,8 @@ export default function IngredientForm({
         </Field>
 
         <Field
-          label="Purchased per"
-          hint="The unit your supplier prices it in."
+          label="Base unit"
+          hint="The unit the quantity below is counted in."
           error={e.unit}
         >
           <Select
@@ -90,8 +90,8 @@ export default function IngredientForm({
         </Field>
 
         <Field
-          label={`Quantity you have (${unit})`}
-          hint={`The total you bought, e.g. 10 for a 10 ${unit} sack.`}
+          label={`Base quantity (${unit})`}
+          hint={`How much you get for the base price, e.g. 10 for a 10 ${unit} pack.`}
           error={e.stockQuantity}
         >
           <Input
@@ -103,48 +103,35 @@ export default function IngredientForm({
             onChange={(ev) => setQuantity(ev.target.value)}
             placeholder="10"
             invalid={Boolean(e.stockQuantity)}
+            required
           />
         </Field>
 
         <Field
-          label="Total price paid (€)"
-          hint="What all of that quantity cost together."
+          label="Base price (€)"
+          hint="What that whole quantity costs."
           error={e.stockTotalCost}
         >
           <Input
             name="stockTotalCost"
             type="number"
-            step="0.01"
+            step="any"
             min="0"
             value={total}
             onChange={(ev) => setTotal(ev.target.value)}
-            placeholder="22.00"
+            placeholder="28.50"
             invalid={Boolean(e.stockTotalCost)}
+            required
           />
         </Field>
 
         <Field
-          label={`Cost per ${unit} (€)`}
-          hint={
-            derived !== null
-              ? `Worked out for you: ${total} ÷ ${quantity} ${unit}. Clear the quantity or price to type it yourself.`
-              : "Drives every food-cost and margin figure. Fill in quantity and total price above and this works itself out."
-          }
-          error={e.costPerUnit}
-          className="sm:col-span-2"
+          label={`Cost per ${unit}`}
+          hint="Worked out for you (base price ÷ base quantity). It drives every food-cost and margin figure."
         >
-          <Input
-            name="costPerUnit"
-            type="number"
-            step="0.0001"
-            min="0"
-            value={derived !== null ? String(derived) : perUnit}
-            onChange={(ev) => setPerUnit(ev.target.value)}
-            readOnly={derived !== null}
-            placeholder="2.20"
-            invalid={Boolean(e.costPerUnit)}
-            required
-          />
+          <div className="rounded-lg border border-hairline bg-canvas px-3.5 py-2.5 text-sm font-semibold text-heading">
+            {derived !== null ? `€ ${derived.toFixed(4)} per ${unit}` : "—"}
+          </div>
         </Field>
 
         <Field label="Supplier" hint="Optional." error={e.supplier}>
@@ -158,10 +145,10 @@ export default function IngredientForm({
 
       <fieldset>
         <legend className="mb-1.5 text-sm font-medium text-heading">
-          Allergens
+          Contains (Bevat)
         </legend>
         <p className="mb-3 text-xs text-muted">
-          These roll up automatically to every dish using this ingredient.{" "}
+          Confirmed ingredients. These roll up automatically to every dish using this ingredient.{" "}
           <Link
             href="/admin/menu/allergens"
             className="font-semibold text-ember-600 hover:underline"
@@ -180,12 +167,51 @@ export default function IngredientForm({
                 type="checkbox"
                 name="allergens"
                 value={a.id}
-                defaultChecked={ingredient?.allergens.includes(a.id)}
+                checked={contains.includes(a.id)}
+                onChange={(ev) =>
+                  setContains((cur) =>
+                    ev.target.checked ? [...cur, a.id] : cur.filter((x) => x !== a.id)
+                  )
+                }
                 className="h-4 w-4 rounded border-hairline accent-ember-600"
               />
               <span className="text-sm text-body-text">{a.label}</span>
             </label>
           ))}
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend className="mb-1.5 text-sm font-medium text-heading">
+          May contain (Kan bevatten)
+        </legend>
+        <p className="mb-3 text-xs text-muted">
+          Cross-contact warnings from the label. These are shown to customers
+          separately and are never treated as confirmed ingredients. An allergen
+          already ticked above can&rsquo;t also be a &ldquo;may contain&rdquo;.
+        </p>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {allergens.map((a) => {
+            const confirmed = contains.includes(a.id);
+            return (
+              <label
+                key={a.id}
+                className={`flex items-center gap-2 rounded-lg border border-hairline px-3 py-2 ${
+                  confirmed ? "cursor-not-allowed opacity-45" : "cursor-pointer"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  name="mayContain"
+                  value={a.id}
+                  disabled={confirmed}
+                  defaultChecked={ingredient?.mayContain?.includes(a.id)}
+                  className="h-4 w-4 rounded border-hairline accent-ember-600"
+                />
+                <span className="text-sm text-body-text">{a.label}</span>
+              </label>
+            );
+          })}
         </div>
       </fieldset>
 

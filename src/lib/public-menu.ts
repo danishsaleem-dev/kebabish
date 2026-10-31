@@ -85,6 +85,8 @@ export interface PublicMenuItem {
   videoUrl: string;
   /** Everything this dish contains — manual flags plus its recipe's. */
   allergens: { id: string; label: string }[];
+  /** Label warnings ("may contain") from the recipe's ingredients, never repeating `allergens`. */
+  mayContain: { id: string; label: string }[];
   optionGroups: PublicOptionGroup[];
 }
 
@@ -153,22 +155,29 @@ async function readWithStock(): Promise<{
 function allergensFor(
   item: StoreShape["items"][number],
   data: StoreShape
-): { id: string; label: string }[] {
+): { contains: { id: string; label: string }[]; mayContain: { id: string; label: string }[] } {
   const ids = new Set(item.allergenIds ?? []);
+  const maybe = new Set<string>();
 
   const recipe = (data.recipes ?? []).find((r) => r.menuItemSlug === item.slug);
   if (recipe) {
     const byId = new Map((data.ingredients ?? []).map((i) => [i.id, i]));
     for (const line of recipe.lines) {
-      for (const allergen of byId.get(line.ingredientId)?.allergens ?? []) {
-        ids.add(allergen);
-      }
+      const ingredient = byId.get(line.ingredientId);
+      for (const allergen of ingredient?.allergens ?? []) ids.add(allergen);
+      for (const allergen of ingredient?.mayContain ?? []) maybe.add(allergen);
     }
   }
 
-  return (data.allergens ?? [])
-    .filter((a) => ids.has(a.id))
-    .map((a) => ({ id: a.id, label: a.label }));
+  const pick = (wanted: (id: string) => boolean) =>
+    (data.allergens ?? [])
+      .filter((a) => wanted(a.id))
+      .map((a) => ({ id: a.id, label: a.label }));
+  // A confirmed allergen on the dish outranks a warning about the same one.
+  return {
+    contains: pick((id) => ids.has(id)),
+    mayContain: pick((id) => maybe.has(id) && !ids.has(id)),
+  };
 }
 
 function toPublicItem(
@@ -183,6 +192,7 @@ function toPublicItem(
   const level = stockLevel(stock?.get(item.slug));
   const soldOut = item.soldOut || level === "out";
   const price = isSellablePrice(item.price) ? item.price : null;
+  const dishAllergens = allergensFor(item, data);
   const optionGroups = (item.optionGroupIds ?? [])
     .map((id) => groups.find((g) => g.id === id))
     .filter((g): g is StoredOptionGroup => Boolean(g));
@@ -214,7 +224,8 @@ function toPublicItem(
     description: pick(locale, item.description ?? "", item.descriptionEn),
     descriptionTranslated: locale !== "en" || Boolean(item.descriptionEn?.trim()),
     videoUrl: item.videoUrl ?? "",
-    allergens: allergensFor(item, data),
+    allergens: dishAllergens.contains,
+    mayContain: dishAllergens.mayContain,
     optionGroups: optionGroups.map((g) => ({
         id: g.id,
         label: pick(locale, g.label, g.labelEn),

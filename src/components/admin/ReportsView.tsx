@@ -40,6 +40,16 @@ import {
 import type { AdminOrder } from "@/lib/admin/order-types";
 import type { RiderShift } from "@/lib/rider-shifts";
 import { makeDayOf, type ClosedDay, type OpenDay } from "@/lib/business-day";
+import type { StoredSupply } from "@/lib/admin/store/types";
+import {
+  SUPPLY_KIND_LABELS,
+  packagingForOrders,
+  perOrderCost,
+  purchasesInRange,
+  spendBySupply,
+  totalSpendCents,
+  type SupplyPurchase,
+} from "@/lib/supplies";
 
 const CATEGORY_COLORS = ["#a95026", "#c9713e", "#3d3831", "#12b76a", "#f79009", "#98a2b3"];
 
@@ -69,6 +79,9 @@ export default function ReportsView({
   orders,
   categoryByDish,
   shifts,
+  supplies,
+  purchases,
+  purchasesReady,
   today,
   closedDays,
   openDay,
@@ -77,6 +90,10 @@ export default function ReportsView({
   categoryByDish: Map<string, string>;
   /** Rider odometer rounds; empty when migration 0023 hasn't been run. */
   shifts: RiderShift[];
+  supplies: StoredSupply[];
+  /** Logged supply purchases for the last year; empty when migration 0028 hasn't been run. */
+  purchases: SupplyPurchase[];
+  purchasesReady: boolean;
   /** The open business day's label (or today's date), from the server, so the first paint matches. */
   today: string;
   /** Closed business days, oldest first — empty until a day has been closed (or without 0027). */
@@ -123,6 +140,18 @@ export default function ReportsView({
   const weekdays = useMemo(() => byWeekday(inRange, dayOf), [inRange, dayOf]);
   const towns = useMemo(() => byTown(inRange), [inRange]);
   const channels = useMemo(() => byChannel(inRange), [inRange]);
+
+  // Supplies. Spend is what was actually bought in the range; packaging is each order's share
+  // of the per-order supplies at *today's* prices (an order doesn't snapshot it).
+  const packaging = useMemo(() => perOrderCost(supplies), [supplies]);
+  const kindById = useMemo(() => new Map(supplies.map((s) => [s.id, s.kind])), [supplies]);
+  const boughtInRange = useMemo(
+    () => purchasesInRange(purchases, range.from, range.to),
+    [purchases, range]
+  );
+  const spendRows = useMemo(() => spendBySupply(boughtInRange, kindById), [boughtInRange, kindById]);
+  const spendEuros = totalSpendCents(boughtInRange) / 100;
+  const packagingEuros = packagingForOrders(now.orders, packaging.total);
 
   const busiest = hours.reduce((a, b) => (b.value > a.value ? b : a), hours[0]);
   const money = (n: number) => formatMoney(n);
@@ -443,6 +472,88 @@ export default function ReportsView({
           Kilometres are what the rider read off their own dashboard at each end of the round.
           A rider who hasn&apos;t logged any shows &ldquo;—&rdquo;, not zero. Order value is what
           those deliveries were worth, not anything owed to the rider.
+        </p>
+      </ReportSection>
+
+      {/* ---- supplies ---- */}
+      <ReportSection
+        title="Supplies"
+        subtitle="What was spent on packaging and kitchen supplies, and the packaging each order carries"
+        rangeLabel={rangeLabel}
+        onExport={() =>
+          downloadCsv(
+            stamp("supplies"),
+            toCsv(spendRows, [
+              { header: "Supply", value: (r) => r.name },
+              { header: "Kind", value: (r) => (r.kind ? SUPPLY_KIND_LABELS[r.kind] : "Deleted supply") },
+              { header: "Purchases", value: (r) => r.purchases },
+              { header: "Quantity", value: (r) => r.quantity },
+              { header: "Spent", value: (r) => (r.amountCents / 100).toFixed(2) },
+            ])
+          )
+        }
+      >
+        <div className="mb-5 grid gap-px overflow-hidden rounded-xl bg-hairline sm:grid-cols-3">
+          {[
+            {
+              label: "Supplies bought",
+              value: purchasesReady ? money(spendEuros) : "—",
+              hint: purchasesReady
+                ? `${boughtInRange.length} purchase${boughtInRange.length === 1 ? "" : "s"} logged`
+                : "Purchases not set up yet",
+            },
+            {
+              label: "Packaging on orders",
+              value: money(packagingEuros),
+              hint: `${now.orders.toLocaleString("en-GB")} orders × ${money(packaging.total)}`,
+            },
+            {
+              label: "Packaging per order",
+              value: money(packaging.total),
+              hint: `${packaging.lines.length} per-order supplies counted`,
+            },
+          ].map((stat) => (
+            <div key={stat.label} className="bg-panel p-4">
+              <p className="text-sm text-muted">{stat.label}</p>
+              <p className="mt-1 font-display text-xl font-semibold text-heading">{stat.value}</p>
+              <p className="mt-0.5 text-xs text-faint">{stat.hint}</p>
+            </div>
+          ))}
+        </div>
+
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Bought in this period</p>
+        <ReportTable
+          rows={spendRows}
+          keyOf={(r) => r.supplyId}
+          empty={purchasesReady ? "No supplies were logged as bought in this period." : "Purchases aren't set up yet."}
+          columns={[
+            { header: "Supply", cell: (r) => <span className="font-medium text-heading">{r.name}</span> },
+            { header: "Kind", cell: (r) => (r.kind ? SUPPLY_KIND_LABELS[r.kind] : "Deleted supply"), muted: true },
+            { header: "Purchases", cell: (r) => r.purchases, align: "right", muted: true },
+            { header: "Quantity", cell: (r) => r.quantity.toLocaleString("en-GB"), align: "right", muted: true },
+            { header: "Spent", cell: (r) => money(r.amountCents / 100), align: "right" },
+          ]}
+        />
+
+        <p className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wide text-muted">
+          Packaging in one order
+        </p>
+        <ReportTable
+          rows={packaging.lines}
+          keyOf={(r) => r.supplyId}
+          empty="No per-order supply is counted yet. Set what each one uses per order under Menu → Supplies."
+          columns={[
+            { header: "Supply", cell: (r) => <span className="font-medium text-heading">{r.name}</span> },
+            { header: "Per order", cell: (r) => `${r.perOrderQuantity} ${r.unit}`, align: "right", muted: true },
+            { header: "Cost each", cell: (r) => `€ ${r.costPerUnit.toFixed(4)}`, align: "right", muted: true },
+            { header: "Cost", cell: (r) => `€ ${r.cost.toFixed(4)}`, align: "right" },
+          ]}
+        />
+        <p className="mt-3 text-xs text-muted">
+          Packaging is worked out at today&apos;s prices, so past periods change if a price does. It is
+          not part of a dish&apos;s food cost.
+          {packaging.incomplete.length > 0 &&
+            ` ${packaging.incomplete.length} per-order supplies aren't counted yet (no "used per order" amount or no price).`}
         </p>
       </ReportSection>
 

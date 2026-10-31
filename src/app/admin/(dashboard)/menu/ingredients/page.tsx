@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Pencil, Plus, TriangleAlert } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import Card from "@/components/admin/ui/Card";
 import DeleteButton from "@/components/admin/ui/DeleteButton";
@@ -51,17 +51,6 @@ export default async function IngredientsPage() {
           </div>
         </Card>
 
-        <Card className="flex items-start gap-3 border-warn/30 bg-warn-soft">
-          <TriangleAlert size={18} className="mt-0.5 shrink-0 text-warn" />
-          <p className="text-sm leading-relaxed text-warn">
-            <span className="font-semibold">
-              The seeded prices are invented.
-            </span>{" "}
-            They exist so the costing maths has something to work with. Edit
-            them to your real supplier prices before trusting any margin figure.
-          </p>
-        </Card>
-
         {groups.map((group) => (
           <Card key={group} padded={false}>
             <p className="px-5 py-4 font-display text-base font-semibold text-heading sm:px-6">
@@ -72,7 +61,7 @@ export default async function IngredientsPage() {
               <table className="w-full min-w-[860px] border-collapse text-left">
                 <thead>
                   <tr className="bg-canvas/60">
-                    {["Ingredient", "In stock", "Total paid", "Priced per", "Cost", "Allergens", ""].map(
+                    {["Ingredient", "Base quantity", "Base price", "Priced per", "Cost", "Allergens", ""].map(
                       (h) => (
                         <th
                           key={h}
@@ -119,7 +108,8 @@ export default async function IngredientsPage() {
                           {formatMoney(ingredient.costPerUnit)}
                         </td>
                         <td className="px-5 py-3.5 sm:px-6">
-                          {ingredient.allergens.length === 0 ? (
+                          {ingredient.allergens.length === 0 &&
+                          !ingredient.mayContain?.length ? (
                             <span className="text-sm text-faint">—</span>
                           ) : (
                             <span className="flex flex-wrap gap-1.5">
@@ -129,6 +119,15 @@ export default async function IngredientsPage() {
                                   className="rounded-full border border-hairline px-2 py-0.5 text-xs font-medium text-body-text"
                                 >
                                   {allergenLabel(a)}
+                                </span>
+                              ))}
+                              {(ingredient.mayContain ?? []).map((a) => (
+                                <span
+                                  key={`may-${a}`}
+                                  title="May contain"
+                                  className="rounded-full border border-dashed border-hairline px-2 py-0.5 text-xs font-medium text-muted"
+                                >
+                                  may: {allergenLabel(a)}
                                 </span>
                               ))}
                             </span>

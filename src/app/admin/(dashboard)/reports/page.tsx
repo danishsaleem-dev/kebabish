@@ -4,6 +4,8 @@ import { getCategoryByDish, listOrders } from "@/lib/admin/orders-data";
 import { listShiftsBetween, todayKey } from "@/lib/rider-shifts";
 import { addDaysKey } from "@/lib/admin/report-range";
 import { getBusinessCalendar } from "@/lib/business-days-data";
+import { listSupplies } from "@/lib/admin/store";
+import { listPurchasesBetween } from "@/lib/supplies-data";
 
 export const metadata = { title: "Reports" };
 export const dynamic = "force-dynamic";
@@ -17,11 +19,17 @@ export const dynamic = "force-dynamic";
  */
 export default async function ReportsPage() {
   const calendarToday = todayKey();
-  const [orders, categoryByDish, { shifts }, calendar] = await Promise.all([
+  const [orders, categoryByDish, { shifts }, calendar, supplies, purchaseList] = await Promise.all([
     listOrders(),
     getCategoryByDish(),
     listShiftsBetween(addDaysKey(calendarToday, -365), calendarToday).catch(() => ({ shifts: [] })),
     getBusinessCalendar(),
+    listSupplies().catch(() => []),
+    // Same year-at-once reasoning as the rounds above; empty (not ready) without migration 0028.
+    listPurchasesBetween(addDaysKey(calendarToday, -365), calendarToday).catch(() => ({
+      ready: false,
+      purchases: [],
+    })),
   ]);
   // "Today" is the business day that is open, which after a late closing can already be
   // tomorrow's date — and without migration 0027 it is simply the calendar day.
@@ -33,6 +41,9 @@ export default async function ReportsPage() {
         orders={orders}
         categoryByDish={categoryByDish}
         shifts={shifts}
+        supplies={supplies}
+        purchases={purchaseList.purchases}
+        purchasesReady={purchaseList.ready}
         today={today}
         closedDays={calendar.ready ? calendar.closed : []}
         openDay={calendar.ready ? calendar.open : null}

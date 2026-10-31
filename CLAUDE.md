@@ -997,6 +997,44 @@ skip a required choice and set any price.
 - **Customers**: Phone column plus a book icon per customer (green = saved in the owner's phone), stored in `customer_contact_saved` (migration `0026`, keyed by the Customers screen's id incl. `guest:…`; in BACKUP_TABLES).
 - **Reports → Today crash**: `DonutChart` iterated its tweened array, which lags one render behind `slices`; going to a range with fewer categories read a missing slice. It now indexes by slice.
 
+### Ingredient import, "may contain", and Supplies (Nov 2026, migration `0028_supply_purchases.sql`)
+
+- **68 real ingredients** were loaded from Danish's price list (PDF) into the live store after he approved a preview
+  table; the same run loaded **19 supplies**. A copy of the store from before each import was kept outside the repo.
+  Importing skips a name that already exists (`createIngredient` itself does **not** check — it would silently make `-2`).
+- **The ingredient form is now Base unit / Base quantity / Base price, and cost per unit is calculated only** (price ÷
+  quantity, on the server and previewed in the form; never typed). Quantity and price are required. The stored fields are
+  still `stockQuantity` / `stockTotalCost` (renamed in the UI only, no migration). Odd decimals in a price are accepted.
+- **"May contain" (Kan bevatten)** — `StoredIngredient.mayContain`, no migration. An allergen is *either* confirmed
+  (`allergens`) or a warning, never both: the form greys out the second box and the server drops it. On a dish
+  (`public-menu.ts` `allergensFor`) the recipe's warnings are shown as their **own dashed line** ("May also contain traces
+  of…", `item.allergensMayContain`) under "contains", and never merged into it; a confirmed allergen outranks a warning
+  about the same one. The admin recipe screen shows the same two lists. Rye/oats/barley on a label are stored as `gluten`.
+- **"No allergen reported" means unchecked, not allergen-free.** Several imported rows are flagged to verify against the real
+  label: Gluten-Free Soy Sauce (PDF lists wheat), Knorr Chicken Cubes (none listed), five spices sharing one identical
+  nine-allergen list, Tikka Masala (from an online listing). Edit them in Menu → Ingredients when checked.
+- **Supplies** (`/admin/menu/supplies`, owner/staff, sidebar under Menu): boxes, bags, gloves, receipt paper — things bought
+  that nobody eats. A **separate list**, never in recipes, allergens or the public menu. Stored in the store document
+  (`StoredSupply`, `supplies: []`, no migration); pure rules in `src/lib/supplies.ts`, tested by
+  `npx tsx scripts/check-supplies.mts` (19 checks — run it after touching that file). Two kinds:
+  - **Per order** (boxes, bags, forks): each carries *used per order*. The packaging cost of one order is the sum of
+    `perOrderQuantity × cost per unit`. **A supply with no "used per order" or no price is not costed** and is reported as
+    incomplete — it is never guessed. **All 12 imported per-order supplies are still incomplete** (Danish has to say how
+    many one order uses), so the packaging cost shows €0.00 until he does.
+  - **Running** (gloves, cling film, foil, bin liners, charcoal): counted by what is spent, not per order.
+  - Unit set is g/kg/ml/l/pcs plus **m** (metres, cling film). Imported units: "bunch/sets" → pcs; four supplies had no unit
+    in the PDF and were set to **pcs by assumption** (naan bags, napkins, food wrapping paper, labels) — check them.
+- **Spend per period needs purchases:** *Log a purchase* (`/admin/menu/supplies/purchases`: day, supply, quantity, total
+  paid) writes to the table `supply_purchases` (integer cents, supply name copied so a rename/delete never rewrites history;
+  in `BACKUP_TABLES`). **Run migration 0028 first**: until then the page says so, Reports shows "—" for spend, and nothing else
+  breaks (reads degrade; only the write reports the missing table).
+- **Reports → Supplies** (own print/export): *Supplies bought* (purchases in the range), *Packaging on orders* (orders in the
+  range × packaging per order) and *Packaging per order*, plus a bought-in-period table and the per-order breakdown.
+  **Packaging uses today's prices** — an order doesn't snapshot it, so past periods move if a price does (the page says so).
+  It is not part of a dish's food cost.
+- **Verified:** typecheck, lint, the supplies maths script, and the live read-back (68 ingredients, 19 supplies). **Not seen
+  in a browser** (needs a sign-in): the supplies screens, the new ingredient form and the Reports section — open each once.
+
 ### Closing the day, real sales in reports, editing rider rounds (Oct 2026)
 
 - **Business days are closed by hand** (migration `0027_business_days.sql`, `/admin/close-day`, owner/staff; a line on the dashboard links to it). A day = from one closing to the next, so late orders after midnight stay on the day that was open. Pure rules in `src/lib/business-day.ts` (`openDayFor`, `makeDayOf`, `dayChecklist`, `daySummary`); label = Amsterdam date the day opened, never the same as the previous day; before the first closing orders keep calendar days, and a first closing before 06:00 belongs to the evening before. **Checklist (blocking):** no paid order waiting to be accepted, nothing preparing/ready/on the way or scheduled for this day, no unpaid order from this day; then an **Audit done** tick against the day's totals and cash expected. Unfinished rider rounds are shown, not blocking. `closeDayAction` re-checks everything; the unique `business_date` stops a double close. The owner can **reopen** only the latest closed day. Reports use `makeDayOf` for every "which day" question (`DayOf` param in `reports.ts`); without 0027 they use calendar days. In `BACKUP_TABLES`. Tested by `npx tsx scripts/check-business-day.mts` (40 checks, incl. the October clock change).

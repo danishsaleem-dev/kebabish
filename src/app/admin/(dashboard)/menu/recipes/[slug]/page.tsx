@@ -257,6 +257,23 @@ export default async function RecipePage({
                       ))}
                     </ul>
                   )}
+                  {a.mayContain.length > 0 && (
+                    <>
+                      <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-faint">
+                        May contain
+                      </p>
+                      <ul className="mt-2 flex flex-wrap gap-2">
+                        {a.mayContain.map((allergen) => (
+                          <li
+                            key={allergen}
+                            className="rounded-full border border-dashed border-hairline px-2.5 py-1 text-xs font-medium text-muted"
+                          >
+                            {allergenLabel(allergen)}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
                   <p className="mt-2 text-[11px] leading-relaxed text-faint">
                     Rolled up automatically from the ingredient library. EU rules
                     require these to be declared to customers.

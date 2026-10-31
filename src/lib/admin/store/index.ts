@@ -9,6 +9,7 @@ import type {
   StoredSettings,
   StoredCategory,
   StoredIngredient,
+  StoredSupply,
   StoredItem,
   StoredOptionGroup,
   StoredPromoCode,
@@ -45,6 +46,7 @@ const adapter: StoreAdapter =
 function normalise(data: StoreShape): StoreShape {
   data.optionGroups ??= [];
   data.promoCodes ??= [];
+  data.supplies ??= [];
   for (const item of data.items) {
     item.optionGroupIds ??= [];
     item.tags ??= [];
@@ -512,6 +514,48 @@ export async function deletePromoCode(id: string) {
 export async function listIngredients(): Promise<StoredIngredient[]> {
   const { ingredients } = await readStore();
   return [...ingredients].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/* ------------------------------------------------------------------ supplies */
+
+export async function listSupplies(): Promise<StoredSupply[]> {
+  const { supplies } = await readStore();
+  return [...supplies].sort(
+    (a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)
+  );
+}
+
+export async function getSupply(id: string) {
+  const { supplies } = await readStore();
+  return supplies.find((s) => s.id === id);
+}
+
+export async function createSupply(input: Omit<StoredSupply, "id">) {
+  return mutate((data) => {
+    const id = uniqueId(
+      slugify(input.name),
+      data.supplies.map((s) => s.id)
+    );
+    const supply: StoredSupply = { ...input, id };
+    data.supplies.push(supply);
+    return supply;
+  });
+}
+
+/** Replaces every field (the form always sends them all) so a cleared box really clears. */
+export async function updateSupply(id: string, input: Omit<StoredSupply, "id">) {
+  return mutate((data) => {
+    const i = data.supplies.findIndex((s) => s.id === id);
+    if (i === -1) throw new Error(`Supply "${id}" not found`);
+    data.supplies[i] = { ...input, id };
+    return data.supplies[i];
+  });
+}
+
+export async function deleteSupply(id: string) {
+  return mutate((data) => {
+    data.supplies = data.supplies.filter((s) => s.id !== id);
+  });
 }
 
 export async function getIngredient(id: string) {

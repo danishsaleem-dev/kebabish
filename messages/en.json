@@ -347,6 +347,7 @@
     "relatedAll": "See the full menu",
     "allergens": "Allergens",
     "allergensContains": "This dish contains:",
+    "allergensMayContain": "May also contain traces of (cross-contact warning from ingredient labels):",
     "videoLabel": "Video of {item}",
     "backToMenu": "Back to menu",
     "instructions": "Instructions for the kitchen",

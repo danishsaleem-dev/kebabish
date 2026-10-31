@@ -433,13 +433,16 @@ const ingredientSchema = z.object({
   name: z.string().trim().min(2, "Give the ingredient a name."),
   group: z.enum(GROUPS),
   unit: z.enum(UNITS),
-  costPerUnit: z.coerce
-    .number()
-    .min(0, "Cost can't be negative.")
-    .max(100000, "That looks like a typo."),
-  stockQuantity: z.coerce.number().min(0, "Quantity can't be negative.").max(10_000_000).optional(),
-  stockTotalCost: z.coerce.number().min(0, "Price can't be negative.").max(10_000_000).optional(),
+  stockQuantity: z.coerce
+    .number({ error: "Enter the base quantity." })
+    .gt(0, "Quantity must be more than 0.")
+    .max(10_000_000),
+  stockTotalCost: z.coerce
+    .number({ error: "Enter the base price." })
+    .min(0, "Price can't be negative.")
+    .max(10_000_000),
   allergens: z.array(z.string()),
+  mayContain: z.array(z.string()),
   supplier: z.string().trim().optional(),
 });
 
@@ -450,20 +453,20 @@ function readIngredientForm(formData: FormData) {
     name: formData.get("name"),
     group: formData.get("group"),
     unit: formData.get("unit"),
-    costPerUnit: formData.get("costPerUnit") || 0,
     stockQuantity: blank(formData.get("stockQuantity")),
     stockTotalCost: blank(formData.get("stockTotalCost")),
     allergens: formData.getAll("allergens").map(String),
+    mayContain: formData.getAll("mayContain").map(String),
     supplier: formData.get("supplier") || undefined,
   });
   if (!parsed.success) return parsed;
-  // Total price ÷ total quantity is the price per unit every costing figure uses. It is worked
-  // out here, not trusted from the browser, so the two can never disagree.
+  // Base price ÷ base quantity is the price per unit every costing figure uses. It is worked
+  // out here and never typed or trusted from the browser, so it can't disagree with the two.
   const { stockQuantity, stockTotalCost } = parsed.data;
-  if (stockQuantity && stockQuantity > 0 && stockTotalCost !== undefined) {
-    parsed.data.costPerUnit = Math.round((stockTotalCost / stockQuantity) * 10000) / 10000;
-  }
-  return parsed;
+  const costPerUnit = Math.round((stockTotalCost / stockQuantity) * 10000) / 10000;
+  // An allergen is either confirmed or a warning, never both: "contains" wins.
+  const mayContain = parsed.data.mayContain.filter((a) => !parsed.data.allergens.includes(a));
+  return { success: true as const, data: { ...parsed.data, mayContain, costPerUnit } };
 }
 
 export async function createIngredientAction(
