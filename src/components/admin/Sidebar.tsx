@@ -57,6 +57,7 @@ const MAIN: NavItem[] = [
       { label: "Extras", href: "/admin/menu/extras" },
       { label: "Ingredients", href: "/admin/menu/ingredients" },
       { label: "Supplies", href: "/admin/menu/supplies" },
+      { label: "Measurements", href: "/admin/menu/measurements" },
       { label: "Allergens", href: "/admin/menu/allergens" },
       { label: "Production planner", href: "/admin/menu/production" },
     ],

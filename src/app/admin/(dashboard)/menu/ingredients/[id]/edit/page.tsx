@@ -5,7 +5,7 @@ import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import IngredientForm from "@/components/admin/IngredientForm";
 import DeleteButton from "@/components/admin/ui/DeleteButton";
-import { getIngredient, listAllergens, listRecipes } from "@/lib/admin/store";
+import { getIngredient, listAllergens, listMeasurements, listRecipes } from "@/lib/admin/store";
 import {
   deleteIngredientAction,
   updateIngredientAction,
@@ -29,12 +29,14 @@ export default async function EditIngredientPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [ingredient, recipes, allergens] = await Promise.all([
+  const [ingredient, recipes, allergens, measurements] = await Promise.all([
     getIngredient(id),
     listRecipes(),
     listAllergens(),
+    listMeasurements(),
   ]);
   if (!ingredient) notFound();
+  const spoons = measurements.find((m) => m.ingredientId === id);
 
   const usedBy = recipes.filter((r) =>
     r.lines.some((l) => l.ingredientId === id)
@@ -67,6 +69,28 @@ export default async function EditIngredientPage({
               allergens={allergens}
             />
           </div>
+        </Card>
+
+        <Card className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="font-display text-base font-semibold text-heading">Spoon measurements</h3>
+            <p className="mt-1 text-sm text-muted">
+              {spoons
+                ? [
+                    spoons.gramsPerTbsp !== undefined ? `1 tbsp = ${spoons.gramsPerTbsp} g` : null,
+                    spoons.gramsPerTsp !== undefined ? `1 tsp = ${spoons.gramsPerTsp} g` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ") || "Listed on the chart, but no grams recorded yet."
+                : "Not on the measurement chart yet."}
+            </p>
+          </div>
+          <Link
+            href={spoons ? `/admin/menu/measurements/${spoons.id}/edit` : "/admin/menu/measurements/new"}
+            className="rounded-lg border border-hairline px-4 py-2.5 text-sm font-semibold text-body-text transition-colors hover:bg-canvas"
+          >
+            {spoons ? "Edit measurement" : "Add measurement"}
+          </Link>
         </Card>
 
         <Card className="flex flex-wrap items-center justify-between gap-4">

@@ -69,6 +69,7 @@ export function buildSeed(): StoreShape {
     promoCodes: [],
 
     supplies: [],
+    measurements: [],
 
     ingredients: ingredients.map((i) => ({
       id: i.id,

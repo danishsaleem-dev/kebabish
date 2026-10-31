@@ -238,6 +238,30 @@ export interface StoredIngredient {
   supplier?: string;
 }
 
+export type MeasurementForm = "whole" | "bulk" | "liquid" | "sticks";
+
+/**
+ * One row of the kitchen's measurement chart: how many grams a level tablespoon and teaspoon of
+ * an ingredient actually weigh. Every ingredient packs differently, so these are measured per
+ * ingredient and never derived. Lives apart from the ingredient on purpose: a row can exist for
+ * something that isn't in the price list yet, and is tied to an ingredient only by `ingredientId`
+ * (one measurement per ingredient), so nothing is typed twice. See `src/lib/measurements.ts`.
+ */
+export interface StoredMeasurement {
+  id: string;
+  /** English name as written on the chart. Shown only while no ingredient is linked. */
+  nameEn: string;
+  /** Roman Urdu name, as the kitchen says it. */
+  nameUr?: string;
+  /** The ingredient this measures. When set, the ingredient's own name is the one shown. */
+  ingredientId?: string;
+  gramsPerTbsp?: number;
+  gramsPerTsp?: number;
+  /** Whole / Bulk / Liquid / Sticks — the chart's tag; blank when it has none. */
+  form?: MeasurementForm;
+  note?: string;
+}
+
 export type SupplyKind = "per-order" | "running";
 
 /**
@@ -335,6 +359,7 @@ export interface StoreShape {
   optionGroups: StoredOptionGroup[];
   ingredients: StoredIngredient[];
   supplies: StoredSupply[];
+  measurements: StoredMeasurement[];
   recipes: StoredRecipe[];
   allergens: StoredAllergen[];
   promoCodes: StoredPromoCode[];

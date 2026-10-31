@@ -1035,6 +1035,32 @@ skip a required choice and set any price.
 - **Verified:** typecheck, lint, the supplies maths script, and the live read-back (68 ingredients, 19 supplies). **Not seen
   in a browser** (needs a sign-in): the supplies screens, the new ingredient form and the Reports section — open each once.
 
+### Measurement chart: grams per spoon (Nov 2026)
+
+*Menu → Measurements* (`/admin/menu/measurements`, owner/staff): how many grams a tablespoon and a teaspoon of each
+ingredient weigh. Every ingredient differs (salt ≈ 17 g/tbsp, kasuri methi ≈ 0.6 g), so there is **no general conversion
+anywhere** — only "this ingredient, this many spoons". `StoredMeasurement` lives in the store document (`measurements: []`, no
+migration; backed up with it); pure rules in `src/lib/measurements.ts`, tested by `npx tsx scripts/check-measurements.mts`
+(20 checks — run it after touching that file).
+- **Kept apart from ingredients, linked by id.** A row has `nameEn`, `nameUr` (Roman Urdu), optional `ingredientId`,
+  `gramsPerTbsp`, `gramsPerTsp`, `form` (Whole/Bulk/Liquid/Sticks — the chart's "Waja" column; what Waja means was never
+  confirmed, so the screen just says "Form") and a note. A row can exist for something not in the price list yet.
+- **One measurement per ingredient**, enforced on the server (a second row for the same ingredient is refused): two sets of
+  grams for one ingredient is the contradiction this exists to prevent. Deleting an ingredient keeps its row, unlinked
+  (`deleteIngredient`). A linked row shows the ingredient's own name (chart name in grey); the ingredient's edit page shows its
+  grams or an "Add measurement" link.
+- **Sanity flag, never a block:** a tablespoon is 3 teaspoons, so a tbsp ÷ tsp outside 2.5–3.5 is flagged (list column, a
+  "Check spoons" filter, and live in the form). **14 of the 40 imported pairs are flagged** (e.g. Paprika 2.17, Shahi Kala Jeera
+  2.07), which suggests one spoon was level and the other heaped; the chart never said which. Nothing is "corrected".
+- **Imported (all 51 rows, verified field-for-field):** 40 have both spoons, 11 have none ("—": whole spices, dals, sticks).
+  22 are linked to a price-list ingredient. 29 are not: 24 aren't in the price list at all (Star Anise, Cloves, Nutmeg…) and 5
+  were left unlinked on purpose with a note saying why — Black Pepper Powder / Ground Black Pepper (two rows, different grams),
+  Biryani Masala (vs Chicken Biryani Recipe Mix), Corn Flour (vs Corn Starch), Soy Sauce (price list has the gluten-free one).
+- **Not built (next step):** using these in recipes — entering "2 tsp" on a recipe line and having it costed from the grams
+  (needs a spoon unit in the recipe model/maths, `recipe-math.ts` currently only knows g/kg/ml/l/pcs). `gramsFor()` is the
+  tested building block for it. Liquids priced per ml (lemon juice, soy sauce) also need the spoon's size in ml, which the chart
+  doesn't give.
+
 ### Closing the day, real sales in reports, editing rider rounds (Oct 2026)
 
 - **Business days are closed by hand** (migration `0027_business_days.sql`, `/admin/close-day`, owner/staff; a line on the dashboard links to it). A day = from one closing to the next, so late orders after midnight stay on the day that was open. Pure rules in `src/lib/business-day.ts` (`openDayFor`, `makeDayOf`, `dayChecklist`, `daySummary`); label = Amsterdam date the day opened, never the same as the previous day; before the first closing orders keep calendar days, and a first closing before 06:00 belongs to the evening before. **Checklist (blocking):** no paid order waiting to be accepted, nothing preparing/ready/on the way or scheduled for this day, no unpaid order from this day; then an **Audit done** tick against the day's totals and cash expected. Unfinished rider rounds are shown, not blocking. `closeDayAction` re-checks everything; the unique `business_date` stops a double close. The owner can **reopen** only the latest closed day. Reports use `makeDayOf` for every "which day" question (`DayOf` param in `reports.ts`); without 0027 they use calendar days. In `BACKUP_TABLES`. Tested by `npx tsx scripts/check-business-day.mts` (40 checks, incl. the October clock change).

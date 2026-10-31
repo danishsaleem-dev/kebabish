@@ -10,6 +10,7 @@ import type {
   StoredCategory,
   StoredIngredient,
   StoredSupply,
+  StoredMeasurement,
   StoredItem,
   StoredOptionGroup,
   StoredPromoCode,
@@ -47,6 +48,7 @@ function normalise(data: StoreShape): StoreShape {
   data.optionGroups ??= [];
   data.promoCodes ??= [];
   data.supplies ??= [];
+  data.measurements ??= [];
   for (const item of data.items) {
     item.optionGroupIds ??= [];
     item.tags ??= [];
@@ -598,6 +600,65 @@ export async function deleteIngredient(id: string) {
       );
     }
     data.ingredients = data.ingredients.filter((i) => i.id !== id);
+    // Its measurement stays on the chart, just no longer tied to anything.
+    for (const m of data.measurements) {
+      if (m.ingredientId === id) delete m.ingredientId;
+    }
+  });
+}
+
+/* ------------------------------------------------------------- measurements */
+
+export async function listMeasurements(): Promise<StoredMeasurement[]> {
+  const { measurements } = await readStore();
+  return [...measurements].sort((a, b) => a.nameEn.localeCompare(b.nameEn));
+}
+
+export async function getMeasurement(id: string) {
+  const { measurements } = await readStore();
+  return measurements.find((m) => m.id === id);
+}
+
+/**
+ * Refuses a second measurement for an ingredient that already has one: two rows with different
+ * grams for the same ingredient is exactly the contradiction this chart must not hold.
+ */
+function assertLinkFree(data: StoreShape, ingredientId: string | undefined, selfId?: string) {
+  if (!ingredientId) return;
+  if (!data.ingredients.some((i) => i.id === ingredientId)) {
+    throw new Error("That ingredient no longer exists.");
+  }
+  const clash = data.measurements.find((m) => m.ingredientId === ingredientId && m.id !== selfId);
+  if (clash) throw new Error(`“${clash.nameEn}” already measures that ingredient.`);
+}
+
+export async function createMeasurement(input: Omit<StoredMeasurement, "id">) {
+  return mutate((data) => {
+    assertLinkFree(data, input.ingredientId);
+    const id = uniqueId(
+      slugify(input.nameEn),
+      data.measurements.map((m) => m.id)
+    );
+    const measurement: StoredMeasurement = { ...input, id };
+    data.measurements.push(measurement);
+    return measurement;
+  });
+}
+
+/** Replaces every field (the form always sends them all) so a cleared box really clears. */
+export async function updateMeasurement(id: string, input: Omit<StoredMeasurement, "id">) {
+  return mutate((data) => {
+    const i = data.measurements.findIndex((m) => m.id === id);
+    if (i === -1) throw new Error(`Measurement "${id}" not found`);
+    assertLinkFree(data, input.ingredientId, id);
+    data.measurements[i] = { ...input, id };
+    return data.measurements[i];
+  });
+}
+
+export async function deleteMeasurement(id: string) {
+  return mutate((data) => {
+    data.measurements = data.measurements.filter((m) => m.id !== id);
   });
 }
 
