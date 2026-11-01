@@ -5,6 +5,7 @@ import { getPublicSettings } from "@/lib/admin/store";
 import { createRefund } from "@/lib/mollie";
 import { vatIncludedCents } from "@/lib/money";
 import { getOrderSummaryById } from "@/lib/orders";
+import { clawbackForRefund } from "@/lib/rewards";
 import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { loadCreditNoteData } from "@/lib/invoice/data";
 import { buildCreditNotePdf } from "@/lib/invoice/pdf";
@@ -182,6 +183,9 @@ export async function refundOrder(orderId: string, input: RefundInput = {}): Pro
       message: `The refund of €${(amount / 100).toFixed(2)} went through${mollieRefundId ? ` (Mollie ${mollieRefundId})` : ""} but its credit note could not be saved. Tell the developer — the order total is already updated.`,
     };
   }
+
+  // Points the order earned are taken back in the same share (once per credit note).
+  await clawbackForRefund(orderId, row.credit_note_number as string, amount);
 
   return {
     ok: true,

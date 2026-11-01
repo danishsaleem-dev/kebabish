@@ -34,6 +34,7 @@ import {
 } from "@/lib/delivery-slots";
 import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-data";
 import { consumeOrderStock } from "@/lib/stock";
+import { awardOrderPoints } from "@/lib/rewards";
 import { supabaseAdmin } from "@/lib/supabase/server";
 
 export interface ManualOrderState {
@@ -398,6 +399,8 @@ export async function createManualOrderAction(
   // Staff took this order themselves, so its dishes come out of stock now — unless it is
   // still waiting for an online payment (taken when that lands) or is a day that already passed.
   if (choice.accepted && !isPast) await consumeOrderStock(order.id);
+  // An order entered after the fact as already delivered and paid earns its points straight away.
+  if (isPast && d.alreadyDelivered) await awardOrderPoints(order.id);
 
   // An online payment link: made now, shown to staff to send to the customer.
   if (d.payment === "mollie_link") {

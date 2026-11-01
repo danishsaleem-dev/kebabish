@@ -17,6 +17,7 @@ import { isFutureDelivery } from "@/lib/admin/order-types";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { consumeOrderStock, readStockMap } from "@/lib/stock";
 import { stockLevel } from "@/lib/stock-status";
+import { awardOrderPoints, recordOrderRedemption } from "@/lib/rewards";
 import { ensureCheckoutAccount } from "@/lib/customers/accounts";
 import { createAccountSetupToken } from "@/lib/password-reset";
 
@@ -427,6 +428,8 @@ export interface CreateOrderInput {
   deliveryFeeCents: number;
   promoCode: string | null;
   discountCents: number;
+  /** Kebabish Punten spent on this basket (already inside `discountCents`). Held until it is paid. */
+  pointsRedeemed?: number;
   /** Null for a manual order booked without a delivery slot. */
   deliveryDate: string | null;
   deliverySlotStart: string | null;
@@ -495,6 +498,8 @@ export async function createOrder(input: CreateOrderInput) {
         delivery_fee_cents: input.deliveryFeeCents,
         promo_code: input.promoCode,
         discount_cents: input.discountCents,
+        // Only written when used, so ordering works before migration 0029 is run.
+        ...(input.pointsRedeemed ? { points_redeemed: input.pointsRedeemed } : {}),
         total_cents: totalCents,
         delivery_date: input.deliveryDate,
         delivery_slot_start: input.deliverySlotStart,
@@ -629,6 +634,8 @@ export async function syncPaymentStatus(
     if (order) {
       // The paid dishes come out of stock now (once, however often this runs).
       await consumeOrderStock(order.id);
+      // Points spent at checkout leave the balance now that the order is paid.
+      await recordOrderRedemption(order.id);
       // The buyer's account is made now (awaited, so the return page finds it) and its
       // "choose a password" link goes inside the confirmation email.
       const accountSetupUrl = await accountSetupLinkFor(order.id);
@@ -837,6 +844,9 @@ export async function markOrderPaid(orderId: string): Promise<boolean> {
 
   // Committed now: take its dishes out of stock (a no-op if a phone order already did at creation).
   await consumeOrderStock(orderId);
+  await recordOrderRedemption(orderId);
+  // A cash order is often marked paid only after the ride: if it is already delivered, pay its points now.
+  await awardOrderPoints(orderId);
 
   const order = await getOrderSummaryById(orderId);
   if (order) {

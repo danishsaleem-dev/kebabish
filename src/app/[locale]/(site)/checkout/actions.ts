@@ -32,6 +32,8 @@ import {
 import { readStore } from "@/lib/admin/store";
 import { assessDelivery } from "@/lib/delivery-area";
 import { toCents } from "@/lib/money";
+import { availablePoints, getRewardsConfig } from "@/lib/rewards";
+import { redemptionFor } from "@/lib/rewards-math";
 import {
   generateDaySlots,
   isPastCutoff,
@@ -282,6 +284,25 @@ export async function checkoutAction(
   const session = await getCustomerSession();
   const customerId = session?.user.id ?? null;
 
+  // Kebabish Punten spent on this basket. Worked out here from the real balance and the real
+  // food total, never from what the browser showed; it can't be combined with a promo code.
+  let pointsRedeemed = 0;
+  if (formData.get("usePoints") === "on") {
+    if (promoCode) {
+      await releaseSlot();
+      return { ok: false, error: "pointsWithPromo" };
+    }
+    const rewardsConfig = await getRewardsConfig();
+    const available = customerId && rewardsConfig.enabled ? await availablePoints(customerId) : 0;
+    const redemption = redemptionFor(available ?? 0, cart.subtotalCents, rewardsConfig);
+    if (redemption.steps === 0) {
+      await releaseSlot();
+      return { ok: false, error: "pointsUnavailable" };
+    }
+    pointsRedeemed = redemption.points;
+    discountCents = redemption.cents;
+  }
+
   // Interim mode: pay through the shared Mollie payment link, staff confirm.
   const paymentLinkUrl = validPaymentLinkUrl(store.settings.paymentLinkUrl);
 
@@ -299,6 +320,7 @@ export async function checkoutAction(
     deliveryFeeCents: fee,
     promoCode,
     discountCents,
+    pointsRedeemed,
     deliveryDate: details.deliveryDate,
     deliverySlotStart: details.deliverySlotStart,
     deliverySlotEnd: details.deliverySlotEnd,

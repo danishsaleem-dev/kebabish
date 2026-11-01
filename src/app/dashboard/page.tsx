@@ -11,6 +11,8 @@ import { orderIdsWithFeedback } from "@/lib/feedback/data";
 import { getCustomerProfile } from "@/lib/customers/accounts";
 import AccountPreferences from "@/components/shared/AccountPreferences";
 import CurrentOrders from "@/components/dashboard/CurrentOrders";
+import RewardsCard from "@/components/dashboard/RewardsCard";
+import { getCustomerRewards } from "@/lib/rewards";
 import { ConfirmAccountBanner, PasswordCard, ProfileCard } from "@/components/dashboard/AccountCards";
 import { getCustomerAccountState } from "@/lib/customers/accounts";
 import { formatEuro, fromCents } from "@/lib/money";
@@ -48,6 +50,8 @@ export default async function DashboardPage({
   // confirmed from the email (see customers/account-rules.ts).
   const account = await getCustomerAccountState(user.id);
   const passwordless = account?.passwordless ?? false;
+  // Kebabish Punten: null when the programme is off or not set up, and then nothing shows.
+  const rewards = await getCustomerRewards(user.id).catch(() => null);
 
   // Feedback: which delivered orders have been rated, and the most recent one
   // that hasn't (within a fortnight — after that it's too long ago to ask).
@@ -105,6 +109,8 @@ export default async function DashboardPage({
         {passwordless && <ConfirmAccountBanner email={user.email} />}
 
         <CurrentOrders orders={orders} highlight={justPlaced} />
+
+        {rewards && <RewardsCard rewards={rewards} />}
 
         {toRate && (
           <Card className="border-ember-600/30 bg-ember-600/5">

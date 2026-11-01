@@ -1,5 +1,6 @@
 import type { Allergen, IngredientGroup } from "@/lib/admin/ingredients";
 import type { Unit } from "@/lib/admin/units";
+import type { RewardsConfig } from "@/lib/rewards-math";
 
 /**
  * The admin panel's mutable domain model.
@@ -213,6 +214,11 @@ export interface StoredSettings {
    */
   lastBackupAt?: string;
   lastBackupRows?: number;
+  /**
+   * Kebabish Punten: the rewards rules (see lib/rewards-math.ts). Absent = switched off with the
+   * default rates. Edited at /admin/rewards, never by the general settings form.
+   */
+  rewards?: Partial<RewardsConfig>;
 }
 
 export interface StoredIngredient {

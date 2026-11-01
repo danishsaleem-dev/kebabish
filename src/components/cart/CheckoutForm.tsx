@@ -17,6 +17,7 @@ import DeliverySlotPicker, {
   type DeliverySlotValue,
 } from "@/components/cart/DeliverySlotPicker";
 import type { StoredSettings } from "@/lib/admin/store/types";
+import { earnedPoints, redemptionFor, type RewardsConfig } from "@/lib/rewards-math";
 import {
   checkoutAction,
   checkPromoCodeAction,
@@ -52,6 +53,11 @@ interface CheckoutFormProps {
   hours: StoredSettings["hours"];
   /** How many days ahead a delivery slot can be booked. */
   bookingWindowDays: number;
+  /**
+   * Kebabish Punten. Absent when the programme is off. `available` is what the signed-in
+   * customer can spend right now (0 for a guest). The server decides the real amount.
+   */
+  rewards?: { config: RewardsConfig; available: number; signedIn: boolean };
   /** Present only for a signed-in customer: prefills the form, and unlocks "save my address". */
   account?: {
     name: string;
@@ -85,6 +91,7 @@ function CheckoutFormInner({
   minimumOrder,
   hours,
   bookingWindowDays,
+  rewards,
   account,
   location,
 }: CheckoutFormProps & { location: SavedLocation | null }) {
@@ -132,6 +139,7 @@ function CheckoutFormInner({
   const [houseNumber, setHouseNumber] = useState(saved?.houseNumber ?? "");
   const [addition, setAddition] = useState(saved?.addition ?? "");
   const [slot, setSlot] = useState<DeliverySlotValue | null>(null);
+  const [usePoints, setUsePoints] = useState(false);
 
   // Whether we deliver to this address is measured on the server (distance from the kitchen),
   // as soon as there is a postcode and a house number. The answer is filed under the address
@@ -183,8 +191,22 @@ function CheckoutFormInner({
   const qualifiesFree =
     freeDeliveryOver != null && subtotal >= freeDeliveryOver;
   const fee = qualifiesFree ? 0 : deliveryFee;
-  const discount = promo ? Math.min(fromCents(promo.discountCents), subtotal) : 0;
+  // Points can't be combined with a code. This is only the preview: the server works out the
+  // real amount from the real balance when the order is placed.
+  const redemption = rewards
+    ? redemptionFor(rewards.available, toCents(subtotal), rewards.config)
+    : null;
+  const pointsOn = usePoints && !promo && redemption !== null && redemption.steps > 0;
+  const discount = promo
+    ? Math.min(fromCents(promo.discountCents), subtotal)
+    : pointsOn
+      ? Math.min(fromCents(redemption.cents), subtotal)
+      : 0;
   const total = Math.max(subtotal - discount + fee, 0);
+  const fmtPoints = (n: number) => n.toLocaleString(locale === "nl" ? "nl-NL" : "en-GB");
+  const willEarn = rewards
+    ? earnedPoints(toCents(subtotal), toCents(discount), rewards.config)
+    : 0;
   const belowMinimum = subtotal < minimumOrder;
 
   function applyPromo() {
@@ -195,6 +217,8 @@ function CheckoutFormInner({
       if (result.ok && result.code && result.discountCents != null) {
         setPromo({ code: result.code, discountCents: result.discountCents });
         setPromoError(null);
+        // A code and points can't share a basket; the code the customer just chose wins.
+        setUsePoints(false);
       } else {
         setPromo(null);
         setPromoError(result.error ?? "notFound");
@@ -217,6 +241,7 @@ function CheckoutFormInner({
       <input type="hidden" name="cart" value={cartPayload} />
       <input type="hidden" name="locale" value={locale} />
       <input type="hidden" name="promoCode" value={promo?.code ?? ""} />
+      <input type="hidden" name="usePoints" value={pointsOn ? "on" : ""} />
       {/* The server's `street` column is one combined field — street name,
           house number and addition joined together — so that's assembled
           here rather than adding new order/DB columns for it. */}
@@ -472,6 +497,48 @@ function CheckoutFormInner({
           )}
         </div>
 
+        {rewards && (
+          <div className="mt-4 space-y-2 text-sm">
+            {rewards.signedIn && redemption && redemption.steps > 0 && !promo && (
+              <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-ember-600/10 px-3.5 py-3 text-ember-700">
+                <input
+                  type="checkbox"
+                  checked={usePoints}
+                  onChange={(e) => setUsePoints(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded accent-ember-600"
+                />
+                <span className="font-medium">
+                  {t("pointsUse", {
+                    points: fmtPoints(redemption.points),
+                    amount: formatEuro(fromCents(redemption.cents)),
+                  })}
+                  <span className="block text-xs font-normal text-ember-700/80">
+                    {t("pointsBalance", { points: fmtPoints(rewards.available) })}
+                  </span>
+                </span>
+              </label>
+            )}
+            {rewards.signedIn &&
+              !promo &&
+              rewards.available > 0 &&
+              redemption &&
+              redemption.steps === 0 && (
+                <p className="text-xs text-ink/60">
+                  {t("pointsTooFew", {
+                    points: fmtPoints(rewards.available),
+                    step: fmtPoints(rewards.config.redeemStepPoints),
+                  })}
+                </p>
+              )}
+            {rewards.signedIn && promo && rewards.available >= rewards.config.redeemStepPoints && (
+              <p className="text-xs text-ink/60">{t("pointsNotWithCode")}</p>
+            )}
+            {willEarn > 0 && (
+              <p className="text-xs text-ink/60">{t("pointsEarn", { points: fmtPoints(willEarn) })}</p>
+            )}
+          </div>
+        )}
+
         <dl className="mt-4 space-y-2 border-t border-charcoal-600/10 pt-4 text-sm">
           <div className="flex justify-between">
             <dt className="text-ink/65">{tCart("subtotal")}</dt>
@@ -481,7 +548,7 @@ function CheckoutFormInner({
           </div>
           {discount > 0 && (
             <div className="flex justify-between">
-              <dt className="text-ink/65">{tCart("discount")}</dt>
+              <dt className="text-ink/65">{pointsOn ? t("pointsDiscount") : tCart("discount")}</dt>
               <dd className="tabular-nums text-ember-600">
                 −{formatEuro(discount)}
               </dd>

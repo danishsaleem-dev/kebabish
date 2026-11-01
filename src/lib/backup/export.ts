@@ -74,6 +74,7 @@ export const BACKUP_TABLES: BackupTableSpec[] = [
   { name: "rider_shifts", pk: ["id"] },
   { name: "supply_purchases", pk: ["id"] },
   { name: "feedback", pk: ["id"] },
+  { name: "reward_ledger", pk: ["id"] },
   { name: "customer_contact_saved", pk: ["customer_key"] },
   { name: "site_content", pk: ["key", "locale"] },
   { name: "site_content_history", pk: ["id"] },

@@ -18,6 +18,7 @@ import { sendOrderStatusEmail } from "@/lib/email/order-status";
 import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 import { amsterdamNow } from "@/lib/delivery-slots";
 import { listStockAlerts, releaseOrderStock } from "@/lib/stock";
+import { awardOrderPoints, reverseOrderRewards } from "@/lib/rewards";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { parseAddressLine } from "@/lib/address-parse";
 import { listSavedContactKeys } from "@/lib/admin/customer-contacts";
@@ -305,6 +306,9 @@ export async function updateOrderStatus(
   }
   if (error) throw new Error(error.message);
 
+  // A delivered, paid order on an account pays out its points (once, however often this runs).
+  if (nextStatus === "delivered") await awardOrderPoints(orderId);
+
   // Tell the customer. "Ready for delivery" is an internal step, so it
   // doesn't get an email; neither does starting a scheduled order (they were
   // told when it was accepted). after() keeps the send alive on Vercel without
@@ -370,6 +374,8 @@ export async function cancelOrder(
   await releaseDeliverySlot(row.delivery_date, row.delivery_slot_start);
   // And the portions: what it took out of stock goes back in.
   await releaseOrderStock(orderId);
+  // Points it spent go back to the customer.
+  await reverseOrderRewards(orderId);
 
   // The customer already paid for something we're not going to make — the
   // money goes back automatically rather than leaving a cancelled order
@@ -439,6 +445,8 @@ export async function cancelAfterFullRefund(
       }
       await releaseOrderStock(orderId);
     }
+    // Points it spent go back; points it earned (if it was delivered) are taken back.
+    await reverseOrderRewards(orderId);
     return { wasDelivered };
   } catch (error) {
     console.error("[orders] could not cancel a fully refunded order:", error);

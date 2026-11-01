@@ -7,6 +7,7 @@ import { getTranslations } from "next-intl/server";
 import CheckoutForm from "@/components/cart/CheckoutForm";
 import { getPublicSettings } from "@/lib/admin/store";
 import { pageMetadata } from "@/lib/seo";
+import { availablePoints, getRewardsConfig } from "@/lib/rewards";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,21 @@ export default async function CheckoutPage({
   // Never a reason to fail the page: if the lookup breaks they just see an
   // empty form, same as a guest.
   let account: ComponentProps<typeof CheckoutForm>["account"];
+  // Kebabish Punten: the rules, and what this customer can spend now. Absent when switched
+  // off or not set up, in which case checkout looks exactly as it always did.
+  let rewards: ComponentProps<typeof CheckoutForm>["rewards"];
   try {
+    const rewardsConfig = await getRewardsConfig();
+    if (rewardsConfig.enabled) rewards = { config: rewardsConfig, available: 0, signedIn: false };
     // Only a valid customer sign-in counts (see customers/session.ts).
     const session = await getCustomerSession();
+    if (session && rewards) {
+      rewards = {
+        config: rewardsConfig,
+        available: (await availablePoints(session.user.id)) ?? 0,
+        signedIn: true,
+      };
+    }
     if (session) {
       const profile = await getCustomerProfile(session.user.id);
       if (profile) {
@@ -66,6 +79,7 @@ export default async function CheckoutPage({
           hours={effectiveHours(settings)}
           bookingWindowDays={bookingWindowDays(settings)}
           account={account}
+          rewards={rewards}
         />
       </div>
     </div>
