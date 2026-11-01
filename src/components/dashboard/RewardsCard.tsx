@@ -23,7 +23,11 @@ export default function RewardsCard({ rewards }: { rewards: CustomerRewards }) {
           <h2 className="font-display text-base font-semibold text-heading">Kebabish Punten</h2>
           <p className="mt-0.5 text-sm text-muted">
             {n(config.pointsPerEuro)} points for every €1 of food. {n(config.redeemStepPoints)} points ={" "}
-            {formatEuro(fromCents(config.redeemStepCents))} off your next order.
+            {formatEuro(fromCents(config.redeemStepCents))} off your next order.{" "}
+            {/* This dashboard is English, so its link goes to the English page. */}
+            <Link href="/en/rewards" className="font-semibold text-ember-700 underline underline-offset-2">
+              How it works
+            </Link>
           </p>
         </div>
         <div className="shrink-0 text-right">

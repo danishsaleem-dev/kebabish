@@ -4,6 +4,7 @@ import { routing } from "@/i18n/routing";
 import { siteConfig } from "@/lib/site-config";
 import { isComingSoonEnabled } from "@/lib/site-gate";
 import { getPublicItemSlugs } from "@/lib/public-menu";
+import { getRewardsConfig } from "@/lib/rewards";
 
 type ChangeFrequency = MetadataRoute.Sitemap[number]["changeFrequency"];
 
@@ -72,7 +73,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // /reviews is an empty "coming soon" page until real reviews exist —
   // not worth asking Google to index.
-  const pages = reviews.length > 0 ? STATIC_PAGES : STATIC_PAGES.filter((p) => p !== "/reviews");
+  const pages = reviews.length > 0 ? [...STATIC_PAGES] : STATIC_PAGES.filter((p) => p !== "/reviews");
+  // /rewards only exists while the programme is switched on.
+  if ((await getRewardsConfig()).enabled) pages.push("/rewards");
   const staticEntries = localizedEntries(pages, {
     priority: (path) => {
       if (path === "") return 1;

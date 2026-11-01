@@ -15,11 +15,14 @@ const SOCIALS = [
 export default function Footer({
   vatNumber,
   showReviews,
+  showRewards,
 }: {
   /** BTW-id from /admin/settings; the line is simply omitted until it is set. */
   vatNumber?: string;
   /** False until real reviews exist — no link to an empty page. */
   showReviews: boolean;
+  /** False while the rewards programme is switched off: its page doesn't exist then. */
+  showRewards: boolean;
 }) {
   const t = useTranslations("footer");
   const tNav = useTranslations("nav");
@@ -35,6 +38,7 @@ export default function Footer({
   const moreLinks = [
     { href: "/catering", label: t("catering") },
     { href: "/delivery-areas", label: t("deliveryAreas") },
+    ...(showRewards ? [{ href: "/rewards", label: t("rewards") }] : []),
     { href: "/feedback?src=footer", label: t("feedback") },
   ];
 

@@ -14,6 +14,7 @@ import LocationDialog from "@/components/location/LocationDialog";
 import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { getReviews } from "@/lib/content/site";
+import { normalizeRewards } from "@/lib/rewards-math";
 import { getPromoPopups } from "@/lib/public-promos";
 
 // Revalidate at most every minute — status can flip on its own (opening
@@ -52,6 +53,7 @@ export default async function SiteLayout({
       <Footer
         vatNumber={settings.vatNumber || undefined}
         showReviews={reviews.length > 0}
+        showRewards={normalizeRewards(settings.rewards).enabled}
       />
       <WhatsAppButton isOpen={status.isOpen} />
       <MobileDock />

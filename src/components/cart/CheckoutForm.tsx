@@ -534,7 +534,17 @@ function CheckoutFormInner({
               <p className="text-xs text-ink/60">{t("pointsNotWithCode")}</p>
             )}
             {willEarn > 0 && (
-              <p className="text-xs text-ink/60">{t("pointsEarn", { points: fmtPoints(willEarn) })}</p>
+              <p className="text-xs text-ink/60">
+                {t("pointsEarn", { points: fmtPoints(willEarn) })}{" "}
+                {/* A new tab, so the details typed so far stay in this one. */}
+                <Link
+                  href="/rewards"
+                  target="_blank"
+                  className="font-semibold text-charcoal-600 underline underline-offset-2 hover:text-ember-600"
+                >
+                  {t("pointsHow")}
+                </Link>
+              </p>
             )}
           </div>
         )}

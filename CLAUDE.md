@@ -540,6 +540,31 @@ this export as a second copy outside Supabase.
 - **Not built:** automatic scheduled backups (the plan is a human downloading weekly), encryption of
   the file, and backing up the Storage files.
 
+### Kebabish Punten: rewards (Nov 2026, migration `0029_rewards.sql`)
+
+Points for customers with an account, **off by default**. Switch on in `/admin/rewards` (owner only for the rules; owner/staff
+can add or remove points with a reason) **after** running the migration; until then nothing is earned, shown or spent. Defaults:
+**10 points per €1 of food** (Danish's call), **1,000 points = €5 off** (so 5% back), at most 30% of the food total per order, 500
+welcome points with the first rewarded order.
+- **Rules are pure** in `src/lib/rewards-math.ts`, shared with the browser; run `npx tsx scripts/check-rewards.mts` after touching it.
+  The rates live in `settings.rewards` (store document). The server module is `src/lib/rewards.ts`: reads never break a page,
+  bookkeeping never fails an order.
+- **The ledger (`reward_ledger`) is the truth**: a balance is the sum of the rows, never a stored number. Automatic rows carry a
+  `dedupe_key`, so a repeated webhook can't pay twice. In `BACKUP_TABLES`.
+- **Earned** when an order is delivered *and* paid, on food after discount (`awardOrderPoints`, called from `updateOrderStatus`,
+  `markOrderPaid` and a manual order entered as already delivered). **Spent** at checkout: `checkoutAction` works the amount out itself,
+  stores it in `orders.points_redeemed` and in `discount_cents` with no promo code; those points are *held* while the payment is open
+  and become a ledger row when paid (`recordOrderRedemption`), so an abandoned checkout needs no clean-up. Points and a promo code can't
+  be combined. **Reversed** on cancel or full refund (`reverseOrderRewards`); a partial refund takes back the same share (`clawbackForRefund`).
+- **A guest order with an email that already has an account stays unlinked** (`ensureCheckoutAccount` returns "existing"), so it earns
+  nothing; the page's FAQ tells people to log in first.
+- **`/rewards`** (both locales) explains it: hero, three steps, a slider (`RewardsCalculator`), welcome bonus, FAQ with FAQPage schema.
+  Every number comes from the live rules. While the programme is off the page 404s and leaves the footer and sitemap; saving the rules
+  revalidates them. Copy is `rewards.*` in `messages/*.json` (not in the editable-content registry). It describes only what is built.
+- **Not built:** expiry (the FAQ says points don't expire "at the moment"), referrals, free items as rewards, rewards emails, and points
+  wording in Terms/Privacy (needs Danish's approval). **Not yet run against a real database:** try one order and one refund after 0029.
+  Checked in the browser with a local store: `/rewards` at desktop and 375px in nl/en, the slider, and the 404 when off.
+
 ### Customer feedback (migration `0018_feedback.sql`)
 
 A public form at **`/feedback`** (both locales), a table, an admin screen, and prompts in the

@@ -61,8 +61,11 @@ export async function saveRewardsRulesAction(formData: FormData): Promise<void> 
     }),
   });
 
-  // The checkout and dashboard read the rules on every request, but pages that are cached say
-  // nothing about points, so only the admin screen needs refreshing.
+  // The /rewards page, its footer link and the sitemap all follow the rules, so everything public
+  // is refreshed; checkout and the dashboard read them on every request anyway.
+  revalidatePath("/", "layout");
+  revalidatePath("/en", "layout");
+  revalidatePath("/sitemap.xml");
   revalidatePath(PATH);
   redirect(
     flashRedirect(
