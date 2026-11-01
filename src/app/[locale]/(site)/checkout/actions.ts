@@ -33,6 +33,7 @@ import { readStore } from "@/lib/admin/store";
 import { assessDelivery } from "@/lib/delivery-area";
 import { toCents } from "@/lib/money";
 import { availablePoints, getRewardsConfig } from "@/lib/rewards";
+import { recordReferral, validateReferral } from "@/lib/referrals";
 import { redemptionFor } from "@/lib/rewards-math";
 import {
   generateDaySlots,
@@ -105,8 +106,17 @@ export async function checkPromoCodeAction(
     return { ok: false, error: "notApplicable" };
   }
   const result = await validatePromoCode(code, cart);
-  if (!result.ok) return { ok: false, error: result.error };
-  return { ok: true, code: result.code, discountCents: result.discountCents };
+  if (result.ok) return { ok: true, code: result.code, discountCents: result.discountCents };
+  if (result.error !== "notFound") return { ok: false, error: result.error };
+
+  // Not a promo code: it may be a friend's referral code, which goes in the same box.
+  const session = await getCustomerSession();
+  const referral = await validateReferral(code, cart.subtotalCents, {
+    customerId: session?.user.id ?? null,
+    email: session?.user.email ?? undefined,
+  });
+  if (!referral.ok) return { ok: false, error: referral.error };
+  return { ok: true, code: referral.code, discountCents: referral.discountCents };
 }
 
 /**
@@ -269,20 +279,49 @@ export async function checkoutAction(
   const submittedPromo = String(formData.get("promoCode") ?? "").trim();
   let promoCode: string | null = null;
   let discountCents = 0;
-  if (submittedPromo) {
-    const promo = await validatePromoCode(submittedPromo, cart, details.email);
-    if (!promo.ok) {
-      await releaseSlot();
-      return { ok: false, error: "promoInvalid" };
-    }
-    promoCode = promo.code;
-    discountCents = promo.discountCents;
-  }
 
   // Attach the order to a signed-in customer so it shows on their
   // dashboard; guests check out fine without one.
   const session = await getCustomerSession();
   const customerId = session?.user.id ?? null;
+
+  let referrerId: string | null = null;
+  if (submittedPromo) {
+    const promo = await validatePromoCode(submittedPromo, cart, details.email);
+    if (promo.ok) {
+      promoCode = promo.code;
+      discountCents = promo.discountCents;
+    } else {
+      // Not a promo code: a friend's referral code goes in the same box. This is the check
+      // that counts: the real email, phone and address against every earlier paid order.
+      const referral =
+        promo.error === "notFound"
+          ? await validateReferral(submittedPromo, cart.subtotalCents, {
+              customerId,
+              email: details.email,
+              phone: details.phone,
+              postcode: details.postcode,
+              street: details.street,
+            })
+          : null;
+      if (!referral?.ok) {
+        await releaseSlot();
+        const reason = referral && !referral.ok ? referral.error : "notFound";
+        return {
+          ok: false,
+          error:
+            reason === "referralOwn"
+              ? "promoReferralOwn"
+              : reason === "referralNotNew"
+                ? "promoReferralNotNew"
+                : "promoInvalid",
+        };
+      }
+      promoCode = referral.code;
+      discountCents = referral.discountCents;
+      referrerId = referral.referrerId;
+    }
+  }
 
   // Kebabish Punten spent on this basket. Worked out here from the real balance and the real
   // food total, never from what the browser showed; it can't be combined with a promo code.
@@ -327,6 +366,9 @@ export async function checkoutAction(
     locale,
     marketingOptIn: details.marketingOptIn,
   });
+
+  // The customer who invited them is paid once this order is delivered.
+  if (referrerId && promoCode) await recordReferral(order.id, referrerId, promoCode);
 
   // Account side-effects. Neither is allowed to fail the checkout — the
   // order exists and is about to be paid; a hiccup saving a preference must

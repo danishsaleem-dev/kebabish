@@ -3,9 +3,11 @@ import { Gift } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
 import { formatEuro, fromCents } from "@/lib/money";
 import { progressToReward, valueOfPoints } from "@/lib/rewards-math";
-import type { CustomerRewards } from "@/lib/rewards";
+import type { CustomerRewards, LedgerRow } from "@/lib/rewards";
 
 const n = (value: number) => value.toLocaleString("en-GB");
+/** How many movements show before "Show all activity". */
+const RECENT = 5;
 
 /** The customer's Kebabish Punten: balance, how close the next reward is, and the last movements. */
 export default function RewardsCard({ rewards }: { rewards: CustomerRewards }) {
@@ -77,32 +79,50 @@ export default function RewardsCard({ rewards }: { rewards: CustomerRewards }) {
       </div>
 
       {history.length > 0 && (
-        <ul className="mt-4 divide-y divide-hairline border-t border-hairline text-sm">
-          {history.map((row) => (
-            <li key={row.id} className="flex items-baseline justify-between gap-3 py-2">
-              <span className="min-w-0">
-                <span className="block truncate text-body-text">{row.note || row.kind}</span>
-                <span className="block text-xs text-faint">
-                  {new Date(row.createdAt).toLocaleDateString("en-GB", {
-                    timeZone: "Europe/Amsterdam",
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </span>
-              </span>
-              <span
-                className={`shrink-0 font-semibold tabular-nums ${
-                  row.points > 0 ? "text-success" : "text-heading"
-                }`}
-              >
-                {row.points > 0 ? "+" : "−"}
-                {n(Math.abs(row.points))}
-              </span>
-            </li>
-          ))}
-        </ul>
+        <>
+          <ul className="mt-4 divide-y divide-hairline border-t border-hairline text-sm">
+            {history.slice(0, RECENT).map((row) => (
+              <HistoryRow key={row.id} row={row} />
+            ))}
+          </ul>
+          {history.length > RECENT && (
+            <details className="group">
+              <summary className="cursor-pointer list-none py-2 text-sm font-semibold text-ember-700 marker:content-none group-open:hidden">
+                Show all activity
+              </summary>
+              <ul className="divide-y divide-hairline border-t border-hairline text-sm">
+                {history.slice(RECENT).map((row) => (
+                  <HistoryRow key={row.id} row={row} />
+                ))}
+              </ul>
+            </details>
+          )}
+        </>
       )}
     </Card>
+  );
+}
+
+function HistoryRow({ row }: { row: LedgerRow }) {
+  return (
+    <li className="flex items-baseline justify-between gap-3 py-2">
+      <span className="min-w-0">
+        <span className="block truncate text-body-text">{row.note || row.kind}</span>
+        <span className="block text-xs text-faint">
+          {new Date(row.createdAt).toLocaleDateString("en-GB", {
+            timeZone: "Europe/Amsterdam",
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })}
+        </span>
+      </span>
+      <span
+        className={`shrink-0 font-semibold tabular-nums ${row.points > 0 ? "text-success" : "text-heading"}`}
+      >
+        {row.points > 0 ? "+" : "−"}
+        {n(Math.abs(row.points))}
+      </span>
+    </li>
   );
 }

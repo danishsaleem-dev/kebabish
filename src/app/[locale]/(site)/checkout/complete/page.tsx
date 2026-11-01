@@ -3,7 +3,8 @@ import BrandLogo from "@/components/shared/BrandLogo";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import NextLink from "next/link";
-import { CheckCircle2, Clock, FileText, MapPin, UserPlus, LogIn, LayoutDashboard, MailCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Clock, FileText, MapPin, UserPlus, LogIn, LayoutDashboard, MailCheck, Sparkles, XCircle } from "lucide-react";
+import { orderPointsSummary } from "@/lib/rewards";
 import { Link } from "@/i18n/navigation";
 import { getInvoiceNumber, getOrderByReference, localizeLineNames, syncPaymentStatus } from "@/lib/orders";
 import { getPayment } from "@/lib/mollie";
@@ -123,6 +124,19 @@ export default async function CheckoutCompletePage({
     const account = await findCustomerStateByEmail(order.customerEmail).catch(() => null);
     accountNote = !account ? "offer" : account.passwordless ? "pending" : "signIn";
   }
+
+  // What this order did to the customer's points, read fresh so it follows the order along.
+  const pointsSummary = paid ? await orderPointsSummary(order).catch(() => null) : null;
+  const fmt = (n: number) => n.toLocaleString(locale === "nl" ? "nl-NL" : "en-GB");
+  const pointsLines = [
+    ...(pointsSummary && pointsSummary.used > 0 ? [t("pointsConfirmUsed", { points: fmt(pointsSummary.used) })] : []),
+    ...(pointsSummary && pointsSummary.expected + pointsSummary.welcomeExpected > 0
+      ? [t("pointsConfirmComing", { points: fmt(pointsSummary.expected + pointsSummary.welcomeExpected) })]
+      : []),
+    ...(pointsSummary && pointsSummary.earned + pointsSummary.welcome > 0
+      ? [t("pointsConfirmEarned", { points: fmt(pointsSummary.earned + pointsSummary.welcome) })]
+      : []),
+  ];
 
   const placedAt = new Date(order.placedAt).toLocaleString(
     locale === "nl" ? "nl-NL" : "en-GB",
@@ -253,6 +267,30 @@ export default async function CheckoutCompletePage({
           >
             {tFeedback("prompt.cta")}
           </Link>
+        </div>
+      )}
+
+      {pointsLines.length > 0 && (
+        <div className="print:hidden mt-8 flex w-full max-w-md items-start gap-3 rounded-3xl border border-ember-600/25 bg-cream-50 p-5 text-left">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
+            <Sparkles size={18} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-display text-base font-semibold text-charcoal-600">{tFooter("rewards")}</p>
+            {pointsLines.map((line) => (
+              <p key={line} className="mt-1 text-sm text-ink/70">
+                {line}
+              </p>
+            ))}
+            {signedInAsBuyer && (
+              <NextLink
+                href="/dashboard"
+                className="mt-2 inline-block text-sm font-semibold text-ember-700 underline underline-offset-2"
+              >
+                {t("pointsSeeAccount")}
+              </NextLink>
+            )}
+          </div>
         </div>
       )}
 

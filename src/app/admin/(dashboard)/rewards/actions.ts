@@ -40,6 +40,9 @@ export async function saveRewardsRulesAction(formData: FormData): Promise<void> 
   const redeemStepCents = euroCents(formData.get("redeemStepEuros"), 1, 100_000);
   const maxSharePercent = whole(formData.get("maxSharePercent"), 1, 100);
   const welcomePoints = whole(formData.get("welcomePoints"), 0, 100_000);
+  const referralFriendCents = euroCents(formData.get("referralFriendEuros"), 1, 100_000);
+  const referralRewardPoints = whole(formData.get("referralRewardPoints"), 1, 1_000_000);
+  const referralMonthlyCap = whole(formData.get("referralMonthlyCap"), 1, 1000);
 
   const bad = [
     [pointsPerEuro, "Points per €1 (1–1000)"],
@@ -47,6 +50,9 @@ export async function saveRewardsRulesAction(formData: FormData): Promise<void> 
     [redeemStepCents, "Money off per reward (€0.01–€1,000)"],
     [maxSharePercent, "Highest share of an order (1–100%)"],
     [welcomePoints, "Welcome bonus (0–100,000)"],
+    [referralFriendCents, "Friend's discount (€0.01–€1,000)"],
+    [referralRewardPoints, "Points for a referral (1–1,000,000)"],
+    [referralMonthlyCap, "Friends per month (1–1000)"],
   ].find(([value]) => value === null);
   if (bad) redirect(flashRedirect(PATH, `Check this field: ${bad[1]}.`, "error"));
 
@@ -58,6 +64,10 @@ export async function saveRewardsRulesAction(formData: FormData): Promise<void> 
       redeemStepCents: redeemStepCents ?? DEFAULT_REWARDS.redeemStepCents,
       maxSharePercent: maxSharePercent ?? DEFAULT_REWARDS.maxSharePercent,
       welcomePoints: welcomePoints ?? DEFAULT_REWARDS.welcomePoints,
+      referralEnabled: formData.get("referralEnabled") === "on",
+      referralFriendCents: referralFriendCents ?? DEFAULT_REWARDS.referralFriendCents,
+      referralRewardPoints: referralRewardPoints ?? DEFAULT_REWARDS.referralRewardPoints,
+      referralMonthlyCap: referralMonthlyCap ?? DEFAULT_REWARDS.referralMonthlyCap,
     }),
   });
 

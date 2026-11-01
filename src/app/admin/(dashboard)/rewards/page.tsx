@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { DatabaseZap } from "lucide-react";
+import { listReferrals } from "@/lib/referrals";
 import AdminShell from "@/components/admin/AdminShell";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import { isOwner } from "@/lib/admin/guard";
@@ -19,6 +21,14 @@ const KIND_LABEL: Record<string, string> = {
   restore: "Given back",
   clawback: "Taken back",
   adjust: "Adjusted by staff",
+  referral: "Friend's order",
+};
+
+const REFERRAL_STATUS: Record<string, string> = {
+  pending: "Waiting for delivery",
+  rewarded: "Rewarded",
+  capped: "Monthly limit reached",
+  cancelled: "Cancelled",
 };
 
 const inputClass =
@@ -27,14 +37,15 @@ const buttonClass =
   "rounded-lg bg-ember-600 px-4 py-2.5 text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500";
 
 export default async function RewardsPage() {
-  const [config, overview, owner, ledger] = await Promise.all([
+  const [config, overview, owner, ledger, referrals] = await Promise.all([
     getRewardsConfig(),
     rewardsOverview(),
     isOwner(),
     listLedger({ limit: 40 }),
+    listReferrals(),
   ]);
   const names = await customerNames(ledger.map((r) => r.customerId));
-  const earned = overview.byKind.earn + overview.byKind.welcome;
+  const earned = overview.byKind.earn + overview.byKind.welcome + overview.byKind.referral;
 
   return (
     <AdminShell title="Rewards">
@@ -65,7 +76,7 @@ export default async function RewardsPage() {
                 value={n(overview.outstanding)}
                 hint={`worth about ${formatEuro(fromCents(valueOfPoints(overview.outstanding, config)))}`}
               />
-              <Stat label="Earned" value={n(earned)} hint="orders and welcome bonuses" />
+              <Stat label="Earned" value={n(earned)} hint="orders, welcome bonuses, referrals" />
               <Stat label="Spent" value={n(-overview.byKind.redeem)} hint="used at checkout" />
               <Stat
                 label="Taken back / given back"
@@ -131,6 +142,33 @@ export default async function RewardsPage() {
                 {formatEuro(fromCents(config.redeemStepCents))} off, and it takes{" "}
                 {formatEuro(config.redeemStepPoints / config.pointsPerEuro)} of food to earn them.
               </p>
+
+              <div className="space-y-3 border-t border-hairline pt-4">
+                <label className="flex items-center gap-2.5 text-sm font-semibold text-heading">
+                  <input
+                    type="checkbox"
+                    name="referralEnabled"
+                    defaultChecked={config.referralEnabled}
+                    className="h-4 w-4 rounded accent-ember-600"
+                  />
+                  Referrals are switched on
+                </label>
+                <p className="text-xs text-muted">
+                  Needs migration 0030 and rewards switched on. A friend gets money off their first order;
+                  the customer who invited them gets points once it is delivered.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field id="referralFriendEuros" label="Friend's discount (€)">
+                    <input id="referralFriendEuros" name="referralFriendEuros" inputMode="decimal" defaultValue={(config.referralFriendCents / 100).toFixed(2)} className={inputClass} />
+                  </Field>
+                  <Field id="referralRewardPoints" label="Points for the customer">
+                    <input id="referralRewardPoints" name="referralRewardPoints" inputMode="numeric" defaultValue={config.referralRewardPoints} className={inputClass} />
+                  </Field>
+                  <Field id="referralMonthlyCap" label="Friends rewarded per month">
+                    <input id="referralMonthlyCap" name="referralMonthlyCap" inputMode="numeric" defaultValue={config.referralMonthlyCap} className={inputClass} />
+                  </Field>
+                </div>
+              </div>
             </fieldset>
             {owner && (
               <button type="submit" className={buttonClass}>
@@ -170,6 +208,57 @@ export default async function RewardsPage() {
             </div>
           </form>
         </Card>
+
+        {referrals.length > 0 && (
+          <Card padded={false}>
+            <div className="p-5 sm:p-6">
+              <CardHeader
+                title="Referrals"
+                subtitle="The latest 30. If one looks wrong, cancel the order or remove the points above."
+              />
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-left text-sm">
+                <thead>
+                  <tr className="border-y border-hairline bg-canvas text-xs uppercase tracking-wide text-muted">
+                    <th className="px-5 py-2.5 font-semibold">When</th>
+                    <th className="px-3 py-2.5 font-semibold">Invited by</th>
+                    <th className="px-3 py-2.5 font-semibold">Friend</th>
+                    <th className="px-3 py-2.5 font-semibold">Order</th>
+                    <th className="px-5 py-2.5 text-right font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-hairline">
+                  {referrals.map((r) => (
+                    <tr key={r.id}>
+                      <td className="whitespace-nowrap px-5 py-2.5 text-muted">
+                        {new Date(r.createdAt).toLocaleDateString("en-GB", {
+                          timeZone: "Europe/Amsterdam",
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className="block text-heading">{r.referrerName || "—"}</span>
+                        <span className="block text-xs text-muted">{r.referrerEmail}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-body-text">{r.friendName ?? "—"}</td>
+                      <td className="px-3 py-2.5">
+                        <Link href={`/admin/orders/${r.orderId}`} className="font-semibold text-ember-700 hover:underline">
+                          {r.orderReference ?? "—"}
+                        </Link>
+                      </td>
+                      <td className="px-5 py-2.5 text-right text-body-text">
+                        {REFERRAL_STATUS[r.status] ?? r.status}
+                        {r.points > 0 ? ` · +${n(r.points)}` : ""}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
 
         <Card padded={false}>
           <div className="p-5 sm:p-6">

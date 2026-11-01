@@ -6,6 +6,7 @@ import { getPublicSettings } from "@/lib/admin/store";
 import { orderAccessToken } from "@/lib/order-token";
 import { getInvoiceNumber, localizeLineNames, type OrderSummary } from "@/lib/orders";
 import { loadInvoiceData } from "@/lib/invoice/data";
+import { confirmationPointsNote } from "@/lib/rewards";
 import { buildInvoicePdf } from "@/lib/invoice/pdf";
 
 /**
@@ -117,7 +118,9 @@ function html(
   vatNumber: string | undefined,
   invoiceNumber: string | null,
   /** Set when this order created (or is waiting on) an account with no password yet. */
-  accountSetupUrl?: string
+  accountSetupUrl?: string,
+  /** What this order did to the customer's points. */
+  pointsNote?: string | null
 ): string {
   const c = COPY[locale];
   const logoUrl = `${siteConfig.website}/logo/Kebabish-light.png`;
@@ -200,6 +203,7 @@ function html(
                     </td>
                   </tr>
                 </table>
+                ${pointsNote ? `<p style="margin:12px 0 0;padding:12px 16px;background:#f4efe1;border-radius:10px;font-size:13px;line-height:1.6;color:#1a1713;"><strong>Kebabish Punten</strong><br/>${escapeHtml(pointsNote)}</p>` : ""}
               </td>
             </tr>
             ${
@@ -295,7 +299,8 @@ export async function sendOrderConfirmationEmail(
         settings.vatRatePercent ?? null,
         settings.vatNumber || undefined,
         invoiceNumber,
-        accountSetupUrl
+        accountSetupUrl,
+        await confirmationPointsNote(order, lang)
       ),
     });
     if (error) {

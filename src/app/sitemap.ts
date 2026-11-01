@@ -74,8 +74,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // /reviews is an empty "coming soon" page until real reviews exist —
   // not worth asking Google to index.
   const pages = reviews.length > 0 ? [...STATIC_PAGES] : STATIC_PAGES.filter((p) => p !== "/reviews");
-  // /rewards only exists while the programme is switched on.
-  if ((await getRewardsConfig()).enabled) pages.push("/rewards");
+  // /rewards and /referral only exist while they are switched on.
+  const rewards = await getRewardsConfig();
+  if (rewards.enabled) pages.push("/rewards");
+  if (rewards.enabled && rewards.referralEnabled) pages.push("/referral");
   const staticEntries = localizedEntries(pages, {
     priority: (path) => {
       if (path === "") return 1;

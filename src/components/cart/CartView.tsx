@@ -16,6 +16,7 @@ import {
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal, type CartLine } from "@/components/cart/CartProvider";
 import CartLineNotice from "@/components/cart/CartLineNotice";
+import PointsHint from "@/components/cart/PointsHint";
 import BrandLogo from "@/components/shared/BrandLogo";
 import { formatEuro } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
@@ -212,6 +213,7 @@ export default function CartView({
           <span>{t("total")}</span>
           <span className="tabular-nums">{formatEuro(subtotal + fee)}</span>
         </div>
+        <PointsHint className="mt-2" />
 
         {promoCode && (
           <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-ember-600/10 px-4 py-3 text-sm text-ember-700">

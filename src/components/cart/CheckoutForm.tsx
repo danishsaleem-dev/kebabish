@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import { useFormStatus } from "react-dom";
+import NextLink from "next/link";
 import { Tag, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useCart, lineTotal, type CartLine } from "@/components/cart/CartProvider";
@@ -532,6 +533,19 @@ function CheckoutFormInner({
               )}
             {rewards.signedIn && promo && rewards.available >= rewards.config.redeemStepPoints && (
               <p className="text-xs text-ink/60">{t("pointsNotWithCode")}</p>
+            )}
+            {/* Said to every guest, so it can't reveal whether an address has an account. An
+                order placed logged out on an existing account earns nothing. */}
+            {!rewards.signedIn && (
+              <p className="text-xs text-ink/60">
+                {t("pointsLoginPrompt")}{" "}
+                <NextLink
+                  href="/login"
+                  className="font-semibold text-charcoal-600 underline underline-offset-2 hover:text-ember-600"
+                >
+                  {t("loginCta")}
+                </NextLink>
+              </p>
             )}
             {willEarn > 0 && (
               <p className="text-xs text-ink/60">

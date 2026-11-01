@@ -16,6 +16,7 @@ export default function Footer({
   vatNumber,
   showReviews,
   showRewards,
+  showReferral,
 }: {
   /** BTW-id from /admin/settings; the line is simply omitted until it is set. */
   vatNumber?: string;
@@ -23,6 +24,8 @@ export default function Footer({
   showReviews: boolean;
   /** False while the rewards programme is switched off: its page doesn't exist then. */
   showRewards: boolean;
+  /** Same, for referrals. */
+  showReferral: boolean;
 }) {
   const t = useTranslations("footer");
   const tNav = useTranslations("nav");
@@ -39,6 +42,7 @@ export default function Footer({
     { href: "/catering", label: t("catering") },
     { href: "/delivery-areas", label: t("deliveryAreas") },
     ...(showRewards ? [{ href: "/rewards", label: t("rewards") }] : []),
+    ...(showReferral ? [{ href: "/referral", label: t("referral") }] : []),
     { href: "/feedback?src=footer", label: t("feedback") },
   ];
 

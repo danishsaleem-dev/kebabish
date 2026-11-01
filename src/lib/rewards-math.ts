@@ -22,6 +22,14 @@ export interface RewardsConfig {
   maxSharePercent: number;
   /** One-off bonus with a customer's first rewarded order. 0 = none. */
   welcomePoints: number;
+  /** Referrals on or off (only counts while `enabled` is on too). */
+  referralEnabled: boolean;
+  /** Money off a friend's first order, in cents. */
+  referralFriendCents: number;
+  /** Points the customer gets once that order is delivered. */
+  referralRewardPoints: number;
+  /** Most friends one customer is rewarded for in a calendar month. */
+  referralMonthlyCap: number;
 }
 
 export const DEFAULT_REWARDS: RewardsConfig = {
@@ -31,6 +39,10 @@ export const DEFAULT_REWARDS: RewardsConfig = {
   redeemStepCents: 500,
   maxSharePercent: 30,
   welcomePoints: 500,
+  referralEnabled: false,
+  referralFriendCents: 500,
+  referralRewardPoints: 1000,
+  referralMonthlyCap: 10,
 };
 
 function wholeInRange(value: unknown, min: number, max: number, fallback: number): number {
@@ -49,6 +61,10 @@ export function normalizeRewards(raw: Partial<RewardsConfig> | null | undefined)
     redeemStepCents: wholeInRange(raw?.redeemStepCents, 1, 100_000, d.redeemStepCents),
     maxSharePercent: wholeInRange(raw?.maxSharePercent, 1, 100, d.maxSharePercent),
     welcomePoints: wholeInRange(raw?.welcomePoints, 0, 100_000, d.welcomePoints),
+    referralEnabled: raw?.referralEnabled === true,
+    referralFriendCents: wholeInRange(raw?.referralFriendCents, 1, 100_000, d.referralFriendCents),
+    referralRewardPoints: wholeInRange(raw?.referralRewardPoints, 1, 1_000_000, d.referralRewardPoints),
+    referralMonthlyCap: wholeInRange(raw?.referralMonthlyCap, 1, 1000, d.referralMonthlyCap),
   };
 }
 
@@ -89,6 +105,18 @@ export function redemptionFor(
     points: steps * config.redeemStepPoints,
     cents: steps * config.redeemStepCents,
   };
+}
+
+/** A friend's discount: the set amount, never more than the food. */
+export function referralDiscountCents(foodCents: number, config: RewardsConfig): number {
+  return Math.max(0, Math.min(config.referralFriendCents, foodCents));
+}
+
+/** Lower-case, and "name+tag@" counts as "name@", so one mailbox can't pose as a new customer. */
+export function normalizeEmail(email: string): string {
+  const [local, domain] = email.trim().toLowerCase().split("@");
+  if (!domain) return email.trim().toLowerCase();
+  return `${local.split("+")[0]}@${domain}`;
 }
 
 /** What a number of points is worth in cents, rounded down. */

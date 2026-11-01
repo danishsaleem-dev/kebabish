@@ -12,7 +12,11 @@ import { getCustomerProfile } from "@/lib/customers/accounts";
 import AccountPreferences from "@/components/shared/AccountPreferences";
 import CurrentOrders from "@/components/dashboard/CurrentOrders";
 import RewardsCard from "@/components/dashboard/RewardsCard";
-import { getCustomerRewards } from "@/lib/rewards";
+import ReferralCard from "@/components/dashboard/ReferralCard";
+import { getCustomerRewards, pointsByOrder, type CustomerRewards } from "@/lib/rewards";
+import { getReferralCode, referralStats } from "@/lib/referrals";
+import { earnedPoints } from "@/lib/rewards-math";
+import { siteConfig } from "@/lib/site-config";
 import { ConfirmAccountBanner, PasswordCard, ProfileCard } from "@/components/dashboard/AccountCards";
 import { getCustomerAccountState } from "@/lib/customers/accounts";
 import { formatEuro, fromCents } from "@/lib/money";
@@ -25,6 +29,31 @@ export const dynamic = "force-dynamic";
 /** Within a fortnight — after that it is too long ago to ask how an order was. */
 function placedRecently(placedAt: string): boolean {
   return Date.now() - Date.parse(placedAt) < 14 * 24 * 60 * 60 * 1000;
+}
+
+/** What one order did to the customer's points, on the order itself. */
+function OrderPointsLine({
+  order,
+  points,
+  rewards,
+}: {
+  order: { status: string; paymentStatus: string; subtotalCents: number; discountCents: number };
+  points?: { earned: number; used: number };
+  rewards: CustomerRewards;
+}) {
+  const coming =
+    order.paymentStatus === "paid" && !["delivered", "cancelled"].includes(order.status)
+      ? earnedPoints(order.subtotalCents, order.discountCents, rewards.config)
+      : 0;
+  const parts = [
+    ...(points && points.used > 0 ? [`${points.used.toLocaleString("en-GB")} points used`] : []),
+    ...(points && points.earned > 0 ? [`+${points.earned.toLocaleString("en-GB")} points`] : []),
+    ...(coming > 0 ? [`+${coming.toLocaleString("en-GB")} points after delivery`] : []),
+  ];
+  if (parts.length === 0) return null;
+  return (
+    <p className="border-b border-hairline px-5 py-2.5 text-xs font-semibold text-ember-700">{parts.join(" · ")}</p>
+  );
 }
 
 export default async function DashboardPage({
@@ -51,7 +80,24 @@ export default async function DashboardPage({
   const account = await getCustomerAccountState(user.id);
   const passwordless = account?.passwordless ?? false;
   // Kebabish Punten: null when the programme is off or not set up, and then nothing shows.
-  const rewards = await getCustomerRewards(user.id).catch(() => null);
+  const rewards = await getCustomerRewards(user.id, 30).catch(() => null);
+  const orderPoints = rewards ? await pointsByOrder(user.id).catch(() => new Map()) : new Map();
+  const referral = await (async () => {
+    if (!rewards?.config.referralEnabled) return null;
+    const code = await getReferralCode(user.id);
+    if (!code) return null;
+    const friendAmount = formatEuro(fromCents(rewards.config.referralFriendCents));
+    const link = `${siteConfig.website}/referral?code=${code}`;
+    return {
+      code,
+      link,
+      friendAmount,
+      rewardPoints: rewards.config.referralRewardPoints.toLocaleString("en-GB"),
+      // Dutch, like the page the link opens: it is read by the friend.
+      shareText: `Probeer Kebabish eens! Met mijn link krijg je ${friendAmount} korting op je eerste bestelling: ${link}`,
+      stats: await referralStats(user.id),
+    };
+  })().catch(() => null);
 
   // Feedback: which delivered orders have been rated, and the most recent one
   // that hasn't (within a fortnight — after that it's too long ago to ask).
@@ -111,6 +157,18 @@ export default async function DashboardPage({
         <CurrentOrders orders={orders} highlight={justPlaced} />
 
         {rewards && <RewardsCard rewards={rewards} />}
+        {referral && (
+          <ReferralCard
+            link={referral.link}
+            code={referral.code}
+            friendAmount={referral.friendAmount}
+            rewardPoints={referral.rewardPoints}
+            shareText={referral.shareText}
+            pending={referral.stats.pending}
+            rewarded={referral.stats.rewarded}
+            pointsEarned={referral.stats.pointsEarned.toLocaleString("en-GB")}
+          />
+        )}
 
         {toRate && (
           <Card className="border-ember-600/30 bg-ember-600/5">
@@ -260,6 +318,8 @@ timeZone: "Europe/Amsterdam",
                       ))}
                     </div>
                   )}
+
+                  {rewards && <OrderPointsLine order={order} points={orderPoints.get(order.id)} rewards={rewards} />}
 
                   <ul className="divide-y divide-hairline">
                     {order.lines.map((line, i) => (

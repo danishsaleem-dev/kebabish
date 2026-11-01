@@ -41,10 +41,11 @@ export default async function SiteLayout({
   const settings = await getPublicSettings();
   const status = getStoreStatus(settings);
   const [reviews, promos] = await Promise.all([getReviews(), getPromoPopups()]);
+  const rewards = normalizeRewards(settings.rewards);
 
   return (
     <LocationProvider>
-    <CartProvider>
+    <CartProvider rewards={rewards.enabled ? rewards : null}>
       <Header
         isOpen={status.isOpen}
         banner={<StoreStatusBanner status={status} locale={locale} />}
@@ -53,7 +54,8 @@ export default async function SiteLayout({
       <Footer
         vatNumber={settings.vatNumber || undefined}
         showReviews={reviews.length > 0}
-        showRewards={normalizeRewards(settings.rewards).enabled}
+        showRewards={rewards.enabled}
+        showReferral={rewards.enabled && rewards.referralEnabled}
       />
       <WhatsAppButton isOpen={status.isOpen} />
       <MobileDock />

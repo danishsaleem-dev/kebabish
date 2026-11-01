@@ -561,9 +561,39 @@ welcome points with the first rewarded order.
 - **`/rewards`** (both locales) explains it: hero, three steps, a slider (`RewardsCalculator`), welcome bonus, FAQ with FAQPage schema.
   Every number comes from the live rules. While the programme is off the page 404s and leaves the footer and sitemap; saving the rules
   revalidates them. Copy is `rewards.*` in `messages/*.json` (not in the editable-content registry). It describes only what is built.
-- **Not built:** expiry (the FAQ says points don't expire "at the moment"), referrals, free items as rewards, rewards emails, and points
-  wording in Terms/Privacy (needs Danish's approval). **Not yet run against a real database:** try one order and one refund after 0029.
-  Checked in the browser with a local store: `/rewards` at desktop and 375px in nl/en, the slider, and the 404 when off.
+- **The customer is told at every step.** Basket and drawer: "earn X points" (`PointsHint`; the rules reach the browser through
+  `CartProvider`'s `rewards` prop). Checkout: earn line, spend box, and a log-in prompt for every guest. Confirmation page: used / coming /
+  earned. Emails: a points box in the confirmation (`confirmationPointsNote`) and in the delivered, cancelled and refunded emails
+  (`statusPointsNote`, called inside `sendOrderStatusEmail`, so every path gets it); a short email when staff change points or a referral
+  pays out (`email/rewards.ts`, language = their latest order's). Wording is pure and tested in `rewards-copy.ts`. These describe the
+  customer's own points, so they go out regardless of marketing consent; they must never carry offers.
+- **Account:** `/dashboard` has `RewardsCard` (balance, progress, history with "Show all activity"), `ReferralCard`, and a points line on
+  each order. The dashboard is English-only like the rest of it.
+- **Not built:** expiry (the FAQ says points don't expire "at the moment"), free items as rewards, marketing emails ("almost there",
+  win-back), and points wording in Terms/Privacy (needs Danish's approval). **Not yet run against a real database:** try one order and
+  one refund after 0029, and one referral after 0030. Checked in the browser with a local store: `/rewards` at desktop and 375px in nl/en,
+  the slider, the 404 when off, and a `/referral?code=` link saving its code. The dashboard cards and rewards emails have not been seen.
+
+### Referrals (Nov 2026, migration `0030_referrals.sql`)
+
+Give €5, get €5 in points: a friend gets money off their first order, the customer who invited them gets 1,000 points once it is
+delivered, for at most 10 friends a month. All four are in `/admin/rewards`; **off by default** and only counts while rewards are on.
+- Each customer gets a code (`KB-XXXXXX`, no 0/O/1/I), made the first time their dashboard opens (`getReferralCode`). The link is
+  `/referral?code=…`; `ReferralClaim` puts the code in the basket's promo code, so checkout applies it like a promotion. A referral code
+  goes in the **same box** as a promo code: `checkoutAction` tries the promo first, then `validateReferral`. It is stored in
+  `orders.promo_code` + `discount_cents`, so invoices and reports need nothing new.
+- **A friend must be new** (`hasOrderedBefore`): no paid or refunded order for that account, email (ignoring case and +tags), phone, or
+  postcode + street. Not their own code, by account, email or phone. The checkout check is the one that counts; the preview only knows
+  what a signed-in customer's account says.
+- `referrals` holds one row per friend's order: `pending` → `rewarded` / `capped` / `cancelled`. Paid out in `rewardReferral`, called from
+  `awardOrderPoints` (works for a guest friend); claiming the row by status is the lock. A cancelled or fully refunded friend's order takes
+  the points back (`reverseOrderRewards`). The ledger row hangs off the *friend's* order but belongs to the *referrer*, so every per-order
+  sum filters on `customer_id`.
+- **Privacy:** the customer only sees counts, never who ordered; staff see the friend's name in the admin.
+- **Known gap:** two brand-new checkouts at the same moment with the same details could both pass the "is new" check. The monthly cap limits the cost.
+- **A bug the browser test caught:** `ReferralClaim` must wait for the cart's `ready`, or the provider's own read of localStorage (a parent
+  effect runs after a child's) overwrites the code.
+- `npx tsx scripts/check-rewards.mts` (54 checks) covers the rules and every customer sentence. `/referral` 404s while off.
 
 ### Customer feedback (migration `0018_feedback.sql`)
 

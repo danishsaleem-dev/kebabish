@@ -250,7 +250,9 @@ export type PromoError =
   | "alreadyUsed"
   | "usedUp"
   | "notFirstOrder"
-  | "notApplicable";
+  | "notApplicable"
+  | "referralOwn"
+  | "referralNotNew";
 
 export type PromoValidation =
   | { ok: true; code: string; discountCents: number }

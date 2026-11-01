@@ -137,6 +137,9 @@ const PROMO_MESSAGES: Record<PromoError, string> = {
   usedUp: "That code has been used up.",
   notFirstOrder: "That code is for a first order only.",
   notApplicable: "None of these dishes qualify for that code.",
+  // Referral codes only work at the website checkout, so these never reach this form.
+  referralOwn: "That is this customer's own referral code.",
+  referralNotNew: "Referral codes are for new customers only.",
 };
 
 function parseCart(raw: unknown): unknown[] {

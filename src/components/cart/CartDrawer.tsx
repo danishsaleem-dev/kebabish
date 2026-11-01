@@ -8,6 +8,7 @@ import { Link } from "@/i18n/navigation";
 import BrandLogo from "@/components/shared/BrandLogo";
 import { useCart, lineTotal } from "@/components/cart/CartProvider";
 import CartLineNotice from "@/components/cart/CartLineNotice";
+import PointsHint from "@/components/cart/PointsHint";
 import Suggestions from "@/components/menu/Suggestions";
 import { formatEuro } from "@/lib/money";
 
@@ -189,6 +190,7 @@ export default function CartDrawer() {
                 <span>{t("subtotal")}</span>
                 <span className="tabular-nums">{formatEuro(subtotal)}</span>
               </div>
+              <PointsHint className="mt-1.5" />
               {blocked && (
                 <p role="alert" className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-800">
                   {t("blockedNotice")}

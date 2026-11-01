@@ -4,6 +4,7 @@ import { siteConfig } from "@/lib/site-config";
 import { fromCents } from "@/lib/money";
 import { orderAccessToken } from "@/lib/order-token";
 import type { OrderSummary } from "@/lib/orders";
+import { statusPointsNote } from "@/lib/rewards";
 
 /**
  * The short "where is my order" emails: accepted, on the way, delivered,
@@ -155,6 +156,8 @@ export interface OrderStatusEmailExtra {
   creditNote?: { number: string; pdf: Buffer };
   /** True when part of the money went back, not all of it. */
   partial?: boolean;
+  /** What happened to the customer's points. Filled in here, by `sendOrderStatusEmail`. */
+  pointsNote?: string | null;
 }
 
 function html(
@@ -184,6 +187,9 @@ function html(
           : `Your credit note (${escapeHtml(extra.creditNote.number)}) is attached.`
       }</p>`
     : "";
+  const pointsLine = extra?.pointsNote
+    ? `<p style="margin:14px 0 0;padding:12px 14px;background:#f4efe1;border-radius:10px;font-size:13px;line-height:1.6;color:#1a1713;"><strong>Kebabish Punten</strong><br/>${escapeHtml(extra.pointsNote)}</p>`
+    : "";
 
   return `<!doctype html>
 <html>
@@ -202,7 +208,7 @@ function html(
                 <p style="margin:0;font-size:12px;font-weight:bold;letter-spacing:0.06em;text-transform:uppercase;color:#a95026;">${escapeHtml(order.reference)}</p>
                 <h1 style="margin:6px 0 0;font-size:22px;color:#1a1713;">${escapeHtml(c.title)}</h1>
                 <p style="margin:14px 0 0;font-size:14px;line-height:1.6;color:#1a1713;">${escapeHtml(hi)}<br/>${escapeHtml(c.body)}</p>
-                ${reasonLine}${creditLine}
+                ${reasonLine}${creditLine}${pointsLine}
               </td>
             </tr>
             ${
@@ -253,6 +259,11 @@ export async function sendOrderStatusEmail(
 
   const locale: Locale = order.locale === "en" ? "en" : "nl";
   const c = copy(kind, locale, order, refundedCents);
+  // Whenever an order changes someone's points, the email about that order says so.
+  const pointsNote =
+    kind === "delivered" || kind === "cancelled" || kind === "refunded"
+      ? await statusPointsNote(order, kind, locale)
+      : null;
 
   try {
     const resend = new Resend(apiKey);
@@ -260,7 +271,7 @@ export async function sendOrderStatusEmail(
       from: `${siteConfig.brandName} <${siteConfig.contact.email}>`,
       to: order.customerEmail,
       subject: c.subject,
-      html: html(order, locale, c, extra, kind === "delivered"),
+      html: html(order, locale, c, { ...extra, pointsNote }, kind === "delivered"),
       ...(extra?.creditNote
         ? { attachments: [{ filename: `${extra.creditNote.number}.pdf`, content: extra.creditNote.pdf }] }
         : {}),

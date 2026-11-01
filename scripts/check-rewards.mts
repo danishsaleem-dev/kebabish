@@ -6,11 +6,20 @@ import {
   DEFAULT_REWARDS,
   clawbackPoints,
   earnedPoints,
+  normalizeEmail,
   normalizeRewards,
   progressToReward,
   redemptionFor,
+  referralDiscountCents,
   valueOfPoints,
 } from "../src/lib/rewards-math";
+import {
+  adjustmentEmail,
+  confirmationNote,
+  deliveredNote,
+  referralRewardEmail,
+  reversalNote,
+} from "../src/lib/rewards-copy";
 
 let failed = 0;
 let passed = 0;
@@ -76,6 +85,43 @@ check("junk NaN falls back", normalizeRewards({ enabled: true, pointsPerEuro: Nu
 check("only true enables", normalizeRewards({ enabled: "yes" as unknown as boolean }).enabled, false);
 check("share clamps", normalizeRewards({ maxSharePercent: 500 }).maxSharePercent, 100);
 check("welcome can be zero", normalizeRewards({ welcomePoints: 0 }).welcomePoints, 0);
+
+// Referral rules
+check("referrals off by default", DEFAULT_REWARDS.referralEnabled, false);
+check("friend's discount", referralDiscountCents(2000, on), 500);
+check("never more than the food", referralDiscountCents(300, on), 300);
+check("junk cap falls back", normalizeRewards({ referralMonthlyCap: Number.NaN }).referralMonthlyCap, 10);
+check("email lower-cased", normalizeEmail(" Sam@Mail.NL "), "sam@mail.nl");
+check("+tag ignored", normalizeEmail("sam+2@mail.nl"), "sam@mail.nl");
+check("no @ left alone", normalizeEmail("nonsense"), "nonsense");
+
+// What customers are told
+check(
+  "delivered, close to a reward (en)",
+  deliveredNote({ earned: 260, welcome: 0, balance: 760, config: on, locale: "en" }),
+  "You got 260 points. You now have 760 points. 240 more for € 5.00 off."
+);
+check(
+  "delivered with welcome, reward unlocked (nl)",
+  deliveredNote({ earned: 260, welcome: 500, balance: 1260, config: on, locale: "nl" }),
+  "Je hebt 760 punten gekregen, waarvan 500 welkomstpunten. Je hebt nu 1.260 punten. Je kunt ze bij je volgende bestelling inwisselen voor korting."
+);
+check("nothing earned, nothing said", deliveredNote({ earned: 0, welcome: 0, balance: 50, config: on, locale: "en" }), null);
+check(
+  "points back and removed",
+  reversalNote({ restored: 1000, removed: 130, balance: 1500, config: on, locale: "en" }),
+  "The 1,000 points you used are back on your account. 130 points from this order have been removed. You now have 1,500 points. You can use them for money off your next order."
+);
+check("no change, nothing said", reversalNote({ restored: 0, removed: 0, balance: 5, config: on, locale: "nl" }), null);
+check(
+  "confirmation",
+  confirmationNote({ used: 1000, expected: 210, welcome: 0, locale: "en" }),
+  "You used 1,000 points on this order. You'll get 210 points once it's delivered."
+);
+check("confirmation, nothing", confirmationNote({ used: 0, expected: 0, welcome: 0, locale: "nl" }), null);
+check("referral email subject", referralRewardEmail(1000, 1200, on, "en").subject, "You got 1,000 points");
+check("referral email never names the friend", /friend/.test(referralRewardEmail(1000, 1200, on, "en").body), true);
+check("removed points worded apart", adjustmentEmail(-100, "mistake", 400, on, "en").title, "Points balance changed");
 
 console.log(`${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

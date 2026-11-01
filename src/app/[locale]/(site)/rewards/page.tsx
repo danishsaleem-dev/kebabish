@@ -37,8 +37,8 @@ export async function generateMetadata({
  *
  * Every number comes from the rules in /admin/rewards, so this page can't promise something
  * checkout doesn't do, and while the programme is switched off the page doesn't exist at all
- * (it also leaves the footer and the sitemap). Only what is built is described: referrals and
- * birthdays don't appear here until they are real.
+ * (it also leaves the footer and the sitemap). Only what is built is described: the referral
+ * band shows while referrals are on, and nothing else is promised.
  *
  * Copy is in `messages/*.json` under `rewards`. /signup and /dashboard sit outside the locale
  * routing, hence the plain next/link for those two.
@@ -55,6 +55,7 @@ export default async function RewardsPage({
 
   const t = await getTranslations({ locale, namespace: "rewards" });
   const tNav = await getTranslations({ locale, namespace: "footer" });
+  const tReferral = await getTranslations({ locale, namespace: "referral" });
 
   const num = (n: number) => n.toLocaleString(locale === "nl" ? "nl-NL" : "en-GB");
   const points = num(config.pointsPerEuro);
@@ -242,6 +243,31 @@ export default async function RewardsPage({
               </p>
             </div>
           </div>
+        </section>
+      )}
+
+      {/* ---- invite a friend (only while referrals are on) ------------------------- */}
+      {config.referralEnabled && (
+        <section className="mx-auto max-w-6xl px-5 pt-4 sm:px-6">
+          <Link
+            href="/referral"
+            data-reveal
+            className="group flex flex-col gap-3 rounded-3xl bg-cream-50 p-6 ring-1 ring-charcoal-600/8 transition-[translate,box-shadow] duration-500 ease-brand hover:-translate-y-0.5 hover:shadow-xl hover:shadow-charcoal-950/8 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <span className="min-w-0">
+              <span className="block font-display text-lg font-semibold text-charcoal-600">{tReferral("bandTitle")}</span>
+              <span className="mt-0.5 block text-sm text-ink/60">
+                {tReferral("bandText", {
+                  amount: formatEuro(fromCents(config.referralFriendCents)),
+                  points: num(config.referralRewardPoints),
+                })}
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-2 font-display text-sm font-semibold text-ember-600">
+              {tReferral("bandCta")}
+              <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
+            </span>
+          </Link>
         </section>
       )}
 

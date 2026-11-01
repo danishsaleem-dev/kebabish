@@ -1,12 +1,21 @@
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { getPublicSettings } from "@/lib/admin/store";
+import { amsterdamNow } from "@/lib/delivery-slots";
+import { sendRewardsEmail } from "@/lib/email/rewards";
 import {
   clawbackPoints,
   earnedPoints,
   normalizeRewards,
   type RewardsConfig,
 } from "@/lib/rewards-math";
+import {
+  adjustmentEmail,
+  confirmationNote,
+  deliveredNote,
+  referralRewardEmail,
+  reversalNote,
+} from "@/lib/rewards-copy";
 
 /**
  * Kebabish Punten: the ledger, server side.
@@ -23,7 +32,14 @@ import {
  *   "ignore duplicates", so a repeated Mollie webhook or a double click is harmless.
  */
 
-export type LedgerKind = "earn" | "welcome" | "redeem" | "restore" | "clawback" | "adjust";
+export type LedgerKind =
+  | "earn"
+  | "welcome"
+  | "redeem"
+  | "restore"
+  | "clawback"
+  | "adjust"
+  | "referral";
 
 export interface LedgerRow {
   id: string;
@@ -189,9 +205,14 @@ export async function awardOrderPoints(orderId: string): Promise<void> {
       .select("id, reference, customer_id, status, payment_status, subtotal_cents, discount_cents")
       .eq("id", orderId)
       .maybeSingle();
-    if (error || !order || !order.customer_id) return;
+    if (error || !order) return;
     if (order.status !== "delivered" || order.payment_status !== "paid") return;
 
+    // A friend's first order pays the customer who invited them, whether or not the friend
+    // has an account of their own.
+    await rewardReferral(order.id, config);
+
+    if (!order.customer_id) return;
     const points = earnedPoints(order.subtotal_cents, order.discount_cents, config);
     const rows: NewRow[] = [];
     if (points > 0) {
@@ -217,6 +238,80 @@ export async function awardOrderPoints(orderId: string): Promise<void> {
     await insertRows(rows);
   } catch (error) {
     console.error("[rewards] could not award points:", error);
+  }
+}
+
+/** The language of a customer's latest order: accounts don't store one. */
+async function customerLocale(customerId: string): Promise<"nl" | "en"> {
+  const { data } = await supabaseAdmin()
+    .from("orders")
+    .select("locale")
+    .eq("customer_id", customerId)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  return data?.[0]?.locale === "en" ? "en" : "nl";
+}
+
+/**
+ * Pay the customer who invited this order's buyer, up to their monthly limit, and tell them.
+ * Claiming the row by its status is the lock: only one call can move it out of "pending".
+ */
+async function rewardReferral(orderId: string, config: RewardsConfig): Promise<void> {
+  if (!config.referralEnabled) return;
+  const db = supabaseAdmin();
+  const { data: referral, error } = await db
+    .from("referrals")
+    .select("id, referrer_id, status")
+    .eq("order_id", orderId)
+    .maybeSingle();
+  if (error || !referral || referral.status !== "pending") return;
+
+  // Amsterdam's month, like every other date the shop runs on.
+  const monthStart = `${amsterdamNow().dateKey.slice(0, 7)}-01T00:00:00+01:00`;
+  const { data: thisMonth } = await db
+    .from("referrals")
+    .select("id")
+    .eq("referrer_id", referral.referrer_id)
+    .eq("status", "rewarded")
+    .gte("rewarded_at", monthStart);
+  const capped = (thisMonth?.length ?? 0) >= config.referralMonthlyCap;
+
+  const points = capped ? 0 : config.referralRewardPoints;
+  const { data: claimed } = await db
+    .from("referrals")
+    .update({
+      status: capped ? "capped" : "rewarded",
+      points,
+      rewarded_at: new Date().toISOString(),
+    })
+    .eq("id", referral.id)
+    .eq("status", "pending")
+    .select("id");
+  if (!claimed?.length || capped) return;
+
+  await insertRows([
+    {
+      customer_id: referral.referrer_id,
+      order_id: orderId,
+      kind: "referral",
+      points,
+      note: "A friend's first order",
+      dedupe_key: `referral:${orderId}`,
+    },
+  ]);
+
+  const [{ data: person }, balance, locale] = await Promise.all([
+    db.from("customers").select("name, email").eq("id", referral.referrer_id).maybeSingle(),
+    ledgerBalance(referral.referrer_id),
+    customerLocale(referral.referrer_id),
+  ]);
+  if (person) {
+    await sendRewardsEmail({
+      to: person.email,
+      name: person.name,
+      locale,
+      email: referralRewardEmail(points, balance ?? points, config, locale),
+    });
   }
 }
 
@@ -247,16 +342,22 @@ export async function recordOrderRedemption(orderId: string): Promise<void> {
   }
 }
 
-async function orderRows(orderId: string): Promise<{ kind: LedgerKind; points: number }[] | null> {
+interface OrderRow {
+  kind: LedgerKind;
+  points: number;
+  customer_id: string;
+}
+
+async function orderRows(orderId: string): Promise<OrderRow[] | null> {
   const { data, error } = await supabaseAdmin()
     .from("reward_ledger")
-    .select("kind, points")
+    .select("kind, points, customer_id")
     .eq("order_id", orderId);
   if (error) {
     if (!notSetUp(error)) warn("could not read an order's points", error);
     return null;
   }
-  return (data ?? []) as { kind: LedgerKind; points: number }[];
+  return (data ?? []) as OrderRow[];
 }
 
 /**
@@ -265,6 +366,14 @@ async function orderRows(orderId: string): Promise<{ kind: LedgerKind; points: n
  */
 export async function reverseOrderRewards(orderId: string): Promise<void> {
   try {
+    // The friend's order is gone, so nobody gets paid for it. The update fails quietly before
+    // migration 0030, when there is no referral to cancel anyway.
+    await supabaseAdmin()
+      .from("referrals")
+      .update({ status: "cancelled" })
+      .eq("order_id", orderId)
+      .in("status", ["pending", "rewarded", "capped"]);
+
     const rows = await orderRows(orderId);
     if (!rows || rows.length === 0) return;
     const { data: order } = await supabaseAdmin()
@@ -272,33 +381,50 @@ export async function reverseOrderRewards(orderId: string): Promise<void> {
       .select("id, reference, customer_id")
       .eq("id", orderId)
       .maybeSingle();
-    if (!order?.customer_id) return;
+    if (!order) return;
 
     const out: NewRow[] = [];
-    const spent = rows.filter((r) => r.kind === "redeem").reduce((s, r) => s + -r.points, 0);
-    const restored = rows.filter((r) => r.kind === "restore").reduce((s, r) => s + r.points, 0);
-    if (spent > restored) {
+
+    // Referral points were paid to someone else, so they are looked at on their own.
+    const referral = rows.find((r) => r.kind === "referral");
+    if (referral) {
       out.push({
-        customer_id: order.customer_id,
-        order_id: order.id,
-        kind: "restore",
-        points: spent - restored,
-        note: `Order ${order.reference} was cancelled or refunded`,
-        dedupe_key: `restore:${order.id}`,
-      });
-    }
-    const stillEarned = rows
-      .filter((r) => r.kind === "earn" || r.kind === "clawback")
-      .reduce((s, r) => s + r.points, 0);
-    if (stillEarned > 0) {
-      out.push({
-        customer_id: order.customer_id,
+        customer_id: referral.customer_id,
         order_id: order.id,
         kind: "clawback",
-        points: -stillEarned,
-        note: `Order ${order.reference} was refunded`,
-        dedupe_key: `reverse:${order.id}`,
+        points: -referral.points,
+        note: "A friend's order was cancelled or refunded",
+        dedupe_key: `reverse-referral:${order.id}`,
       });
+    }
+
+    if (order.customer_id) {
+      const own = rows.filter((r) => r.customer_id === order.customer_id);
+      const spent = own.filter((r) => r.kind === "redeem").reduce((s, r) => s + -r.points, 0);
+      const restored = own.filter((r) => r.kind === "restore").reduce((s, r) => s + r.points, 0);
+      if (spent > restored) {
+        out.push({
+          customer_id: order.customer_id,
+          order_id: order.id,
+          kind: "restore",
+          points: spent - restored,
+          note: `Order ${order.reference} was cancelled or refunded`,
+          dedupe_key: `restore:${order.id}`,
+        });
+      }
+      const stillEarned = own
+        .filter((r) => r.kind === "earn" || r.kind === "clawback")
+        .reduce((s, r) => s + r.points, 0);
+      if (stillEarned > 0) {
+        out.push({
+          customer_id: order.customer_id,
+          order_id: order.id,
+          kind: "clawback",
+          points: -stillEarned,
+          note: `Order ${order.reference} was refunded`,
+          dedupe_key: `reverse:${order.id}`,
+        });
+      }
     }
     await insertRows(out);
   } catch (error) {
@@ -316,20 +442,21 @@ export async function clawbackForRefund(
   refundCents: number
 ): Promise<void> {
   try {
-    const rows = await orderRows(orderId);
-    if (!rows) return;
-    const earned = rows.filter((r) => r.kind === "earn").reduce((s, r) => s + r.points, 0);
-    if (earned <= 0) return;
-    const stillEarned = rows
-      .filter((r) => r.kind === "earn" || r.kind === "clawback")
-      .reduce((s, r) => s + r.points, 0);
-
+    const all = await orderRows(orderId);
+    if (!all) return;
     const { data: order } = await supabaseAdmin()
       .from("orders")
       .select("id, reference, customer_id, total_cents")
       .eq("id", orderId)
       .maybeSingle();
     if (!order?.customer_id) return;
+
+    const rows = all.filter((r) => r.customer_id === order.customer_id);
+    const earned = rows.filter((r) => r.kind === "earn").reduce((s, r) => s + r.points, 0);
+    if (earned <= 0) return;
+    const stillEarned = rows
+      .filter((r) => r.kind === "earn" || r.kind === "clawback")
+      .reduce((s, r) => s + r.points, 0);
 
     const take = clawbackPoints(earned, stillEarned, refundCents, order.total_cents);
     if (take <= 0) return;
@@ -380,7 +507,140 @@ export async function adjustPoints(input: {
     },
   ]);
   if (!ok) return { ok: false, message: "Couldn't save that. Try again." };
+
+  // Points never change without the customer hearing about it.
+  const [{ data: person }, config, locale] = await Promise.all([
+    supabaseAdmin().from("customers").select("name, email").eq("id", input.customerId).maybeSingle(),
+    getRewardsConfig(),
+    customerLocale(input.customerId),
+  ]);
+  if (person) {
+    await sendRewardsEmail({
+      to: person.email,
+      name: person.name,
+      locale,
+      email: adjustmentEmail(input.points, note, balance + input.points, config, locale),
+    });
+  }
   return { ok: true, balance: balance + input.points };
+}
+
+/* ------------------------------------------------------- what customers are told */
+
+export interface OrderPoints {
+  used: number;
+  /** Earned on this order so far (after anything taken back). */
+  earned: number;
+  welcome: number;
+  /** Still to come: paid or waiting, not delivered yet. */
+  expected: number;
+  /** The welcome bonus this order will also bring. */
+  welcomeExpected: number;
+}
+
+/** Points on one order, for the confirmation page and email. Null when there's nothing to say. */
+export async function orderPointsSummary(order: {
+  id: string;
+  customerId: string | null;
+  status: string;
+  subtotalCents: number;
+  discountCents: number;
+}): Promise<OrderPoints | null> {
+  const config = await getRewardsConfig();
+  if (!config.enabled || !order.customerId) return null;
+  const all = await orderRows(order.id);
+  if (!all) return null;
+  const rows = all.filter((r) => r.customer_id === order.customerId);
+  const sum = (kinds: LedgerKind[]) =>
+    rows.filter((r) => kinds.includes(r.kind)).reduce((s, r) => s + r.points, 0);
+
+  const { data: row } = await supabaseAdmin()
+    .from("orders")
+    .select("points_redeemed")
+    .eq("id", order.id)
+    .maybeSingle();
+  const done = order.status === "delivered" || order.status === "cancelled";
+
+  let welcomeExpected = 0;
+  if (!done && config.welcomePoints > 0) {
+    const { data: welcomed } = await supabaseAdmin()
+      .from("reward_ledger")
+      .select("id")
+      .eq("dedupe_key", `welcome:${order.customerId}`)
+      .limit(1);
+    welcomeExpected = welcomed?.length ? 0 : config.welcomePoints;
+  }
+
+  return {
+    used: (row?.points_redeemed as number | undefined) ?? 0,
+    earned: Math.max(sum(["earn", "clawback"]), 0),
+    welcome: sum(["welcome"]),
+    expected: done ? 0 : earnedPoints(order.subtotalCents, order.discountCents, config),
+    welcomeExpected,
+  };
+}
+
+/** The line for the order confirmation email. Null = say nothing. */
+export async function confirmationPointsNote(
+  order: Parameters<typeof orderPointsSummary>[0],
+  locale: "nl" | "en"
+): Promise<string | null> {
+  try {
+    const summary = await orderPointsSummary(order);
+    if (!summary) return null;
+    return confirmationNote({
+      used: summary.used,
+      expected: summary.expected,
+      welcome: summary.welcomeExpected,
+      locale,
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** The line for the delivered, cancelled and refunded emails. Null = say nothing. */
+export async function statusPointsNote(
+  order: { id: string; customerId: string | null },
+  kind: "delivered" | "cancelled" | "refunded",
+  locale: "nl" | "en"
+): Promise<string | null> {
+  try {
+    const config = await getRewardsConfig();
+    if (!config.enabled || !order.customerId) return null;
+    const [all, balance] = await Promise.all([orderRows(order.id), ledgerBalance(order.customerId)]);
+    if (!all || balance === null) return null;
+    const rows = all.filter((r) => r.customer_id === order.customerId);
+    const sum = (k: LedgerKind) => rows.filter((r) => r.kind === k).reduce((s, r) => s + r.points, 0);
+
+    if (kind === "delivered") {
+      return deliveredNote({ earned: sum("earn"), welcome: sum("welcome"), balance, config, locale });
+    }
+    return reversalNote({ restored: sum("restore"), removed: -sum("clawback"), balance, config, locale });
+  } catch {
+    return null;
+  }
+}
+
+/** Points per order, for the customer's own order list. */
+export async function pointsByOrder(
+  customerId: string
+): Promise<Map<string, { earned: number; used: number }>> {
+  const { data, error } = await supabaseAdmin()
+    .from("reward_ledger")
+    .select("order_id, kind, points")
+    .eq("customer_id", customerId)
+    .not("order_id", "is", null)
+    .limit(1000);
+  const map = new Map<string, { earned: number; used: number }>();
+  if (error) return map;
+  for (const row of data ?? []) {
+    const entry = map.get(row.order_id) ?? { earned: 0, used: 0 };
+    if (row.kind === "earn" || row.kind === "welcome" || row.kind === "clawback") entry.earned += row.points;
+    if (row.kind === "redeem" || row.kind === "restore") entry.used -= row.points;
+    map.set(row.order_id, entry);
+  }
+  return map;
 }
 
 /* -------------------------------------------------------------------- reads */
@@ -435,6 +695,7 @@ export async function rewardsOverview(): Promise<RewardsOverview> {
     restore: 0,
     clawback: 0,
     adjust: 0,
+    referral: 0,
   };
   const { data, error } = await supabaseAdmin().rpc("reward_totals");
   if (error) return { ready: false, byKind, outstanding: 0 };

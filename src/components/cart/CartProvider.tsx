@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import type { RewardsConfig } from "@/lib/rewards-math";
 
 /**
  * The cart lives in localStorage, not on the server.
@@ -150,6 +151,8 @@ interface CartValue {
   promoCode: string | null;
   /** Save (or, with null, forget) the pending promo code. */
   setPromoCode: (code: string | null) => void;
+  /** The Kebabish Punten rules while the programme is on, so the basket can say what it earns. */
+  rewards: RewardsConfig | null;
   add: (line: NewCartLine, quantity?: number) => void;
   setQuantity: (id: string, quantity: number) => void;
   remove: (id: string) => void;
@@ -186,7 +189,13 @@ function lineId(line: NewCartLine): string {
   return [line.slug, options, line.instructions.trim()].join("|");
 }
 
-export default function CartProvider({ children }: { children: ReactNode }) {
+export default function CartProvider({
+  children,
+  rewards = null,
+}: {
+  children: ReactNode;
+  rewards?: RewardsConfig | null;
+}) {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [ready, setReady] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -394,6 +403,7 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       blocked: Object.keys(issues).length > 0,
       promoCode,
       setPromoCode,
+      rewards,
       add,
       setQuantity,
       remove,
@@ -401,7 +411,7 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       openDrawer: () => setDrawerOpen(true),
       closeDrawer: () => setDrawerOpen(false),
     }),
-    [lines, ready, drawerOpen, issues, repriced, promoCode, setPromoCode, add, setQuantity, remove, clear]
+    [lines, ready, drawerOpen, issues, repriced, promoCode, setPromoCode, rewards, add, setQuantity, remove, clear]
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
