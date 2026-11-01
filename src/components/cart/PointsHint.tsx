@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useCart } from "@/components/cart/CartProvider";
 import { toCents } from "@/lib/money";
 import { earnedPoints } from "@/lib/rewards-math";
+import { useIsGuest } from "@/components/rewards/useIsGuest";
 
 /** "Earn 260 Kebabish Punten with this order", under the basket total. Nothing while rewards are off. */
 export default function PointsHint({ className = "" }: { className?: string }) {

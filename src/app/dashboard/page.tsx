@@ -14,9 +14,9 @@ import CurrentOrders from "@/components/dashboard/CurrentOrders";
 import RewardsCard from "@/components/dashboard/RewardsCard";
 import ReferralCard from "@/components/dashboard/ReferralCard";
 import { getCustomerRewards, pointsByOrder, type CustomerRewards } from "@/lib/rewards";
-import { getReferralCode, referralStats } from "@/lib/referrals";
+import { getReferralCode, referralLink, referralShareText, referralStats, referralTracks } from "@/lib/referrals";
+import PointsUpdates from "@/components/dashboard/PointsUpdates";
 import { earnedPoints } from "@/lib/rewards-math";
-import { siteConfig } from "@/lib/site-config";
 import { ConfirmAccountBanner, PasswordCard, ProfileCard } from "@/components/dashboard/AccountCards";
 import { getCustomerAccountState } from "@/lib/customers/accounts";
 import { formatEuro, fromCents } from "@/lib/money";
@@ -87,15 +87,16 @@ export default async function DashboardPage({
     const code = await getReferralCode(user.id);
     if (!code) return null;
     const friendAmount = formatEuro(fromCents(rewards.config.referralFriendCents));
-    const link = `${siteConfig.website}/referral?code=${code}`;
+    const link = referralLink(code, "nl");
     return {
       code,
       link,
       friendAmount,
       rewardPoints: rewards.config.referralRewardPoints.toLocaleString("en-GB"),
       // Dutch, like the page the link opens: it is read by the friend.
-      shareText: `Probeer Kebabish eens! Met mijn link krijg je ${friendAmount} korting op je eerste bestelling: ${link}`,
+      shareText: referralShareText(code, friendAmount, "nl"),
       stats: await referralStats(user.id),
+      tracks: await referralTracks(user.id),
     };
   })().catch(() => null);
 
@@ -156,6 +157,7 @@ export default async function DashboardPage({
 
         <CurrentOrders orders={orders} highlight={justPlaced} />
 
+        {rewards && <PointsUpdates rows={rewards.history} />}
         {rewards && <RewardsCard rewards={rewards} />}
         {referral && (
           <ReferralCard
@@ -167,6 +169,7 @@ export default async function DashboardPage({
             pending={referral.stats.pending}
             rewarded={referral.stats.rewarded}
             pointsEarned={referral.stats.pointsEarned.toLocaleString("en-GB")}
+            tracks={referral.tracks}
           />
         )}
 

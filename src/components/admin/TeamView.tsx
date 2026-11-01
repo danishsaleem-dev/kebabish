@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { KeyRound, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import Card, { CardHeader } from "@/components/admin/ui/Card";
 import { Field, Input, Select, SubmitButton } from "@/components/admin/ui/Form";
+import PasswordInput from "@/components/shared/PasswordInput";
 import { useToast } from "@/components/admin/ui/Toast";
 import {
   addStaffAction,
@@ -179,7 +180,7 @@ function AddStaffCard() {
 
       <form ref={formRef} action={formAction} className="mt-5 grid gap-4 sm:grid-cols-2">
         <Field label="Name" error={e.name}>
-          <Input name="name" invalid={Boolean(e.name)} required />
+          <PasswordInput name="name" invalid={Boolean(e.name)} required />
         </Field>
         <Field label="Email" error={e.email}>
           <Input name="email" type="email" invalid={Boolean(e.email)} required />
@@ -187,7 +188,6 @@ function AddStaffCard() {
         <Field label="Temporary password" error={e.password}>
           <Input
             name="password"
-            type="password"
             autoComplete="new-password"
             invalid={Boolean(e.password)}
             required
@@ -236,27 +236,24 @@ function YourAccountCard() {
 
       <form ref={formRef} action={formAction} className="mt-5 grid gap-4 sm:grid-cols-3">
         <Field label="Current password" error={e.currentPassword}>
-          <Input
+          <PasswordInput
             name="currentPassword"
-            type="password"
             autoComplete="current-password"
             invalid={Boolean(e.currentPassword)}
             required
           />
         </Field>
         <Field label="New password" error={e.newPassword}>
-          <Input
+          <PasswordInput
             name="newPassword"
-            type="password"
             autoComplete="new-password"
             invalid={Boolean(e.newPassword)}
             required
           />
         </Field>
         <Field label="Confirm new password" error={e.confirmPassword}>
-          <Input
+          <PasswordInput
             name="confirmPassword"
-            type="password"
             autoComplete="new-password"
             invalid={Boolean(e.confirmPassword)}
             required

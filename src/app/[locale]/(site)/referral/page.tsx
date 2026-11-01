@@ -15,6 +15,7 @@ import MaskedWords from "@/components/motion/MaskedWords";
 import SectionEyebrow from "@/components/home/SectionEyebrow";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
 import ReferralClaim from "@/components/rewards/ReferralClaim";
+import ReferralHeroActions from "@/components/rewards/ReferralHeroActions";
 
 export async function generateMetadata({
   params,
@@ -59,6 +60,16 @@ export default async function ReferralPage({
     { icon: Sparkles, title: t("step3Title"), text: t("step3Text", { points, worth }) },
   ];
 
+  // What inviting adds up to, from the real rules: one friend, a few, and the monthly limit.
+  const ladder = [...new Set([1, 5, config.referralMonthlyCap])]
+    .filter((friends) => friends <= config.referralMonthlyCap)
+    .sort((a, b) => a - b)
+    .map((friends) => ({
+      friends,
+      points: (friends * config.referralRewardPoints).toLocaleString(locale === "nl" ? "nl-NL" : "en-GB"),
+      worth: formatEuro(fromCents(valueOfPoints(friends * config.referralRewardPoints, config))),
+    }));
+
   const faq = [
     { q: t("faq1Q"), a: t("faq1A") },
     { q: t("faq2Q"), a: t("faq2A") },
@@ -98,6 +109,7 @@ export default async function ReferralPage({
 
         <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-12 px-5 pb-16 pt-14 sm:px-6 sm:pb-20 sm:pt-20 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">
           <div className="min-w-0">
+            <ReferralClaim amount={amount} />
             <SectionEyebrow tone="light">{t("eyebrow")}</SectionEyebrow>
             <h1
               data-reveal-mask
@@ -108,7 +120,8 @@ export default async function ReferralPage({
             <p data-reveal className="mt-5 max-w-xl text-pretty text-base leading-relaxed text-cream-200/75 sm:text-lg">
               {t("intro", { amount, points })}
             </p>
-            <div data-reveal className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <ReferralHeroActions>
+              <div data-reveal className="mt-8 flex flex-col gap-3 sm:flex-row">
               <NextLink href="/dashboard" className={primaryCta}>
                 {t("ctaLink")}
                 <ArrowRight size={17} />
@@ -117,6 +130,7 @@ export default async function ReferralPage({
                 {t("ctaMenu")}
               </Link>
             </div>
+            </ReferralHeroActions>
           </div>
 
           {/* Two people, one gift each. */}
@@ -138,8 +152,6 @@ export default async function ReferralPage({
           </div>
         </div>
       </section>
-
-      <ReferralClaim amount={amount} />
 
       {/* ---- three steps --------------------------------------------------------- */}
       <section className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-24">
@@ -170,6 +182,30 @@ export default async function ReferralPage({
             </li>
           ))}
         </ol>
+      </section>
+
+      {/* ---- what it adds up to --------------------------------------------------- */}
+      <section className="bg-charcoal-900 text-cream-100">
+        <div className="mx-auto max-w-6xl px-5 py-16 sm:px-6 sm:py-20">
+          <div className="max-w-2xl">
+            <SectionEyebrow tone="light">{t("ladderEyebrow")}</SectionEyebrow>
+            <h2 className="mt-5 text-balance font-display text-3xl font-semibold leading-[1.15] text-cream-50 sm:text-4xl">
+              {t("ladderTitle")}
+            </h2>
+          </div>
+          <ul data-reveal-group className="mt-10 grid gap-3 sm:gap-4 md:grid-cols-3">
+            {ladder.map((step) => (
+              <li key={step.friends} data-reveal className="rounded-3xl bg-cream-50/[0.06] p-6 ring-1 ring-cream-100/10">
+                <p className="text-sm font-medium text-cream-200/70">{t("ladderFriends", { count: step.friends })}</p>
+                <p className="mt-2 font-display text-3xl font-semibold tabular-nums text-cream-50">
+                  {t("ladderPoints", { points: step.points })}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-ember-400">{t("ladderWorth", { worth: step.worth })}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-5 text-sm text-cream-200/60">{t("ladderNote", { cap: config.referralMonthlyCap })}</p>
+        </div>
       </section>
 
       {/* ---- questions ------------------------------------------------------------ */}

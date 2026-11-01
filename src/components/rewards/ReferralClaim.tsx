@@ -8,9 +8,9 @@ import { cleanPromoCode, useCart } from "@/components/cart/CartProvider";
 
 /**
  * Someone opened a friend's link (/referral?code=KB-XXXXXX). The code joins the basket like a
- * promotion's does, so checkout applies it by itself, and the address bar is cleaned up. It lives
- * in the browser so the page itself stays static; nothing here is trusted, checkout checks the
- * code from scratch.
+ * promotion's does, so checkout applies it by itself. It lives in the browser so the page itself
+ * stays static; nothing here is trusted, checkout checks the code from scratch. The code stays in
+ * the address bar: rewriting the URL here interrupts the headline's reveal and leaves it hidden.
  */
 export default function ReferralClaim({ amount }: { amount: string }) {
   const t = useTranslations("referral");
@@ -21,22 +21,18 @@ export default function ReferralClaim({ amount }: { amount: string }) {
   // overwrite this one a moment later.
   useEffect(() => {
     if (!ready) return;
-    const url = new URL(window.location.href);
-    const found = cleanPromoCode(url.searchParams.get("code")?.toUpperCase());
+    const found = cleanPromoCode(new URLSearchParams(window.location.search).get("code")?.toUpperCase());
     if (!found) return;
     setPromoCode(found);
-    url.searchParams.delete("code");
-    window.history.replaceState(null, "", url.pathname + url.search);
-    // On the next tick: the code only exists in the browser. Not cancelled, because the
-    // address bar has already been cleaned and this can't run a second time.
-    setTimeout(() => setCode(found), 0);
+    // On the next tick: the code only exists in the browser.
+    const timer = setTimeout(() => setCode(found), 0);
+    return () => clearTimeout(timer);
   }, [ready, setPromoCode]);
 
   if (!code) return null;
 
   return (
-    <div className="mx-auto max-w-6xl px-5 pt-6 sm:px-6">
-      <div role="status" className="flex flex-col gap-4 rounded-3xl bg-ember-600 p-5 text-cream-50 sm:flex-row sm:items-center sm:p-6">
+    <div role="status" className="mb-7 flex flex-col gap-4 rounded-3xl bg-ember-600 p-5 text-cream-50 sm:flex-row sm:items-center">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-cream-50/15">
           <Gift size={20} aria-hidden="true" />
         </span>
@@ -50,7 +46,6 @@ export default function ReferralClaim({ amount }: { amount: string }) {
         >
           {t("claimCta")}
         </Link>
-      </div>
     </div>
   );
 }

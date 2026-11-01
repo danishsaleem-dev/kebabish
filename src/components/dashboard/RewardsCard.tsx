@@ -68,6 +68,11 @@ export default function RewardsCard({ rewards }: { rewards: CustomerRewards }) {
             </>
           )}
         </p>
+        {config.welcomePoints > 0 && !history.some((row) => row.kind === "welcome") && (
+          <p className="mt-1 text-xs text-muted">
+            Your first delivered order adds {n(config.welcomePoints)} welcome points.
+          </p>
+        )}
         {pending > 0 && (
           <p className="mt-1 text-xs text-muted">
             +{n(pending)} points on the way once your open orders are delivered.

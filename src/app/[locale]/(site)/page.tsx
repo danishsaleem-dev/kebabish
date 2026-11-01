@@ -19,6 +19,7 @@ import TrustStrip from "@/components/home/TrustStrip";
 import Pick from "@/components/home/Pick";
 import Founder from "@/components/home/Founder";
 import CateringTeaser from "@/components/home/CateringTeaser";
+import RewardsSection from "@/components/home/RewardsSection";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
 import { getPublicSettings } from "@/lib/admin/store";
 import { pageMetadata } from "@/lib/seo";
@@ -72,6 +73,7 @@ export default async function HomePage({
     marquee: <Marquee items={marqueeItems} />,
     how: <HowItWorks locale={locale} settings={settings} />,
     trust: <TrustStrip locale={locale} />,
+    rewards: <RewardsSection locale={locale} />,
     story: <Story locale={locale} />,
     categories: <Categories locale={locale} />,
     popular: <Popular locale={locale} isOpen={isOpen} />,

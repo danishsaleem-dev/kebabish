@@ -4,6 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { Check, Copy, MessageCircle, Users } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
+import type { ReferralTrack } from "@/lib/referrals";
+
+const STATUS: Record<ReferralTrack["status"], { label: string; tone: string }> = {
+  pending: { label: "Order on its way, points follow after delivery", tone: "bg-warn-soft text-warn" },
+  rewarded: { label: "Delivered, points added", tone: "bg-success-soft text-success" },
+  capped: { label: "Delivered, past this month's limit", tone: "bg-canvas text-muted" },
+  cancelled: { label: "Order cancelled, no points", tone: "bg-canvas text-muted" },
+};
 
 /** The customer's own link, ready to share, and how it is doing. Counts only, never names. */
 export default function ReferralCard({
@@ -15,6 +23,7 @@ export default function ReferralCard({
   pending,
   rewarded,
   pointsEarned,
+  tracks,
 }: {
   link: string;
   code: string;
@@ -24,6 +33,7 @@ export default function ReferralCard({
   pending: number;
   rewarded: number;
   pointsEarned: string;
+  tracks: ReferralTrack[];
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -85,6 +95,28 @@ export default function ReferralCard({
           <Stat label="Friends ordered" value={String(rewarded)} />
           <Stat label="Points earned" value={pointsEarned} />
         </dl>
+      )}
+
+      {tracks.length > 0 && (
+        <ul className="mt-4 divide-y divide-hairline border-t border-hairline text-sm">
+          {tracks.map((track, i) => (
+            <li key={track.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5">
+              <span className="min-w-0 text-body-text">
+                Friend {tracks.length - i}
+                <span className="ml-2 text-xs text-faint">
+                  {new Date(track.createdAt).toLocaleDateString("en-GB", {
+                    timeZone: "Europe/Amsterdam",
+                    day: "numeric",
+                    month: "short",
+                  })}
+                </span>
+              </span>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${STATUS[track.status].tone}`}>
+                {STATUS[track.status].label}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
     </Card>
   );

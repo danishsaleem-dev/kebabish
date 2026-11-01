@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { getRewardsConfig } from "@/lib/rewards";
 import { normalizeEmail, referralDiscountCents } from "@/lib/rewards-math";
 import { normalizeDutchPhone } from "@/lib/phone";
+import { siteConfig } from "@/lib/site-config";
 
 /**
  * Referrals: codes and the check that a friend really is new. Paying out and reversing live in
@@ -50,6 +51,19 @@ export async function getReferralCode(customerId: string): Promise<string | null
     if (again) return again.code;
   }
   return null;
+}
+
+/** The link a customer shares. It opens in the language they use the site in. */
+export function referralLink(code: string, locale: string): string {
+  return `${siteConfig.website}${locale === "en" ? "/en" : ""}/referral?code=${code}`;
+}
+
+/** The message that goes with it, ready to send. */
+export function referralShareText(code: string, amount: string, locale: string): string {
+  const link = referralLink(code, locale);
+  return locale === "en"
+    ? `Try Kebabish! With my link you get ${amount} off your first order: ${link}`
+    : `Probeer Kebabish eens! Met mijn link krijg je ${amount} korting op je eerste bestelling: ${link}`;
 }
 
 export type ReferralResult =
@@ -163,6 +177,29 @@ export async function referralStats(customerId: string): Promise<ReferralStats> 
       .filter((r) => r.status === "rewarded")
       .reduce((sum, r) => sum + (r.points as number), 0),
   };
+}
+
+export interface ReferralTrack {
+  id: string;
+  status: "pending" | "rewarded" | "capped" | "cancelled";
+  points: number;
+  createdAt: string;
+}
+
+/** Each invited friend's order as a step in the customer's tracker: no name, no order number. */
+export async function referralTracks(customerId: string, limit = 10): Promise<ReferralTrack[]> {
+  const { data } = await supabaseAdmin()
+    .from("referrals")
+    .select("id, status, points, created_at")
+    .eq("referrer_id", customerId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    status: r.status,
+    points: r.points,
+    createdAt: r.created_at,
+  }));
 }
 
 export interface AdminReferral {

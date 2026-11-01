@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
+import { getTranslations } from "next-intl/server";
 import { auth, homeForRole, signIn } from "@/lib/auth";
 import { countAdminUsers, createAdminUser } from "@/lib/admin/auth-users";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
@@ -12,9 +13,13 @@ export async function loginAction(
 ): Promise<FormState> {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const t = await getTranslations({
+    locale: formData.get("locale") === "en" ? "en" : "nl",
+    namespace: "auth",
+  });
 
   if (!email || !password) {
-    return { ok: false, message: "Enter your email and password." };
+    return { ok: false, message: t("errMissing") };
   }
 
   try {
@@ -23,11 +28,11 @@ export async function loginAction(
     // which we only know once the session exists below.
     const result = await signIn("credentials", { email, password, redirect: false });
     if (result?.error) {
-      return { ok: false, message: "Incorrect email or password." };
+      return { ok: false, message: t("errWrong") };
     }
   } catch (error) {
     if (error instanceof AuthError) {
-      return { ok: false, message: "Incorrect email or password." };
+      return { ok: false, message: t("errWrong") };
     }
     throw error;
   }

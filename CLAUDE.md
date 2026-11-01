@@ -591,9 +591,34 @@ delivered, for at most 10 friends a month. All four are in `/admin/rewards`; **o
   sum filters on `customer_id`.
 - **Privacy:** the customer only sees counts, never who ordered; staff see the friend's name in the admin.
 - **Known gap:** two brand-new checkouts at the same moment with the same details could both pass the "is new" check. The monthly cap limits the cost.
-- **A bug the browser test caught:** `ReferralClaim` must wait for the cart's `ready`, or the provider's own read of localStorage (a parent
-  effect runs after a child's) overwrites the code.
+- **Two bugs the browser test caught in `ReferralClaim`:** it must wait for the cart's `ready`, or the provider's own read of localStorage
+  (a parent effect runs after a child's) overwrites the code; and it must **not** rewrite the URL to remove `?code=`, because `history.replaceState`
+  interrupted the hero's reveal and left the `<h1>` hidden. The code stays in the address bar.
 - `npx tsx scripts/check-rewards.mts` (54 checks) covers the rules and every customer sentence. `/referral` 404s while off.
+
+### Winning new customers: where rewards are promoted, and the sign-in pages (Nov 2026)
+
+No migration. Everything below reads the live rules and disappears while rewards are off.
+- **Homepage:** `home/RewardsSection.tsx`, section id `rewards` in `HOME_SECTIONS`, after Popular dishes (`needs: "rewards"`, so the editor says "Nothing to
+  show yet" while off). Heading, label and text are in the editable registry; the tiles are built from the rules.
+- **Signed-out visitors only** (`useIsGuest`: asks `/api/auth/session` once per page load, because the public pages are static; false until answered, so
+  nothing flashes at someone with an account): `rewards/RewardsNudge.tsx`, a small card above the halal seal after 9 s, once the address dialog is closed, not
+  on cart/checkout/feedback/rewards/referral, closing it lasts 7 days; `rewards/RewardsStrip.tsx` above the menu; a welcome-points line in `PointsHint`.
+- **"Welcome points" are still earned with the first delivered order**, not at signup, so a throwaway account gets nothing. Every line says so.
+- **`/referral`:** the friend's banner now sits at the top of the hero, an "adds up to" band shows 1 / 5 / monthly-limit friends, and a signed-in customer sees
+  their own link in the hero (`ReferralHeroActions` + `GET /api/account/referral`; the server-rendered buttons are what crawlers and everyone else get).
+- **After checkout:** a share card on the confirmation page (`ReferralShare`) for a paid order with an account. **Not added to order emails on purpose:** those go
+  out regardless of marketing consent, so they must not carry offers.
+- **Dashboard:** `PointsUpdates` at the top ("new since last visit" lives in localStorage, the record is the ledger), a welcome-points line on `RewardsCard`, and
+  a per-friend tracker on `ReferralCard` (`referralTracks`: "Friend 1", date, status; never a name or order number).
+- **`/login` and `/signup`:** `AuthShell` (brand panel + form on cream; on a phone the panel shrinks to a band above the form) and `lib/auth-page.ts`. They are now
+  **Dutch and English**: `authLocale()` uses `?lang=`, else a `/en` referrer, else Dutch, with an NL/EN switch on the page; copy is the `auth` namespace, and a hidden
+  `locale` field translates the actions' messages. Links from the public site carry `?lang=`. Forgot/reset password and the first-owner form stay English.
+  This also fixed a real bug: the confirmation page's sign-up and sign-in links used the localised `Link`, which sent English customers to a 404 at `/en/signup`.
+- **`PasswordInput`** (eye button) is used on every password field: login, signup, reset, dashboard, Team.
+- **Checked in the browser** with a local store: both pages at desktop and 375px, the eye button, the homepage section, the side card and menu strip, `/referral?code=`.
+  **Not seen (needs a signed-in customer with data):** `PointsUpdates`, the friend tracker, the confirmation share card, the signed-in link in the `/referral` hero.
+- **Next:** Google, Facebook and Apple sign-in. Not started: no buttons exist yet.
 
 ### Customer feedback (migration `0018_feedback.sql`)
 

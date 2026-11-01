@@ -231,6 +231,9 @@ export const GROUPS: GroupDef[] = [
         title: "Why Kebabish",
         where: "The tile grid with five reasons (the halal one large).",
         fields: [
+          text("home.rewardsEyebrow", "Rewards section — small label", { max: 40 }),
+          text("home.rewardsTitle", "Rewards section — heading", { max: 80 }),
+          long("home.rewardsText", "Rewards section — text", { max: 220 }),
           text("home.why5Title", "Large tile — title", { max: 40 }),
           long("home.why5Text", "Large tile — text", { max: 200 }),
           text("home.whyEyebrow", "Small label", { max: 40 }),

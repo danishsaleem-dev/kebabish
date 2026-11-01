@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
 import { DatabaseZap } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { auth, homeForRole } from "@/lib/auth";
 import { countAdminUsers } from "@/lib/admin/auth-users";
+import { authLocale, authPanel } from "@/lib/auth-page";
+import AuthShell from "@/components/shared/AuthShell";
 import LoginForm from "@/components/shared/LoginForm";
 
 export const metadata = { title: "Sign in" };
@@ -10,11 +13,11 @@ export const dynamic = "force-dynamic";
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ email?: string; notice?: string }>;
+  searchParams: Promise<{ email?: string; notice?: string; lang?: string }>;
 }) {
   const session = await auth();
   if (session?.user) redirect(homeForRole(session.user.role));
-  const { email, notice } = await searchParams;
+  const { email, notice, lang } = await searchParams;
 
   let userCount: number;
   try {
@@ -51,17 +54,46 @@ export default async function LoginPage({
     );
   }
 
-  return <LoginForm
-      isBootstrap={userCount === 0}
-      defaultEmail={email}
-      notice={
-        notice === "password-reset"
-          ? "Your password has been changed. Sign in with the new one."
-          : notice === "account-ready"
-            ? "Your account is confirmed. Sign in with your email and the password you just chose."
-            : notice === "session-ended"
-              ? "For your security you were signed out. Sign in again to continue."
-              : undefined
-      }
-    />;
+  const isBootstrap = userCount === 0;
+  const locale = isBootstrap ? "en" : await authLocale(lang);
+  const t = await getTranslations({ locale, namespace: "auth" });
+  const languages = (code: string) =>
+    `/login?${new URLSearchParams({ ...(email ? { email } : {}), lang: code })}`;
+
+  return (
+    <AuthShell
+      locale={locale}
+      title={isBootstrap ? "Set up your admin account" : t("loginTitle")}
+      subtitle={isBootstrap ? "You're the first to sign in — create the owner account." : t("loginSubtitle")}
+      panel={await authPanel(locale)}
+      backLabel={t("backToSite")}
+      languages={{ nl: languages("nl"), en: languages("en") }}
+    >
+      <LoginForm
+        locale={locale}
+        isBootstrap={isBootstrap}
+        defaultEmail={email}
+        labels={{
+          email: t("email"),
+          password: t("password"),
+          passwordHint: t("passwordHint"),
+          showPassword: t("showPassword"),
+          hidePassword: t("hidePassword"),
+          forgot: t("forgot"),
+          signIn: t("signIn"),
+          newCustomer: t("newCustomer"),
+          createLink: t("createLink"),
+        }}
+        notice={
+          notice === "password-reset"
+            ? "Your password has been changed. Sign in with the new one."
+            : notice === "account-ready"
+              ? "Your account is confirmed. Sign in with your email and the password you just chose."
+              : notice === "session-ended"
+                ? "For your security you were signed out. Sign in again to continue."
+                : undefined
+        }
+      />
+    </AuthShell>
+  );
 }

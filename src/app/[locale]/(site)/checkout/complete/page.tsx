@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import NextLink from "next/link";
 import { CheckCircle2, Clock, FileText, MapPin, UserPlus, LogIn, LayoutDashboard, MailCheck, Sparkles, XCircle } from "lucide-react";
-import { orderPointsSummary } from "@/lib/rewards";
+import { getRewardsConfig, orderPointsSummary } from "@/lib/rewards";
+import { getReferralCode, referralLink, referralShareText } from "@/lib/referrals";
+import ReferralShare from "@/components/rewards/ReferralShare";
 import { Link } from "@/i18n/navigation";
 import { getInvoiceNumber, getOrderByReference, localizeLineNames, syncPaymentStatus } from "@/lib/orders";
 import { getPayment } from "@/lib/mollie";
@@ -137,6 +139,24 @@ export default async function CheckoutCompletePage({
       ? [t("pointsConfirmEarned", { points: fmt(pointsSummary.earned + pointsSummary.welcome) })]
       : []),
   ];
+
+  // The moment someone is happiest with us: invite them to pass it on.
+  const referral = await (async () => {
+    if (!paid || refunded || order.status === "cancelled" || !order.customerId) return null;
+    const config = await getRewardsConfig();
+    if (!config.enabled || !config.referralEnabled) return null;
+    const code = await getReferralCode(order.customerId);
+    if (!code) return null;
+    const amount = formatEuro(fromCents(config.referralFriendCents));
+    return {
+      code,
+      amount,
+      points: fmt(config.referralRewardPoints),
+      link: referralLink(code, locale),
+      shareText: referralShareText(code, amount, locale),
+    };
+  })().catch(() => null);
+  const tReferral = await getTranslations({ locale, namespace: "referral" });
 
   const placedAt = new Date(order.placedAt).toLocaleString(
     locale === "nl" ? "nl-NL" : "en-GB",
@@ -291,6 +311,18 @@ export default async function CheckoutCompletePage({
               </NextLink>
             )}
           </div>
+        </div>
+      )}
+
+      {referral && (
+        <div className="print:hidden mt-8 w-full max-w-md rounded-3xl bg-charcoal-900 p-6 text-left text-cream-100">
+          <p className="font-display text-lg font-semibold text-cream-50">
+            {tReferral("afterOrderTitle", { amount: referral.amount })}
+          </p>
+          <p className="mt-1.5 text-sm leading-relaxed text-cream-200/70">
+            {tReferral("afterOrderText", { amount: referral.amount, points: referral.points })}
+          </p>
+          <ReferralShare link={referral.link} shareText={referral.shareText} className="mt-4" />
         </div>
       )}
 
@@ -545,27 +577,20 @@ export default async function CheckoutCompletePage({
           <h2 className="font-display text-lg font-semibold text-cream-50">{t("createAccountTitle")}</h2>
           <p className="mt-2 text-sm leading-relaxed text-cream-200/70">{t("createAccountText")}</p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href={{
-                pathname: "/signup",
-                query: {
-                  name: order.customerName,
-                  email: order.customerEmail,
-                  phone: order.customerPhone,
-                },
-              }}
+            <NextLink
+              href={`/signup?${new URLSearchParams({ name: order.customerName, email: order.customerEmail, phone: order.customerPhone, lang: locale })}`}
               className="inline-flex items-center justify-center gap-2 rounded-full bg-ember-600 px-6 py-3 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
             >
               <UserPlus size={16} />
               {t("createAccountCta")}
-            </Link>
-            <Link
-              href={{ pathname: "/login", query: { email: order.customerEmail } }}
+            </NextLink>
+            <NextLink
+              href={`/login?${new URLSearchParams({ email: order.customerEmail, lang: locale })}`}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-cream-100/25 px-6 py-3 font-display text-sm font-semibold text-cream-100 transition-colors hover:bg-cream-100/10"
             >
               <LogIn size={16} />
               {t("loginPrompt")} {t("loginCta")}
-            </Link>
+            </NextLink>
           </div>
         </div>
       )}

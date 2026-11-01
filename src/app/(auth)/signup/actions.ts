@@ -5,20 +5,23 @@ import { z } from "zod";
 import { AuthError } from "next-auth";
 import { signIn } from "@/lib/auth";
 import { createCustomer } from "@/lib/customers/accounts";
+import { getTranslations } from "next-intl/server";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
-
-const signupSchema = z.object({
-  name: z.string().trim().min(2, "Enter your name."),
-  email: z.string().trim().email("That doesn't look like an email address."),
-  phone: z.string().trim().optional(),
-  marketingOptIn: z.boolean(),
-  password: z.string().min(8, "Password needs to be at least 8 characters."),
-});
 
 export async function signupAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  const locale = formData.get("locale") === "en" ? "en" : "nl";
+  const t = await getTranslations({ locale, namespace: "auth" });
+  const signupSchema = z.object({
+    name: z.string().trim().min(2, t("errName")),
+    email: z.string().trim().email(t("errEmail")),
+    phone: z.string().trim().optional(),
+    marketingOptIn: z.boolean(),
+    password: z.string().min(8, t("errPassword")),
+  });
+
   const parsed = signupSchema.safeParse({
     name: formData.get("name"),
     email: formData.get("email"),
@@ -39,7 +42,11 @@ export async function signupAction(
   try {
     await createCustomer(parsed.data);
   } catch (error) {
-    return { ok: false, message: (error as Error).message };
+    const message = (error as Error).message;
+    return {
+      ok: false,
+      message: message === "An account with that email already exists." ? t("errExists") : message,
+    };
   }
 
   try {
@@ -49,17 +56,11 @@ export async function signupAction(
       redirect: false,
     });
     if (result?.error) {
-      return {
-        ok: false,
-        message: "Account created — sign in with your new password.",
-      };
+      return { ok: false, message: t("errCreated") };
     }
   } catch (error) {
     if (error instanceof AuthError) {
-      return {
-        ok: false,
-        message: "Account created — sign in with your new password.",
-      };
+      return { ok: false, message: t("errCreated") };
     }
     throw error;
   }

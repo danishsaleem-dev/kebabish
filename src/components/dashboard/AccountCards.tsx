@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { Check, KeyRound, Loader2, MailCheck, Send, UserCog } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
 import { Field, FormError, Input, SubmitButton } from "@/components/admin/ui/Form";
+import PasswordInput from "@/components/shared/PasswordInput";
 import {
   changePasswordAction,
   resendSetupEmailAction,
@@ -117,14 +118,14 @@ export function PasswordCard() {
       <form action={action} key={state.ok ? "done" : "form"} className="mt-4 space-y-4">
         <FormError message={!state.ok && !state.errors ? state.message : undefined} />
         <Field label="Current password" error={state.errors?.current}>
-          <Input name="current" type="password" autoComplete="current-password" required />
+          <PasswordInput name="current" autoComplete="current-password" required />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="New password" hint="At least 8 characters." error={state.errors?.password}>
-            <Input name="password" type="password" autoComplete="new-password" required />
+            <PasswordInput name="password" autoComplete="new-password" required />
           </Field>
           <Field label="Repeat the new password" error={state.errors?.confirm}>
-            <Input name="confirm" type="password" autoComplete="new-password" required />
+            <PasswordInput name="confirm" autoComplete="new-password" required />
           </Field>
         </div>
         <div className="flex items-center gap-3">

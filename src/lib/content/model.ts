@@ -294,7 +294,7 @@ export interface HomeSectionDef {
   /** The top banner has the header floating over it, so it can't move or hide. */
   pinned?: boolean;
   /** Renders nothing until it has real content (photos, reviews). */
-  needs?: "photos" | "reviews";
+  needs?: "photos" | "reviews" | "rewards";
 }
 
 export const HOME_SECTIONS: HomeSectionDef[] = [
@@ -303,6 +303,7 @@ export const HOME_SECTIONS: HomeSectionDef[] = [
   { id: "how", label: "How it works", hint: "Four steps from choosing to delivery, on a dark band.", band: "dark" },
   { id: "trust", label: "Payment & trust strip", hint: "A slim row: payment methods, halal, allergens.", band: "plain" },
   { id: "popular", label: "Popular dishes", hint: "The featured dishes.", band: "cream" },
+  { id: "rewards", label: "Rewards & invite a friend", hint: "Points, welcome bonus and referrals, in a dark card. Shows while rewards are on.", band: "plain", needs: "rewards" },
   { id: "story", label: "Our story", hint: "Video and text about the kitchen.", band: "plain" },
   { id: "categories", label: "Menu categories", hint: "The grid of category cards.", band: "plain" },
   { id: "pick", label: "Help me choose + spice guide", hint: "Mood filters, the chilli scale, and “order again” for returning customers.", band: "plain" },

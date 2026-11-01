@@ -1,3 +1,5 @@
+import { getPublicSettings } from "@/lib/admin/store";
+import { normalizeRewards } from "@/lib/rewards-math";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import AdminShell from "@/components/admin/AdminShell";
@@ -40,6 +42,7 @@ export default async function HomepageLayoutPage() {
   if (photos.length === 0) empty.push("showcase");
   const reviewList = cleanReviews(shared(REVIEWS_KEY)) ?? shippedReviews;
   if (reviewList.length === 0) empty.push("testimonials");
+  if (!normalizeRewards((await getPublicSettings()).rewards).enabled) empty.push("rewards");
 
   return (
     <AdminShell title="Homepage sections">

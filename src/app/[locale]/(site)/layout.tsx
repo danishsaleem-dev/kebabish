@@ -9,6 +9,7 @@ import CartProvider from "@/components/cart/CartProvider";
 import CartDrawer from "@/components/cart/CartDrawer";
 import PromoPopup from "@/components/PromoPopup";
 import PromoWidget from "@/components/PromoWidget";
+import RewardsNudge from "@/components/rewards/RewardsNudge";
 import LocationProvider from "@/components/location/LocationProvider";
 import LocationDialog from "@/components/location/LocationDialog";
 import { getPublicSettings } from "@/lib/admin/store";
@@ -61,6 +62,7 @@ export default async function SiteLayout({
       <MobileDock />
       <CartDrawer />
       <LocationDialog />
+      <RewardsNudge />
       <PromoPopup promos={promos} />
       <PromoWidget promos={promos} lifted={status.isOpen} />
       {/* Reads the URL, so it needs its own Suspense boundary or every

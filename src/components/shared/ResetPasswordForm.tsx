@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 import { KeyRound } from "lucide-react";
-import { Field, FormError, Input, SubmitButton } from "@/components/admin/ui/Form";
+import { Field, FormError, SubmitButton } from "@/components/admin/ui/Form";
+import PasswordInput from "@/components/shared/PasswordInput";
 import AuthFrame from "@/components/shared/AuthFrame";
 import { resetPasswordAction } from "@/app/(auth)/reset-password/actions";
 import type { FormState } from "@/app/admin/(dashboard)/menu/actions";
@@ -32,10 +33,10 @@ export default function ResetPasswordForm({
         <input type="hidden" name="token" value={token} />
         <FormError message={!state.ok ? state.message : undefined} />
         <Field label={welcome ? "Password" : "New password"} hint="At least 8 characters." error={state.errors?.password}>
-          <Input name="password" type="password" autoComplete="new-password" required />
+          <PasswordInput name="password" autoComplete="new-password" required />
         </Field>
         <Field label="Repeat the password" error={state.errors?.confirm}>
-          <Input name="confirm" type="password" autoComplete="new-password" required />
+          <PasswordInput name="confirm" autoComplete="new-password" required />
         </Field>
         <SubmitButton>
           <KeyRound size={15} />

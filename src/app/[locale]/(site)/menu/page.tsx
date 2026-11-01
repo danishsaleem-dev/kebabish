@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { Bike, Clock, Tag } from "lucide-react";
+import RewardsStrip from "@/components/rewards/RewardsStrip";
 import MenuBrowser from "@/components/menu/MenuBrowser";
 import MenuStructuredData from "@/components/MenuStructuredData";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
@@ -74,6 +75,7 @@ export default async function MenuPage({
           className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(55%_70%_at_15%_0%,rgba(169,80,38,0.14),transparent_70%)]"
         />
         <div className="mx-auto max-w-6xl px-5 pb-6 pt-10 sm:px-6 sm:pt-14">
+          <RewardsStrip />
           <MenuStructuredData categories={categories} locale={locale} />
           <PageSchema
             locale={locale}
