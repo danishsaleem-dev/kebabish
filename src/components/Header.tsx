@@ -12,8 +12,13 @@ import BrandLogo from "@/components/shared/BrandLogo";
 export default function Header({
   isOpen,
   banner,
+  showRewards = false,
+  showReferral = false,
 }: {
   isOpen: boolean;
+  /** False while the rewards programme (or referrals) is switched off: the page doesn't exist then. */
+  showRewards?: boolean;
+  showReferral?: boolean;
   /**
    * Status strip (open/closed, order notice). It renders *inside* this
    * component's positioned container rather than as a sibling: on the
@@ -47,7 +52,12 @@ export default function Header({
     { href: "/catering", label: t("catering") },
     { href: "/about", label: t("about") },
     { href: "/contact", label: t("contact") },
+    ...(showRewards ? [{ href: "/rewards", label: t("rewards") }] : []),
+    ...(showReferral ? [{ href: "/referral", label: t("referral") }] : []),
   ];
+
+  // Seven links need more room than five: the bar turns into the menu button one step later.
+  const wide = showRewards || showReferral;
 
   return (
     <header
@@ -81,7 +91,7 @@ export default function Header({
           />
         </Link>
 
-        <nav className="hidden items-center gap-9 md:flex">
+        <nav className={`hidden items-center gap-7 xl:gap-9 ${wide ? "lg:flex" : "md:flex"}`}>
           {navLinks.map((link) => {
             const active = pathname === link.href;
             return (
@@ -107,7 +117,7 @@ export default function Header({
           })}
         </nav>
 
-        <div className="hidden items-center gap-3 md:flex">
+        <div className={`hidden items-center gap-3 ${wide ? "lg:flex" : "md:flex"}`}>
           <LocaleSwitch locale={locale} onHero={onHero} />
           <CartButton onHero={onHero} />
           {isOpen ? (
@@ -132,7 +142,7 @@ export default function Header({
           )}
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className={`flex items-center gap-2 ${wide ? "lg:hidden" : "md:hidden"}`}>
           <LocaleSwitch locale={locale} onHero={onHero} />
           <CartButton onHero={onHero} />
           <button
@@ -150,7 +160,7 @@ export default function Header({
       </div>
 
       {open && (
-        <div className="border-t border-charcoal-600/10 bg-cream-200 px-5 pb-6 md:hidden">
+        <div className={`border-t border-charcoal-600/10 bg-cream-200 px-5 pb-6 ${wide ? "lg:hidden" : "md:hidden"}`}>
           <nav className="flex flex-col gap-1 pt-3">
             {navLinks.map((link) => (
               <Link

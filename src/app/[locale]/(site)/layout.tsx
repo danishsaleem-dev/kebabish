@@ -49,6 +49,8 @@ export default async function SiteLayout({
     <CartProvider rewards={rewards.enabled ? rewards : null}>
       <Header
         isOpen={status.isOpen}
+        showRewards={rewards.enabled}
+        showReferral={rewards.enabled && rewards.referralEnabled}
         banner={<StoreStatusBanner status={status} locale={locale} />}
       />
       <main className="flex-1">{children}</main>

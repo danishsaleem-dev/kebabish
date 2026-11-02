@@ -618,6 +618,7 @@ No migration. Everything below reads the live rules and disappears while rewards
 - **`PasswordInput`** (eye button) is used on every password field: login, signup, reset, dashboard, Team.
 - **Checked in the browser** with a local store: both pages at desktop and 375px, the eye button, the homepage section, the side card and menu strip, `/referral?code=`.
   **Not seen (needs a signed-in customer with data):** `PointsUpdates`, the friend tracker, the confirmation share card, the signed-in link in the `/referral` hero.
+- **Menu links:** `Header` shows Rewards and Invite a friend (`nav.rewards` / `nav.referral`) only while each page exists, like the footer. Seven links don't fit at tablet width, so while they show the bar turns into the menu button at `lg` (1024px) instead of `md`. A 404 on `/referral` means referrals are switched off in /admin/rewards, not that the page is broken.
 - **Next:** Google, Facebook and Apple sign-in. Not started: no buttons exist yet.
 
 ### Customer feedback (migration `0018_feedback.sql`)
