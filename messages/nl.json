@@ -7,7 +7,8 @@
     "order": "Bestellen",
     "catering": "Catering",
     "rewards": "Beloningen",
-    "referral": "Vriend uitnodigen"
+    "referral": "Vriend uitnodigen",
+    "deals": "Deals"
   },
   "hero": {
     "eyebrow": "Nieuw in Hoogkarspel",
@@ -1028,7 +1029,11 @@
     "deliveryServiceName": "Maaltijdbezorging",
     "deliveryServiceType": "Bezorging van Pakistaans eten",
     "cateringServiceName": "Catering",
-    "cateringServiceType": "Pakistaanse catering"
+    "cateringServiceType": "Pakistaanse catering",
+    "dealsTitle": "Deals — Pakistaans eten bezorgen",
+    "dealsDescription": "Bekijk de deals van Kebabish: Pakistaanse gerechten samen voor één lagere prijs, vers bereid en thuisbezorgd in Hoogkarspel en omgeving.",
+    "dealTitle": "{name} — deal",
+    "dealFallback": "Bestel de {name} bij Kebabish: Pakistaanse gerechten samen voor één lagere prijs, vers bereid en thuisbezorgd in Hoogkarspel en omgeving."
   },
   "feedback": {
     "metaTitle": "Geef je feedback",
@@ -1290,5 +1295,30 @@
     "errWrong": "E-mail of wachtwoord klopt niet.",
     "errExists": "Er bestaat al een account met dit e-mailadres.",
     "errCreated": "Account gemaakt. Log in met je nieuwe wachtwoord."
+  },
+  "deals": {
+    "eyebrow": "Deals",
+    "title": "Meer eten, minder betalen",
+    "intro": "Gerechten samen voor één lagere prijs. Past iets niet? Haal het uit de deal en je betaalt minder.",
+    "viewAll": "Alle deals",
+    "view": "Bekijk deal",
+    "save": "Bespaar {amount}",
+    "was": "Los",
+    "soldOut": "Nu niet beschikbaar",
+    "back": "Alle deals",
+    "included": "Dit zit erin",
+    "remove": "Verwijderen (− {amount})",
+    "putBack": "Terugzetten",
+    "without": "Zonder {name}",
+    "minItems": "{count, plural, one {Er moet minstens # onderdeel in de deal blijven.} other {Er moeten minstens # onderdelen in de deal blijven.}}",
+    "separately": "Los gekocht",
+    "youPay": "Jij betaalt",
+    "youSave": "Je bespaart {amount}",
+    "choiceSoldOut": "Uitverkocht",
+    "unavailableNote": "Deze deal is nu niet te bestellen, omdat een gerecht uitverkocht is.",
+    "mayContain": "Kan sporen bevatten van:",
+    "allergenNote": "Dit is voor alle gerechten die in deze deal kunnen zitten, ook de keuzes.",
+    "removeNote": "Op de pagina van een deal kun je je keuze maken en onderdelen verwijderen.",
+    "more": "Meer deals"
   }
 }

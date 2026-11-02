@@ -53,6 +53,7 @@ const MAIN: NavItem[] = [
     icon: UtensilsCrossed,
     children: [
       { label: "All items", href: "/admin/menu" },
+      { label: "Deals", href: "/admin/menu/deals" },
       { label: "Categories", href: "/admin/menu/categories" },
       { label: "Recipes", href: "/admin/menu/recipes" },
       { label: "Extras", href: "/admin/menu/extras" },

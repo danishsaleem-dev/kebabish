@@ -2,6 +2,7 @@ import { getPublicSettings } from "@/lib/admin/store";
 import { normalizeRewards } from "@/lib/rewards-math";
 import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
+import { getPublicDeals } from "@/lib/public-deals";
 import AdminShell from "@/components/admin/AdminShell";
 import LayoutEditor from "@/components/admin/content/LayoutEditor";
 import SetupCard from "@/components/admin/content/SetupCard";
@@ -43,6 +44,7 @@ export default async function HomepageLayoutPage() {
   const reviewList = cleanReviews(shared(REVIEWS_KEY)) ?? shippedReviews;
   if (reviewList.length === 0) empty.push("testimonials");
   if (!normalizeRewards((await getPublicSettings()).rewards).enabled) empty.push("rewards");
+  if ((await getPublicDeals()).length === 0) empty.push("deals");
 
   return (
     <AdminShell title="Homepage sections">

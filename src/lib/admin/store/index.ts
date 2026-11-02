@@ -8,6 +8,7 @@ import type {
   StoredMedia,
   StoredSettings,
   StoredCategory,
+  StoredDeal,
   StoredIngredient,
   StoredSupply,
   StoredMeasurement,
@@ -46,6 +47,7 @@ const adapter: StoreAdapter =
  */
 function normalise(data: StoreShape): StoreShape {
   data.optionGroups ??= [];
+  data.deals ??= [];
   data.promoCodes ??= [];
   data.supplies ??= [];
   data.measurements ??= [];
@@ -221,6 +223,63 @@ export async function deleteItem(slug: string) {
     data.items = data.items.filter((i) => i.slug !== slug);
     // A recipe without its dish is orphaned data.
     data.recipes = data.recipes.filter((r) => r.menuItemSlug !== slug);
+    // A deal can't offer a dish that is gone. If that was its only dish, that part goes too and the
+    // deal is taken off the site: its price was set for what it used to contain.
+    for (const deal of data.deals) {
+      const before = deal.slots.length;
+      deal.slots.forEach((s) => (s.itemSlugs = s.itemSlugs.filter((id) => id !== slug)));
+      deal.slots = deal.slots.filter((s) => s.itemSlugs.length > 0);
+      if (deal.slots.length < before) deal.visible = false;
+    }
+  });
+}
+
+/* --------------------------------------------------------------------- deals */
+
+export async function listDeals(): Promise<StoredDeal[]> {
+  const { deals } = await readStore();
+  return deals;
+}
+
+export async function getDeal(slug: string) {
+  const { deals } = await readStore();
+  return deals.find((d) => d.slug === slug);
+}
+
+export async function createDeal(input: Omit<StoredDeal, "slug" | "createdAt">) {
+  return mutate((data) => {
+    const slug = uniqueId(
+      slugify(input.name),
+      data.deals.map((d) => d.slug)
+    );
+    const deal: StoredDeal = { ...input, slug, createdAt: new Date().toISOString() };
+    data.deals.push(deal);
+    return deal;
+  });
+}
+
+export async function updateDeal(slug: string, input: Partial<Omit<StoredDeal, "slug" | "createdAt">>) {
+  return mutate((data) => {
+    const deal = data.deals.find((d) => d.slug === slug);
+    if (!deal) throw new Error(`Deal "${slug}" not found`);
+    Object.assign(deal, input);
+    return deal;
+  });
+}
+
+export async function deleteDeal(slug: string) {
+  return mutate((data) => {
+    data.deals = data.deals.filter((d) => d.slug !== slug);
+  });
+}
+
+/** One step up or down the order deals are shown in. */
+export async function moveDeal(slug: string, direction: "up" | "down") {
+  return mutate((data) => {
+    const index = data.deals.findIndex((d) => d.slug === slug);
+    const target = direction === "up" ? index - 1 : index + 1;
+    if (index === -1 || target < 0 || target >= data.deals.length) return;
+    [data.deals[index], data.deals[target]] = [data.deals[target], data.deals[index]];
   });
 }
 
@@ -330,8 +389,9 @@ export async function updateMedia(id: string, alt: string) {
 
 /** Where an image is in use — deleting silently would break those screens. */
 export async function mediaUsage(id: string) {
-  const { items, categories, promoCodes } = await readStore();
+  const { items, categories, promoCodes, deals } = await readStore();
   return {
+    deals: deals.filter((d) => d.imageId === id).map((d) => d.name),
     items: items.filter((i) => i.imageIds?.includes(id)).map((i) => i.name),
     categories: categories
       .filter((c) => c.imageId === id)
@@ -348,6 +408,9 @@ export async function deleteMedia(id: string) {
     });
     data.categories.forEach((category) => {
       if (category.imageId === id) delete category.imageId;
+    });
+    data.deals.forEach((deal) => {
+      if (deal.imageId === id) delete deal.imageId;
     });
     // A promo whose popup image is deleted simply stops having a popup.
     (data.promoCodes ?? []).forEach((promo) => {

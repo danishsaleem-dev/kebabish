@@ -405,7 +405,7 @@ export default function ItemOrderPanel({
   );
 }
 
-function Stepper({
+export function Stepper({
   quantity,
   setQuantity,
   decrease,
@@ -448,7 +448,7 @@ function Stepper({
   );
 }
 
-function AddButton({
+export function AddButton({
   onClick,
   justAdded,
   blocked,

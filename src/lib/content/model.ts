@@ -294,7 +294,7 @@ export interface HomeSectionDef {
   /** The top banner has the header floating over it, so it can't move or hide. */
   pinned?: boolean;
   /** Renders nothing until it has real content (photos, reviews). */
-  needs?: "photos" | "reviews" | "rewards";
+  needs?: "photos" | "reviews" | "rewards" | "deals";
 }
 
 export const HOME_SECTIONS: HomeSectionDef[] = [
@@ -302,6 +302,7 @@ export const HOME_SECTIONS: HomeSectionDef[] = [
   { id: "marquee", label: "Scrolling strip", hint: "The orange strip of short phrases.", band: "ember" },
   { id: "how", label: "How it works", hint: "Four steps from choosing to delivery, on a dark band.", band: "dark" },
   { id: "trust", label: "Payment & trust strip", hint: "A slim row: payment methods, halal, allergens.", band: "plain" },
+  { id: "deals", label: "Deals", hint: "Your deals, big, on a dark card. Shows once a deal is live.", band: "plain", needs: "deals" },
   { id: "popular", label: "Popular dishes", hint: "The featured dishes.", band: "cream" },
   { id: "rewards", label: "Rewards & invite a friend", hint: "Points, welcome bonus and referrals, in a dark card. Shows while rewards are on.", band: "plain", needs: "rewards" },
   { id: "story", label: "Our story", hint: "Video and text about the kitchen.", band: "plain" },

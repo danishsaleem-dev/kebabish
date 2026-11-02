@@ -68,6 +68,7 @@ export function buildSeed(): StoreShape {
     // Promo codes are entirely Danish's to create — no default codes.
     promoCodes: [],
 
+    deals: [],
     supplies: [],
     measurements: [],
 

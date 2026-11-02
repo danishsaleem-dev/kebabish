@@ -15,6 +15,7 @@ const SOCIALS = [
 export default function Footer({
   vatNumber,
   showReviews,
+  showDeals,
   showRewards,
   showReferral,
 }: {
@@ -22,6 +23,8 @@ export default function Footer({
   vatNumber?: string;
   /** False until real reviews exist — no link to an empty page. */
   showReviews: boolean;
+  /** False while no deal is live. */
+  showDeals: boolean;
   /** False while the rewards programme is switched off: its page doesn't exist then. */
   showRewards: boolean;
   /** Same, for referrals. */
@@ -34,6 +37,7 @@ export default function Footer({
   const navLinks = [
     { href: "/", label: tNav("home") },
     { href: "/menu", label: tNav("menu") },
+    ...(showDeals ? [{ href: "/deals", label: tNav("deals") }] : []),
     { href: "/about", label: tNav("about") },
     { href: "/contact", label: tNav("contact") },
   ];

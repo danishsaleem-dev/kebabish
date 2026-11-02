@@ -12,10 +12,13 @@ import BrandLogo from "@/components/shared/BrandLogo";
 export default function Header({
   isOpen,
   banner,
+  showDeals = false,
   showRewards = false,
   showReferral = false,
 }: {
   isOpen: boolean;
+  /** False while no deal is live: the page doesn't exist then. */
+  showDeals?: boolean;
   /** False while the rewards programme (or referrals) is switched off: the page doesn't exist then. */
   showRewards?: boolean;
   showReferral?: boolean;
@@ -49,6 +52,7 @@ export default function Header({
   const navLinks = [
     { href: "/", label: t("home") },
     { href: "/menu", label: t("menu") },
+    ...(showDeals ? [{ href: "/deals", label: t("deals") }] : []),
     { href: "/catering", label: t("catering") },
     { href: "/about", label: t("about") },
     { href: "/contact", label: t("contact") },
@@ -57,7 +61,7 @@ export default function Header({
   ];
 
   // Seven links need more room than five: the bar turns into the menu button one step later.
-  const wide = showRewards || showReferral;
+  const wide = showDeals || showRewards || showReferral;
 
   return (
     <header

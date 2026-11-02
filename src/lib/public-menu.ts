@@ -131,7 +131,7 @@ async function read(): Promise<StoreShape> {
  * The menu plus the stock quantities (null when stock tracking isn't set up — nothing is
  * then limited) and the dishes currently earning the "Bestseller" badge.
  */
-async function readWithStock(): Promise<{
+export async function readWithStock(): Promise<{
   data: StoreShape;
   stock: StockMap | null;
   bestsellers: Set<string>;
@@ -180,7 +180,7 @@ function allergensFor(
   };
 }
 
-function toPublicItem(
+export function toPublicItem(
   item: StoreShape["items"][number],
   groups: StoredOptionGroup[],
   data: StoreShape,

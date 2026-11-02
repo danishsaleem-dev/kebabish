@@ -16,6 +16,7 @@ import { getPublicSettings } from "@/lib/admin/store";
 import { getStoreStatus } from "@/lib/store-status";
 import { getReviews } from "@/lib/content/site";
 import { normalizeRewards } from "@/lib/rewards-math";
+import { getPublicDeals } from "@/lib/public-deals";
 import { getPromoPopups } from "@/lib/public-promos";
 
 // Revalidate at most every minute — status can flip on its own (opening
@@ -41,7 +42,7 @@ export default async function SiteLayout({
   const { locale } = await params;
   const settings = await getPublicSettings();
   const status = getStoreStatus(settings);
-  const [reviews, promos] = await Promise.all([getReviews(), getPromoPopups()]);
+  const [reviews, promos, deals] = await Promise.all([getReviews(), getPromoPopups(), getPublicDeals(locale)]);
   const rewards = normalizeRewards(settings.rewards);
 
   return (
@@ -49,6 +50,7 @@ export default async function SiteLayout({
     <CartProvider rewards={rewards.enabled ? rewards : null}>
       <Header
         isOpen={status.isOpen}
+        showDeals={deals.length > 0}
         showRewards={rewards.enabled}
         showReferral={rewards.enabled && rewards.referralEnabled}
         banner={<StoreStatusBanner status={status} locale={locale} />}
@@ -57,6 +59,7 @@ export default async function SiteLayout({
       <Footer
         vatNumber={settings.vatNumber || undefined}
         showReviews={reviews.length > 0}
+        showDeals={deals.length > 0}
         showRewards={rewards.enabled}
         showReferral={rewards.enabled && rewards.referralEnabled}
       />

@@ -19,6 +19,7 @@ import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 import { amsterdamNow } from "@/lib/delivery-slots";
 import { listStockAlerts, releaseOrderStock } from "@/lib/stock";
 import { awardOrderPoints, reverseOrderRewards } from "@/lib/rewards";
+import type { DealPartMeta } from "@/lib/deals";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { parseAddressLine } from "@/lib/address-parse";
 import { listSavedContactKeys } from "@/lib/admin/customer-contacts";
@@ -43,7 +44,7 @@ interface OrderItemRow {
   item_slug: string;
   quantity: number;
   unit_price_cents: number;
-  options: { optionLabel: string; priceCents: number }[] | null;
+  options: { optionLabel: string; priceCents: number; deal?: DealPartMeta }[] | null;
   instructions: string | null;
   line_total_cents: number;
 }
@@ -97,11 +98,18 @@ function mapOrder(row: OrderRow): AdminOrder {
       .filter(Boolean)
       .join(" — ");
 
+    const dealParts = (item.options ?? []).flatMap((o) =>
+      o.deal?.item
+        ? [{ slug: o.deal.item, name: o.deal.name, quantity: o.deal.qty, listPrice: fromCents(o.deal.listCents) }]
+        : []
+    );
+
     return {
       id: item.id,
       name: suffix ? `${item.name} (${suffix})` : item.name,
       baseName: item.name,
       slug: item.item_slug,
+      ...(dealParts.length > 0 ? { dealParts } : {}),
       quantity: item.quantity,
       // Baking extras into the unit price keeps quantity*unitPrice equal to
       // the stored line total — every consumer computes it that way rather

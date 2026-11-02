@@ -5,6 +5,7 @@ import { siteConfig } from "@/lib/site-config";
 import { isComingSoonEnabled } from "@/lib/site-gate";
 import { getPublicItemSlugs } from "@/lib/public-menu";
 import { getRewardsConfig } from "@/lib/rewards";
+import { getPublicDeals } from "@/lib/public-deals";
 
 type ChangeFrequency = MetadataRoute.Sitemap[number]["changeFrequency"];
 
@@ -108,5 +109,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { priority: () => 0.6, changeFrequency: () => "weekly" }
   );
 
-  return [...staticEntries, ...dishEntries];
+  // /deals only exists while there is a deal, and every deal has its own page.
+  let dealSlugs: string[] = [];
+  try {
+    dealSlugs = (await getPublicDeals()).map((d) => d.slug);
+  } catch (error) {
+    console.error("[sitemap] could not load deals:", error);
+  }
+  const dealEntries = localizedEntries(
+    dealSlugs.length > 0 ? ["/deals", ...dealSlugs.map((slug) => `/deals/${slug}`)] : [],
+    { priority: (path) => (path === "/deals" ? 0.8 : 0.6), changeFrequency: () => "weekly" }
+  );
+
+  return [...staticEntries, ...dealEntries, ...dishEntries];
 }

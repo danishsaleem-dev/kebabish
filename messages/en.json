@@ -7,7 +7,8 @@
     "order": "Order",
     "catering": "Catering",
     "rewards": "Rewards",
-    "referral": "Invite a friend"
+    "referral": "Invite a friend",
+    "deals": "Deals"
   },
   "hero": {
     "eyebrow": "New in Hoogkarspel",
@@ -1028,7 +1029,11 @@
     "deliveryServiceName": "Food delivery",
     "deliveryServiceType": "Pakistani food delivery",
     "cateringServiceName": "Catering",
-    "cateringServiceType": "Pakistani catering"
+    "cateringServiceType": "Pakistani catering",
+    "dealsTitle": "Deals — Pakistani food delivered",
+    "dealsDescription": "See the Kebabish deals: Pakistani dishes together for one lower price, freshly made and delivered in Hoogkarspel and surroundings.",
+    "dealTitle": "{name} — deal",
+    "dealFallback": "Order the {name} from Kebabish: Pakistani dishes together for one lower price, freshly made and delivered in Hoogkarspel and surroundings."
   },
   "feedback": {
     "metaTitle": "Give your feedback",
@@ -1290,5 +1295,30 @@
     "errWrong": "Incorrect email or password.",
     "errExists": "An account with that email already exists.",
     "errCreated": "Account created. Sign in with your new password."
+  },
+  "deals": {
+    "eyebrow": "Deals",
+    "title": "More food, less to pay",
+    "intro": "Dishes together for one lower price. Something not for you? Take it out of the deal and you pay less.",
+    "viewAll": "All deals",
+    "view": "View deal",
+    "save": "Save {amount}",
+    "was": "Separately",
+    "soldOut": "Not available right now",
+    "back": "All deals",
+    "included": "What's in it",
+    "remove": "Remove (− {amount})",
+    "putBack": "Put back",
+    "without": "Without {name}",
+    "minItems": "{count, plural, one {At least # part has to stay in the deal.} other {At least # parts have to stay in the deal.}}",
+    "separately": "Bought separately",
+    "youPay": "You pay",
+    "youSave": "You save {amount}",
+    "choiceSoldOut": "Sold out",
+    "unavailableNote": "This deal can't be ordered right now, because a dish in it has sold out.",
+    "mayContain": "May contain traces of:",
+    "allergenNote": "This covers every dish that can be in this deal, including the choices.",
+    "removeNote": "On a deal's page you can make your choices and remove parts.",
+    "more": "More deals"
   }
 }

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { getTranslations } from "next-intl/server";
 import { Bike, Clock, Tag } from "lucide-react";
 import RewardsStrip from "@/components/rewards/RewardsStrip";
+import DealsBand from "@/components/deals/DealsBand";
 import MenuBrowser from "@/components/menu/MenuBrowser";
 import MenuStructuredData from "@/components/MenuStructuredData";
 import BreadcrumbSchema from "@/components/BreadcrumbSchema";
@@ -113,6 +114,10 @@ export default async function MenuPage({
               {t("item.deliveredShortTitle", { km: siteConfig.deliveryRadiusKm })}
             </Fact>
           </ul>
+
+          <div className="mt-8">
+            <DealsBand locale={locale} />
+          </div>
 
           <MenuBrowser categories={categories} popular={popular} isOpen={isOpen} />
         </div>

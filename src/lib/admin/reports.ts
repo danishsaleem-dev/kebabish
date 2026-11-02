@@ -218,6 +218,37 @@ export interface DishRow {
   orders: number;
 }
 
+/** Which dishes a line counts as, and how much of its money each one gets. */
+interface DishShare {
+  slug: string;
+  name: string;
+  quantity: number;
+  gross: number;
+  net: number;
+}
+
+/**
+ * An ordinary line is one dish. A deal counts as the dishes inside it: "before discounts" is each
+ * dish at the menu price it had when ordered, and the money really taken is spread over them in
+ * proportion to those prices, so the totals still add up to what the customer paid.
+ */
+function dishShares(line: AdminOrder["lines"][number], gross: number, net: number): DishShare[] {
+  if (!line.dealParts?.length) {
+    return [{ slug: line.slug, name: line.baseName, quantity: line.quantity, gross, net }];
+  }
+  const value = line.dealParts.reduce((sum, p) => sum + p.listPrice * p.quantity, 0);
+  return line.dealParts.map((part) => {
+    const worth = part.listPrice * part.quantity;
+    return {
+      slug: part.slug,
+      name: part.name,
+      quantity: part.quantity * line.quantity,
+      gross: worth * line.quantity,
+      net: value > 0 ? (net * worth) / value : net / line.dealParts!.length,
+    };
+  });
+}
+
 export function byDish(orders: AdminOrder[], categoryByDish: Map<string, string>): DishRow[] {
   const rows = new Map<string, DishRow>();
   for (const order of orders) {
@@ -225,23 +256,25 @@ export function byDish(orders: AdminOrder[], categoryByDish: Map<string, string>
     const seen = new Set<string>();
     const money = orderMoney(order);
     order.lines.forEach((line, i) => {
-      const row = rows.get(line.slug) ?? {
-        name: line.baseName,
-        slug: line.slug,
-        category: categoryByDish.get(line.slug) ?? "Other",
-        quantity: 0,
-        revenue: 0,
-        grossRevenue: 0,
-        orders: 0,
-      };
-      row.quantity += line.quantity;
-      row.revenue += money.lineNet[i];
-      row.grossRevenue += money.lineGross[i];
-      if (!seen.has(line.slug)) {
-        row.orders += 1;
-        seen.add(line.slug);
+      for (const share of dishShares(line, money.lineGross[i], money.lineNet[i])) {
+        const row = rows.get(share.slug) ?? {
+          name: share.name,
+          slug: share.slug,
+          category: categoryByDish.get(share.slug) ?? "Other",
+          quantity: 0,
+          revenue: 0,
+          grossRevenue: 0,
+          orders: 0,
+        };
+        row.quantity += share.quantity;
+        row.revenue += share.net;
+        row.grossRevenue += share.gross;
+        if (!seen.has(share.slug)) {
+          row.orders += 1;
+          seen.add(share.slug);
+        }
+        rows.set(share.slug, row);
       }
-      rows.set(line.slug, row);
     });
   }
   return [...rows.values()]
@@ -268,12 +301,14 @@ export function byCategory(
     if (!isSale(order)) continue;
     const money = orderMoney(order);
     order.lines.forEach((line, i) => {
-      const label = categoryByDish.get(line.slug) ?? "Other";
-      const row = rows.get(label) ?? { quantity: 0, revenue: 0, grossRevenue: 0 };
-      row.quantity += line.quantity;
-      row.revenue += money.lineNet[i];
-      row.grossRevenue += money.lineGross[i];
-      rows.set(label, row);
+      for (const share of dishShares(line, money.lineGross[i], money.lineNet[i])) {
+        const label = categoryByDish.get(share.slug) ?? "Other";
+        const row = rows.get(label) ?? { quantity: 0, revenue: 0, grossRevenue: 0 };
+        row.quantity += share.quantity;
+        row.revenue += share.net;
+        row.grossRevenue += share.gross;
+        rows.set(label, row);
+      }
     });
   }
   const total = [...rows.values()].reduce((sum, r) => sum + r.revenue, 0);

@@ -359,9 +359,50 @@ export interface StoredPromoCode {
   createdAt: string;
 }
 
+/**
+ * One part of a deal. With one dish it is fixed; with several the customer chooses one of them
+ * (a drink, a sauce). See `src/lib/deals.ts` for every rule about price.
+ */
+export interface StoredDealSlot {
+  id: string;
+  /** What the customer is choosing ("Kies je drankje"). Only shown when there is a choice. */
+  label?: string;
+  labelEn?: string;
+  /** Portions of the dish in the deal (2 × naan). */
+  quantity: number;
+  /** Dish slugs. The first is the one preselected. */
+  itemSlugs: string[];
+  /** The customer may take this part out of the deal. */
+  removable: boolean;
+  /** Euros taken off the deal when it is taken out. Set by the owner, never derived. */
+  removeCredit: number;
+}
+
+/** Several dishes sold together for one price. Lives in the store document, no table of its own. */
+export interface StoredDeal {
+  slug: string;
+  /** Default (Dutch) name. Orders snapshot this one, like a dish's. */
+  name: string;
+  nameEn?: string;
+  description: string;
+  descriptionEn?: string;
+  /** Media id. Absent = the page shows the photos of the dishes inside. */
+  imageId?: string;
+  /** Euros, with every part included. */
+  price: number;
+  slots: StoredDealSlot[];
+  /** Parts that must stay in the deal, however many are removable. At least 1. */
+  minItems: number;
+  visible: boolean;
+  /** Leads the homepage section and the deals page. */
+  featured?: boolean;
+  createdAt: string;
+}
+
 export interface StoreShape {
   categories: StoredCategory[];
   items: StoredItem[];
+  deals: StoredDeal[];
   optionGroups: StoredOptionGroup[];
   ingredients: StoredIngredient[];
   supplies: StoredSupply[];

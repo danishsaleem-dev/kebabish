@@ -1013,6 +1013,23 @@ stock pill in the items table (*Set* = exactly N, *Add batch* = on top of what i
 - **Not built:** per-order reservation while a customer is still paying (stock is taken when paid, so two people paying for the last portion at once can oversell by one —
   the clamp keeps it from going negative and the kitchen handles the overlap), stock per extra/variant, scheduled auto-restock.
 
+### Deals (Nov 2026, migration `0031_deal_stock.sql`)
+
+Dishes sold together for one price: *Menu → Deals* (`/admin/menu/deals`, owner/staff), stored in the store document (`StoredDeal`, `deals: []`). Public: `/deals` and `/deals/[slug]` (both 404 while there are none, and their nav/footer links and sitemap entries appear with the first live deal), a big dark `DealsBand` on the homepage (`HOME_SECTIONS` id `deals`, `needs: "deals"`) and at the top of `/menu`.
+- **All price rules are pure, in `src/lib/deals.ts`;** `npx tsx scripts/check-deals.mts` (32 checks) after touching it. The admin form, the deal page and `priceCart` all use them.
+- **Parts:** a deal is a list of slots. One dish = fixed; several = the customer chooses one (needs a heading). A slot has portions, and may be `removable` with a `removeCredit`: what comes off the deal price, **set by the owner, never derived** (the "Suggest amounts" button only fills in each part's share). `minItems` is how many parts must stay. Saving is refused if removals could take the deal under €0.50.
+- **The crossed-out price is computed, not typed:** each part at its **cheapest** choice at today's menu prices, so it can't overstate the saving. The list screen says "no saving" when there is none.
+- **A deal is one line**, slug `deal:<slug>`, name `Deal: X` (`dealLineName`). Each part is an ordinary option: `groupId` = slot, `optionId` = dish, or `REMOVED` ("none") with price minus the credit. So cart, checkout, tickets, kitchen board, emails, invoices and the Orders tables all show the deal and its contents with no special case. **Do not explode a deal into dish lines.**
+- **`options[].deal` on the order line** (`DealPartMeta`: dish, portions, menu price then) is what stock and reports read. Order option labels are Dutch, like the rest of an order line.
+- **Stock needs 0031** (it changes `consume_order_stock`). Without it deals still order, but their dishes don't leave stock. `priceCart`/`inspectCart` check stock per dish either way.
+- **Reports:** `dishShares()` in `reports.ts` counts a deal as its dishes. *Before discounts* = each dish at its menu price when ordered; *Sales* = the money really taken, spread by those prices, so totals still match what was paid. There is no profit figure anywhere yet: Danish wants deal profit worked out from real dish prices, so build it from those two columns and food cost.
+- **Promo codes and points work on deals** like any line, but a code restricted to dishes or categories does not count a deal line. Danish approved promo codes; points were not discussed and behave as for any food.
+- **A required extra on a dish in a deal is ignored:** a deal has no extras. Customers can use the kitchen note. No live dish had a required group when this was built.
+- Deleting a dish removes it from deals; a part left empty goes and the deal is hidden, since its price was set for more. Deleting a media image detaches it.
+- Allergens on the deal page are the union of **every** dish that can be in it, choices included: over-reporting is the safe direction.
+- **Not built:** deals in *Create order* (phone orders) and *Edit order*'s dish picker (an existing deal line can still be kept, repriced or removed), extras inside a deal, a report row per deal, time limits (Danish said none).
+- **Verified:** typecheck, lint, content checks, production build; the SQL on a throwaway Postgres (take once, repeat no-op, clamp at 0, release, resync after an edit); `priceCart` with a local store (2 deals with one part removed + 1 dish = €43.00, report net adds up to €43.00; removing a fixed part or everything refused); in the browser with a local store: `/deals`, `/menu`, homepage and `/deals/[slug]` at desktop and 375px, nl/en, remove and put back, basket and cart page; the form via a throwaway page. **Not seen:** the signed-in admin list, saving a deal for real, and a paid order containing a deal. Try one after running 0031.
+
 ### Create order: pick a returning customer (Oct 2026)
 
 *Orders → Create order → Customer* starts with **Existing customer**: type a name, phone number or email, pick the person, and name, phone, email and

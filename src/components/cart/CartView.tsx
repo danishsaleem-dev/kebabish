@@ -18,6 +18,7 @@ import { useCart, lineTotal, type CartLine } from "@/components/cart/CartProvide
 import CartLineNotice from "@/components/cart/CartLineNotice";
 import PointsHint from "@/components/cart/PointsHint";
 import BrandLogo from "@/components/shared/BrandLogo";
+import { lineHref } from "@/lib/deals";
 import { formatEuro } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
 
@@ -99,7 +100,7 @@ export default function CartView({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link
-                      href={`/menu/${line.slug}`}
+                      href={lineHref(line.slug)}
                       className="font-display text-base font-semibold leading-snug text-charcoal-600 transition-colors hover:text-ember-700"
                     >
                       {line.name}
@@ -302,7 +303,7 @@ export default function CartView({
 function LineThumbnail({ line }: { line: CartLine }) {
   return (
     <Link
-      href={`/menu/${line.slug}`}
+      href={lineHref(line.slug)}
       aria-hidden="true"
       tabIndex={-1}
       className="relative block h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-cream-300 sm:h-24 sm:w-24"

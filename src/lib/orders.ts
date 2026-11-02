@@ -4,9 +4,18 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 import { readStore } from "@/lib/admin/store";
 import { siteConfig } from "@/lib/site-config";
 import { isSellablePrice, toCents } from "@/lib/money";
+import {
+  REMOVED,
+  dealLineName,
+  dealSlugOf,
+  evaluateDeal,
+  isDealSlug,
+  type DealPartMeta,
+  type DealPicks,
+} from "@/lib/deals";
 import type { MolliePaymentStatus } from "@/lib/mollie";
 import { cancelPayment, getPayment, toPaymentStatus } from "@/lib/mollie";
-import type { StoredPromoCode, StoreShape } from "@/lib/admin/store/types";
+import type { StoredDeal, StoredPromoCode, StoreShape } from "@/lib/admin/store/types";
 import { dishImage } from "@/lib/dish-images";
 import { sendNewOrderEmail, sendUnacceptedOrderEmail } from "@/lib/email/new-order";
 import { sendOrderConfirmationEmail } from "@/lib/email/order-confirmation";
@@ -46,6 +55,8 @@ export interface PricedOption {
   groupLabel: string;
   optionLabel: string;
   priceCents: number;
+  /** Set on the parts of a deal: which dish, for stock and the per-dish reports. */
+  deal?: DealPartMeta;
 }
 
 export interface PricedLine {
@@ -77,6 +88,10 @@ export async function priceCart(
   const asked = new Map<string, number>();
 
   for (const line of submitted) {
+    if (isDealSlug(line.slug)) {
+      lines.push(priceDealLine(line, store, stock, asked));
+      continue;
+    }
     const item = store.items.find((i) => i.slug === line.slug);
     if (!item) throw new CartPricingError("missing");
     // A draft or hidden dish, or one in a hidden category, isn't on the menu
@@ -146,6 +161,117 @@ export async function priceCart(
   };
 }
 
+/** Today's menu price of a dish a customer can actually order, in cents; null otherwise. */
+export function orderableCents(slug: string, store: StoreShape): number | null {
+  const item = store.items.find((i) => i.slug === slug);
+  if (!item?.visible || !isSellablePrice(item.price)) return null;
+  if (!store.categories.find((c) => c.id === item.categoryId)?.visible) return null;
+  return toCents(item.price);
+}
+
+/** One part of a deal as chosen, once it has been checked. */
+interface DealPart {
+  slot: StoredDeal["slots"][number];
+  /** Null for a part the customer took out. */
+  item: StoreShape["items"][number] | null;
+  listCents: number;
+}
+
+/**
+ * Check a deal line against the store: the deal is live, every part has a valid pick, and every dish
+ * kept can be ordered in that quantity. Every failure is one of `CartPricingError`'s reasons.
+ */
+function resolveDeal(
+  line: { slug: string; quantity?: number; options: SubmittedOption[] },
+  store: StoreShape,
+  stock: Awaited<ReturnType<typeof readStockMap>>,
+  asked: Map<string, number>
+): { deal: StoredDeal; parts: DealPart[]; unitCents: number } {
+  const deal = store.deals.find((d) => d.slug === dealSlugOf(line.slug));
+  if (!deal?.visible) throw new CartPricingError("missing");
+  if (!isSellablePrice(deal.price)) throw new CartPricingError("unpriced");
+
+  const picks: DealPicks = Object.fromEntries(line.options.map((o) => [o.groupId, o.optionId]));
+  const result = evaluateDeal(deal, picks, (slug) => orderableCents(slug, store));
+  if (!result.ok) throw new CartPricingError("badOption");
+
+  const quantity = Math.min(Math.max(Math.trunc(line.quantity ?? 1), 1), 50);
+  const parts = deal.slots.map((slot): DealPart => {
+    const pick = picks[slot.id];
+    if (pick === REMOVED) return { slot, item: null, listCents: 0 };
+
+    const item = store.items.find((i) => i.slug === pick);
+    const listCents = orderableCents(pick, store);
+    if (!item || listCents == null) throw new CartPricingError("missing");
+    const entry = stock?.get(item.slug);
+    if (item.soldOut || stockLevel(entry) === "out") throw new CartPricingError("soldOut");
+    if (entry) {
+      const total = (asked.get(item.slug) ?? 0) + quantity * slot.quantity;
+      if (total > entry.quantity) throw new CartPricingError("insufficient");
+      asked.set(item.slug, total);
+    }
+    return { slot, item, listCents };
+  });
+
+  return { deal, parts, unitCents: toCents(deal.price) };
+}
+
+function priceDealLine(
+  line: SubmittedLine,
+  store: StoreShape,
+  stock: Awaited<ReturnType<typeof readStockMap>>,
+  asked: Map<string, number>
+): PricedLine {
+  const { deal, parts, unitCents } = resolveDeal(line, store, stock, asked);
+  const quantity = Math.min(Math.max(Math.trunc(line.quantity), 1), 50);
+
+  const options = parts.map(({ slot, item, listCents }): PricedOption => {
+    const names = slot.itemSlugs.map((s) => store.items.find((i) => i.slug === s)?.name ?? s);
+    const name = item?.name ?? names.join(" / ");
+    return {
+      groupLabel: "Deal",
+      optionLabel: item ? (slot.quantity > 1 ? `${slot.quantity} × ${name}` : name) : `Zonder ${name}`,
+      priceCents: item ? 0 : -toCents(slot.removeCredit),
+      deal: { slot: slot.id, item: item?.slug ?? null, name, qty: slot.quantity, listCents },
+    };
+  });
+  const extrasCents = options.reduce((sum, o) => sum + o.priceCents, 0);
+
+  return {
+    slug: line.slug,
+    name: dealLineName(deal.name),
+    unitPriceCents: unitCents,
+    quantity,
+    options,
+    instructions: line.instructions.slice(0, 300),
+    lineTotalCents: (unitCents + extrasCents) * quantity,
+  };
+}
+
+/** The friendly counterpart of `priceDealLine`, for the basket check. */
+function inspectDealLine(
+  line: { slug: string; quantity?: number; options: SubmittedOption[] },
+  store: StoreShape,
+  stock: Awaited<ReturnType<typeof readStockMap>>,
+  asked: Map<string, number>
+): CartLineStatus {
+  try {
+    const { deal, parts } = resolveDeal(line, store, stock, asked);
+    const optionPrices: Record<string, number> = {};
+    for (const { slot, item } of parts) {
+      optionPrices[`${slot.id}:${item?.slug ?? REMOVED}`] = item ? 0 : -slot.removeCredit;
+    }
+    const uploaded = (store.media ?? []).find((m) => m.id === deal.imageId)?.url;
+    const fromDish = parts.flatMap((p) => (p.item ? [itemImage(p.item, store)] : [])).find(Boolean);
+    return { status: "ok", unitPrice: deal.price, optionPrices, image: uploaded ?? fromDish };
+  } catch (error) {
+    if (!(error instanceof CartPricingError)) throw error;
+    if (error.message === "soldOut") return { status: "soldOut" };
+    if (error.message === "insufficient") return { status: "insufficient" };
+    return { status: error.message === "badOption" ? "optionsChanged" : "unavailable" };
+  }
+}
+
 /** The dish's photo, by the same rule the public menu uses. */
 function itemImage(item: StoreShape["items"][number], store: StoreShape): string | undefined {
   const uploaded = item.imageIds?.length
@@ -182,6 +308,7 @@ export async function inspectCart(
   const asked = new Map<string, number>();
 
   return submitted.map((line) => {
+    if (isDealSlug(line.slug)) return inspectDealLine(line, store, stock, asked);
     const item = store.items.find((i) => i.slug === line.slug);
     const category = item && store.categories.find((c) => c.id === item.categoryId);
     if (!item || !item.visible || !category?.visible || !isSellablePrice(item.price)) {
@@ -1236,9 +1363,14 @@ export async function localizeLineNames(
 ): Promise<ReceiptLine[]> {
   if (locale !== "en") return lines;
   try {
-    const { items } = await readStore();
+    const { items, deals } = await readStore();
     const english = new Map(items.map((i) => [i.slug, i.nameEn?.trim()]));
-    return lines.map((l) => ({ ...l, name: english.get(l.slug) || l.name }));
+    const englishDeal = new Map(deals.map((d) => [d.slug, d.nameEn?.trim()]));
+    return lines.map((l) => {
+      if (!isDealSlug(l.slug)) return { ...l, name: english.get(l.slug) || l.name };
+      const name = englishDeal.get(dealSlugOf(l.slug));
+      return name ? { ...l, name: dealLineName(name) } : l;
+    });
   } catch {
     return lines;
   }
