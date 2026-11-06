@@ -7,7 +7,7 @@ import { StatusChip, when } from "@/components/admin/marketing/format";
 import { figure } from "@/components/admin/marketing/StatGrid";
 import { BrevoProblem, NotConnected } from "@/components/admin/marketing/NotSetUp";
 import { brevoProblem, isBrevoConfigured } from "@/lib/brevo/client";
-import { CAMPAIGN_TAG, listCampaigns, statsOf, type Campaign } from "@/lib/brevo/campaigns";
+import { listCampaigns, statsOf, type Campaign } from "@/lib/brevo/campaigns";
 
 export const metadata = { title: "Campaigns" };
 export const dynamic = "force-dynamic";
@@ -17,9 +17,7 @@ export const dynamic = "force-dynamic";
  * system. We keep no campaigns table of our own, so this list is whatever
  * Brevo says it is, drafts and scheduled ones included.
  *
- * Campaigns built by hand in Brevo's dashboard show here too; the ones this
- * panel created carry a tag, so the list can say which is which rather than
- * pretending it owns all of them.
+ * Campaigns built by hand in Brevo's dashboard show here too.
  */
 export default async function CampaignsPage() {
   const configured = isBrevoConfigured();
@@ -118,7 +116,6 @@ export default async function CampaignsPage() {
                           </Link>
                           <span className="block truncate text-xs text-faint">
                             {campaign.subject || "No subject"}
-                            {campaign.tag !== CAMPAIGN_TAG && " · made in Brevo"}
                           </span>
                         </td>
                         <td className="px-5 py-3">

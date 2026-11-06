@@ -71,12 +71,11 @@ interface CampaignListResponse {
   campaigns: Campaign[] | null;
 }
 
-/**
- * The tag every campaign this app creates carries, so the admin's history can
- * tell ours apart from one Danish built by hand in Brevo's dashboard. Both are
- * shown; only ours can be re-sent from here.
+/*
+ * No campaign tag. Brevo's `tag` option is plan-restricted — a free account
+ * answers 405 "not allowed to avail tag option" — and it only ever served to
+ * label our campaigns in the history. Not worth failing a send over.
  */
-export const CAMPAIGN_TAG = "kebabish-admin";
 
 /** An empty stats block, so a caller never has to guard every field. */
 export const NO_STATS: CampaignStats = {
@@ -215,7 +214,6 @@ export async function createCampaign(input: CreateCampaignInput): Promise<number
     templateId: input.templateId,
     sender,
     recipients: { listIds: input.listIds },
-    tag: CAMPAIGN_TAG,
     inlineImageActivation: false,
   };
 
