@@ -22,6 +22,25 @@
  * or a basis for paying anybody, and no rate per kilometre is calculated anywhere.
  */
 
+/**
+ * Which of a rider's orders count as "driven on this day". The delivery timestamp is what the
+ * round actually consisted of, put on its working day by `dayOf` (so a drop at 00:20 belongs to
+ * the evening that is still open); an order with none (it was marked delivered before that
+ * column existed) falls back to the day it was booked for.
+ *
+ * `dayOf` is the business day's `makeDayOf` — a rider's day ends when the office closes the
+ * day, not at midnight. Taking it as a parameter keeps this free of the database.
+ */
+export function deliveriesOnDay<
+  T extends { status: string; deliveredAt?: string | null; deliveryDate?: string | null },
+>(orders: T[], dateKey: string, dayOf: (iso: string) => string): T[] {
+  return orders.filter((o) => {
+    if (o.status !== "delivered") return false;
+    const day = o.deliveredAt ? dayOf(o.deliveredAt) : o.deliveryDate;
+    return day === dateKey;
+  });
+}
+
 export interface MileageEstimate {
   /** Out to the furthest delivery and back, straight line. The round cannot be shorter. */
   lowKm: number;

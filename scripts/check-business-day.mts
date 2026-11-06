@@ -16,6 +16,7 @@ import {
 } from "../src/lib/business-day";
 import { byCategory, byDish, orderMoney, ordersInRange, summarise } from "../src/lib/admin/reports";
 import type { AdminOrder } from "../src/lib/admin/order-types";
+import { deliveriesOnDay } from "../src/lib/rider-mileage";
 
 let pass = 0;
 const fails: string[] = [];
@@ -218,6 +219,75 @@ const closed: ClosedDay[] = [
   eq("revenue", s.revenue, 27);
   eq("discounts", s.discounts, 10);
   eq("cancelled paid orders counted separately", s.cancelled, 1);
+}
+
+/* ---------------------------------------------------------------------------------------
+ * A rider's day ends when the office closes the day, not at midnight.
+ *
+ * Summer time (UTC+2), so 22:20Z is 00:20 the next morning in Amsterdam. A delivery is put on
+ * its working day with makeDayOf, and a rider's round lives under the open day's label
+ * (openDayFor) — these are the two halves of `currentRiderDay` in rider-shifts.ts.
+ * ------------------------------------------------------------------------------------- */
+{
+  const delivered = (id: string, at: string, over: Partial<AdminOrder> = {}) =>
+    order({ id, status: "delivered", deliveredAt: at, ...over });
+
+  // Day 25 was closed at 23:40 on the 25th (21:40Z), so the 26th opened then.
+  const closed25: ClosedDay[] = [
+    { businessDate: "2026-06-25", openedAt: "2026-06-24T21:00:00.000Z", closedAt: "2026-06-25T21:40:00.000Z" },
+  ];
+  const evening = delivered("a", "2026-06-26T19:30:00.000Z"); // 21:30 on the 26th
+  const afterMidnight = delivered("b", "2026-06-26T22:20:00.000Z"); // 00:20 on the 27th, calendar-wise
+  const mine = [evening, afterMidnight];
+
+  // Still open at 00:40 on the 27th: nobody has pressed the button.
+  const stillOpen = new Date("2026-06-26T22:40:00.000Z");
+  const open1 = openDayFor(closed25, stillOpen);
+  eq("past midnight with the day still open, the rider is still on the 26th", open1.businessDate, "2026-06-26");
+  const dayOf1 = makeDayOf(closed25, open1);
+  eq("a drop at 00:20 belongs to the evening that is still open", dayOf1(afterMidnight.deliveredAt!), "2026-06-26");
+  eq("so both drops are in the rider's round", deliveriesOnDay(mine, "2026-06-26", dayOf1).length, 2);
+  eq("and none is on the 27th yet", deliveriesOnDay(mine, "2026-06-27", dayOf1).length, 0);
+
+  // The old rule, for contrast: cut at midnight by the clock, the 00:20 drop slid onto the 27th.
+  const byCalendar = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Amsterdam" }).format(new Date(iso));
+  eq("(the old clock rule would have split them)", deliveriesOnDay(mine, "2026-06-26", byCalendar).length, 1);
+
+  // Still open the next morning, after a quiet night: still the same day, still the same round.
+  const morning = new Date("2026-06-27T07:00:00.000Z"); // 09:00 on the 27th
+  eq("a day left open overnight is still the same day in the morning", openDayFor(closed25, morning).businessDate, "2026-06-26");
+
+  // The office presses Close the day at 01:30 on the 27th (23:30Z): now, and only now, it ends.
+  const closed26: ClosedDay[] = [
+    ...closed25,
+    { businessDate: "2026-06-26", openedAt: "2026-06-25T21:40:00.000Z", closedAt: "2026-06-26T23:30:00.000Z" },
+  ];
+  const afterClose = new Date("2026-06-27T06:00:00.000Z"); // 08:00 on the 27th
+  const open2 = openDayFor(closed26, afterClose);
+  eq("after closing the day, the rider's day moves on", open2.businessDate, "2026-06-27");
+  const dayOf2 = makeDayOf(closed26, open2);
+  const nextMorning = delivered("c", "2026-06-27T06:30:00.000Z");
+  eq("the 00:20 drop stays on the 26th after the day is closed", dayOf2(afterMidnight.deliveredAt!), "2026-06-26");
+  eq("a drop after the closing is on the new day", dayOf2(nextMorning.deliveredAt!), "2026-06-27");
+  eq(
+    "the closed day keeps both its drops",
+    deliveriesOnDay([...mine, nextMorning], "2026-06-26", dayOf2).map((o) => o.id),
+    ["a", "b"]
+  );
+  eq("the new day starts with only its own", deliveriesOnDay([...mine, nextMorning], "2026-06-27", dayOf2).map((o) => o.id), ["c"]);
+
+  // Closing at 23:30 on the 26th: the new day is the 27th although the calendar still says the 26th.
+  const closedEarly: ClosedDay[] = [
+    ...closed25,
+    { businessDate: "2026-06-26", openedAt: "2026-06-25T21:40:00.000Z", closedAt: "2026-06-26T21:30:00.000Z" },
+  ];
+  const justAfter = new Date("2026-06-26T21:35:00.000Z"); // 23:35 on the 26th
+  eq("a day closed before midnight opens the next date at once", openDayFor(closedEarly, justAfter).businessDate, "2026-06-27");
+
+  // Orders marked delivered before the delivery time was recorded fall back to the day booked.
+  const legacy = order({ id: "d", status: "delivered", deliveredAt: null, deliveryDate: "2026-06-26" });
+  eq("an order with no delivery time falls back to its booked day", deliveriesOnDay([legacy], "2026-06-26", dayOf1).length, 1);
+  eq("only delivered orders count", deliveriesOnDay([order({ id: "e", status: "on_the_way", deliveredAt: "2026-06-26T19:00:00.000Z" })], "2026-06-26", dayOf1).length, 0);
 }
 
 console.log(`${pass} passed, ${fails.length} failed`);

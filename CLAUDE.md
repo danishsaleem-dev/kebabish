@@ -556,8 +556,9 @@ welcome points with the first rewarded order.
   stores it in `orders.points_redeemed` and in `discount_cents` with no promo code; those points are *held* while the payment is open
   and become a ledger row when paid (`recordOrderRedemption`), so an abandoned checkout needs no clean-up. Points and a promo code can't
   be combined. **Reversed** on cancel or full refund (`reverseOrderRewards`); a partial refund takes back the same share (`clawbackForRefund`).
-- **A guest order with an email that already has an account stays unlinked** (`ensureCheckoutAccount` returns "existing"), so it earns
-  nothing; the page's FAQ tells people to log in first.
+- **An order placed with an email that already has an account joins that account, logged in or not** (Nov 2026 — see "Orders join the
+  account with the same email" below). It used to stay a guest order and earn nothing. **Spending** points still needs a login: the
+  checkout prompt and the FAQ say so.
 - **`/rewards`** (both locales) explains it: hero, three steps, a slider (`RewardsCalculator`), welcome bonus, FAQ with FAQPage schema.
   Every number comes from the live rules. While the programme is off the page 404s and leaves the footer and sitemap; saving the rules
   revalidates them. Copy is `rewards.*` in `messages/*.json` (not in the editable-content registry). It describes only what is built.
@@ -1233,7 +1234,7 @@ list never submits the recipe. Tested by `npx tsx scripts/check-ingredient-searc
 
 ### Closing the day, real sales in reports, editing rider rounds (Oct 2026)
 
-- **Business days are closed by hand** (migration `0027_business_days.sql`, `/admin/close-day`, owner/staff; a line on the dashboard links to it). A day = from one closing to the next, so late orders after midnight stay on the day that was open. Pure rules in `src/lib/business-day.ts` (`openDayFor`, `makeDayOf`, `dayChecklist`, `daySummary`); label = Amsterdam date the day opened, never the same as the previous day; before the first closing orders keep calendar days, and a first closing before 06:00 belongs to the evening before. **Checklist (blocking):** no paid order waiting to be accepted, nothing preparing/ready/on the way or scheduled for this day, no unpaid order from this day; then an **Audit done** tick against the day's totals and cash expected. Unfinished rider rounds are shown, not blocking. `closeDayAction` re-checks everything; the unique `business_date` stops a double close. The owner can **reopen** only the latest closed day. Reports use `makeDayOf` for every "which day" question (`DayOf` param in `reports.ts`); without 0027 they use calendar days. In `BACKUP_TABLES`. Tested by `npx tsx scripts/check-business-day.mts` (40 checks, incl. the October clock change).
+- **Business days are closed by hand** (migration `0027_business_days.sql`, `/admin/close-day`, owner/staff; a line on the dashboard links to it). A day = from one closing to the next, so late orders after midnight stay on the day that was open. Pure rules in `src/lib/business-day.ts` (`openDayFor`, `makeDayOf`, `dayChecklist`, `daySummary`); label = Amsterdam date the day opened, never the same as the previous day; before the first closing orders keep calendar days, and a first closing before 06:00 belongs to the evening before. **Checklist (blocking):** no paid order waiting to be accepted, nothing preparing/ready/on the way or scheduled for this day, no unpaid order from this day; then an **Audit done** tick against the day's totals and cash expected. Unfinished rider rounds are shown, not blocking. **A rider's day is this same day** (see "A rider's day ends when the office closes the day" below). `closeDayAction` re-checks everything; the unique `business_date` stops a double close. The owner can **reopen** only the latest closed day. Reports use `makeDayOf` for every "which day" question (`DayOf` param in `reports.ts`); without 0027 they use calendar days. In `BACKUP_TABLES`. Tested by `npx tsx scripts/check-business-day.mts` (54 checks, incl. the October clock change and the rider-day cases).
 - **Report money is what was really taken** (`orderMoney()` in `reports.ts`): each line's stored line total, less its pro-rata share of the order's `discount_cents` (coupon + manual discount; never off delivery) and of any refund. Dish/category "Sales" are net, "Before discounts" alongside; new headline tiles Food sales and Discounts given; "Food sales" is also a trend metric. `AdminOrder` gained `discount` and line `lineTotal`. This replaces the old rule that per-line figures stay at original amounts.
 - **Rider rounds can be corrected and deleted from /admin/riders** (pencil: day, both readings, both times, note; two-step delete) — `updateShiftAdmin` / `deleteShift` in `rider-shifts.ts`, actions in `riders/actions.ts` (owner/staff).
 
@@ -2589,6 +2590,48 @@ categories, customers, riders, timing) and **a print option on every report area
   back to months for a year, all eight areas rendering with their own print/export buttons, the
   print-isolation selector verified by applying it on screen, a day with no orders showing zeros
   and a sensible empty line in every area, and the popover kept on screen at ~450 px.
+
+### A rider's day ends when the office closes the day (Nov 2026)
+
+No migration. A rider's day used to be the **calendar date** (`todayKey()`), so it rolled over at midnight whatever was happening: a round
+started at 22:00 and finished at 00:30 was split across two days, and the 00:20 drop counted for the next one. Danish's rule: **no day ends
+by the clock — only when Close the day is pressed, riders included.**
+- `currentRiderDay()` in `rider-shifts.ts` returns the **open business day** (`openDayFor` / `makeDayOf`, the same ones reports use): its
+  label is what `rider_shifts.shift_date` holds, and `dayOf` puts any delivery on its working day. The rider screen, `saveMileageAction`,
+  `/admin/riders`, the close-day checklist and Reports' rider rounds all use it. `todayKey()` is still the *calendar* date, for things that
+  really are about the date (supplies purchases, the reports upper bound).
+- **The label can be a date ahead of the calendar** (close at 23:30 on the 26th and the new day is the 27th at once), so every "isn't in the
+  future" check and range upper bound uses `latestDayKey()` = the later of the two. Missing this hides a round from the admin screen.
+- `deliveriesOnDay(orders, day, dayOf)` lives in the pure `rider-mileage.ts` (re-exported from `rider-shifts.ts`) and is tested in
+  `check-business-day.mts`: a 00:20 drop stays on the evening that is open, a day left open overnight is still the same day in the morning,
+  closing moves the rider on, and the closed day keeps its drops.
+- **Consequences, deliberately accepted:** one round per rider per working day (`unique rider_id, shift_date`) — so if the office leaves a day
+  open across several calendar days, a rider's second "start" corrects the first instead of opening a new round, until the day is closed. A
+  round left without an end reading when the day closes is **not** ended for the rider (the end km is theirs to read, never invented): it
+  shows in the checklist, and the office can fix it in `/admin/riders`. Before anything has ever been closed (or until migration 0027 is
+  run) there is no closing to go by and the day falls back to the calendar (cut at 06:00, `SAME_NIGHT_HOURS`).
+- **Kitchen history was left on delivery dates** on purpose: it files an order under the day it was *booked for*, which is a label, not a clock cut-off.
+
+### Orders join the account with the same email (Nov 2026)
+
+No migration. A customer with an account who ordered **while logged out** (another phone, a cleared browser) became a guest, so the admin
+Customers list showed the same person twice and the order missed their dashboard and points. Now **the email decides**:
+- `createOrder` looks the address up (`customerIdForEmail`, case- and space-insensitive) when nobody is signed in and writes `customer_id`;
+  `ensureCheckoutAccount`'s "existing" branch also links (`linkOrderToCustomer`, only if the order has none — it never moves an order
+  between accounts). This covers website orders, phone/manual orders typed with an email, and the webhook/return-page race.
+- **Linking is not signing in.** `canEnterWithOrder` now also requires the order to have been **paid no later than the account's creation**
+  (`paidAtMs <= createdAtMs + CREATED_BY_ORDER_SLACK_MS`, 10 s). Without it, an order linked by email to an old password-less checkout account
+  would have opened that account — and its whole order history — to anyone who typed the address and paid. Tested in
+  `check-checkout-accounts.mts` (25 checks), including a later linked order, one millisecond past the allowance, and no payment time.
+- In `markOrderPaid` the account step now runs **before** `awardOrderPoints`, so a delivered cash order's points have an account to go to.
+- **Known trade-off, flagged to Danish:** signup does not verify the email. Anyone can register with someone else's address, and from then
+  on that person's orders (name, address, dishes) appear in the registered account. Fixing it means email verification at signup, which is
+  not built. We deliberately do **not** do the reverse (claiming existing guest orders when someone signs up), for the same reason.
+- **Past orders:** `node scripts/link-orders-by-email.mjs` (dry run; `--apply` writes). It links only orders with no account whose email
+  matches exactly one account, never moves an order, and does **not** award points for already-delivered ones. Read-only dry run (Nov 2026):
+  40 of 69 unlinked orders matched an account. **Applied on Danish's yes (Nov 2026): 40 of 40 linked**; a re-run finds none left, and the
+  29 still unlinked have no email that matches an account. No points were back-filled for the linked, already-delivered orders.
+- Copy changed: `checkout.pointsLoginPrompt` and `rewards.faq4A` no longer say points "won't count" without a login (spending still needs one).
 
 ### Rider mileage (Oct 2026, migration `0023_rider_shifts.sql`)
 

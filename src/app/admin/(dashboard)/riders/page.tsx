@@ -7,10 +7,11 @@ import RiderShiftTable from "@/components/admin/RiderShiftTable";
 import { listRiders } from "@/lib/admin/auth-users";
 import { listOrders } from "@/lib/admin/orders-data";
 import {
+  currentRiderDay,
   deliveriesOnDay,
   estimateForDeliveries,
+  latestDayKey,
   listShiftsBetween,
-  todayKey,
   type RiderShift,
 } from "@/lib/rider-shifts";
 import { compareToEstimate, formatKm, type MileageEstimate } from "@/lib/rider-mileage";
@@ -39,13 +40,15 @@ export default async function RidersPage({
   const { days: daysParam } = await searchParams;
   const days = RANGES.some((r) => String(r.days) === daysParam) ? Number(daysParam) : 30;
 
-  const to = todayKey();
+  // Up to the open working day, which can be a date ahead of the calendar (see latestDayKey).
+  const to = await latestDayKey();
   const from = amsterdamDateAhead(-(days - 1)).dateKey;
 
-  const [{ ready, shifts }, riders, orders] = await Promise.all([
+  const [{ ready, shifts }, riders, orders, { dayOf }] = await Promise.all([
     listShiftsBetween(from, to),
     listRiders(),
     listOrders(),
+    currentRiderDay(),
   ]);
 
   if (!ready) {
@@ -73,7 +76,7 @@ export default async function RidersPage({
   const rows: Row[] = [];
   for (const shift of shifts) {
     const theirs = orders.filter((o) => o.assignedRiderId === shift.riderId);
-    const delivered = deliveriesOnDay(theirs, shift.shiftDate);
+    const delivered = deliveriesOnDay(theirs, shift.shiftDate, dayOf);
     rows.push({
       shift,
       deliveries: delivered.length,

@@ -98,6 +98,10 @@ export default function MileageCard({
                   ? "Read the kilometres off your dashboard before you set off."
                   : "Log the reading again when you get back."}
             </p>
+            {/* Not "until midnight": the day is the office's to close (see rider-shifts currentRiderDay). */}
+            <p className="mt-1 text-xs text-faint">
+              Your day carries on until the office closes the day, even past midnight.
+            </p>
           </div>
         </div>
 

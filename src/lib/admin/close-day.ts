@@ -1,10 +1,9 @@
 import "server-only";
 import { listOrders } from "@/lib/admin/orders-data";
 import { expireStaleOrders } from "@/lib/orders";
-import { listShiftsBetween, todayKey } from "@/lib/rider-shifts";
+import { listShiftsBetween } from "@/lib/rider-shifts";
 import { listClosedDays, type StoredBusinessDay } from "@/lib/business-days-data";
 import {
-  dateOfInstant,
   dayChecklist,
   daySummary,
   openDayFor,
@@ -38,9 +37,11 @@ export async function loadCloseDayState(now: Date = new Date()): Promise<CloseDa
   const closed = days.map(({ businessDate, openedAt, closedAt }) => ({ businessDate, openedAt, closedAt }));
   const open = openDayFor(closed, now);
 
-  // Rounds started during this day and not finished. The mileage log is optional (0023), so a
-  // failure here only means the item can't be shown.
-  const { shifts } = await listShiftsBetween(dateOfInstant(open.openedAt), todayKey()).catch(() => ({
+  // Rounds started during this day and not finished. A rider's round is filed under the open
+  // day's own label (see rider-shifts `currentRiderDay`), so that is the one to read — not a
+  // calendar range. The mileage log is optional (0023), so a failure here only means the item
+  // can't be shown.
+  const { shifts } = await listShiftsBetween(open.businessDate, open.businessDate).catch(() => ({
     shifts: [],
   }));
   const openRounds = shifts

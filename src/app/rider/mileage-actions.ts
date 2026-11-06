@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { parseOdometer } from "@/lib/rider-mileage";
-import { saveShiftReading, todayKey } from "@/lib/rider-shifts";
+import { latestDayKey, saveShiftReading } from "@/lib/rider-shifts";
 
 /**
  * Recording an odometer reading.
@@ -51,7 +51,7 @@ export async function saveMileageAction(formData: FormData): Promise<MileageResu
     return { ok: false, message: "You can only record your own kilometres." };
   }
 
-  const shiftDate = dateOrToday(formData.get("shiftDate"));
+  const shiftDate = await dateOrCurrentDay(formData.get("shiftDate"));
   const noteRaw = formData.get("note");
   const note = typeof noteRaw === "string" ? noteRaw.slice(0, 500) : undefined;
 
@@ -68,10 +68,12 @@ export async function saveMileageAction(formData: FormData): Promise<MileageResu
 
 /**
  * The day a reading belongs to. Anything that isn't a plain date, or is in the future, becomes
- * today: a round can be written up late, never in advance.
+ * the working day that is open now: a round can be written up late, never in advance. "Now" is
+ * the open working day, not the calendar date — it carries on past midnight until the office
+ * closes the day.
  */
-function dateOrToday(value: FormDataEntryValue | null): string {
-  const today = todayKey();
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return today;
-  return value > today ? today : value;
+async function dateOrCurrentDay(value: FormDataEntryValue | null): Promise<string> {
+  const latest = await latestDayKey();
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return latest;
+  return value > latest ? latest : value;
 }

@@ -1,7 +1,7 @@
 import AdminShell from "@/components/admin/AdminShell";
 import ReportsView from "@/components/admin/ReportsView";
 import { getCategoryByDish, listOrders } from "@/lib/admin/orders-data";
-import { listShiftsBetween, todayKey } from "@/lib/rider-shifts";
+import { latestDayKey, listShiftsBetween, todayKey } from "@/lib/rider-shifts";
 import { addDaysKey } from "@/lib/admin/report-range";
 import { getBusinessCalendar } from "@/lib/business-days-data";
 import { listSupplies } from "@/lib/admin/store";
@@ -19,10 +19,12 @@ export const dynamic = "force-dynamic";
  */
 export default async function ReportsPage() {
   const calendarToday = todayKey();
+  // Rounds are filed under the working day, whose label can be a date ahead of the calendar.
+  const lastRoundDay = await latestDayKey();
   const [orders, categoryByDish, { shifts }, calendar, supplies, purchaseList] = await Promise.all([
     listOrders(),
     getCategoryByDish(),
-    listShiftsBetween(addDaysKey(calendarToday, -365), calendarToday).catch(() => ({ shifts: [] })),
+    listShiftsBetween(addDaysKey(calendarToday, -365), lastRoundDay).catch(() => ({ shifts: [] })),
     getBusinessCalendar(),
     listSupplies().catch(() => []),
     // Same year-at-once reasoning as the rounds above; empty (not ready) without migration 0028.

@@ -2,7 +2,13 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { postcodeDistanceKm } from "@/lib/delivery-area";
 import { amsterdamNow } from "@/lib/delivery-slots";
+import { getBusinessCalendar } from "@/lib/business-days-data";
+import { makeDayOf } from "@/lib/business-day";
 import { estimateStraightLine, shiftKm, type MileageEstimate } from "@/lib/rider-mileage";
+
+// Pure, and in rider-mileage.ts so it can be tested without a database; re-exported so the
+// rider screen and the admin screen keep importing everything rider-related from here.
+export { deliveriesOnDay } from "@/lib/rider-mileage";
 import type { AdminOrder } from "@/lib/admin/order-types";
 
 /**
@@ -72,9 +78,46 @@ function logMissing(where: string) {
   console.warn(`[rider-shifts] ${where}: run supabase/migrations/0023_rider_shifts.sql`);
 }
 
-/** Today's Amsterdam date key — the day a round belongs to. */
+/** Today's Amsterdam *calendar* date. For anything that is about the date itself, not the working day. */
 export function todayKey(): string {
   return amsterdamNow().dateKey;
+}
+
+/**
+ * The working day a rider's round belongs to — the one that is open right now.
+ *
+ * A rider's day does not end at midnight. It ends when the office presses **Close the day**
+ * (see business-day.ts), so a round started on the 26th and finished at 01:00 is still the
+ * 26th's, and a day left open over a quiet night is still the same day in the morning. That
+ * is why every place that used to ask the clock for "today" asks this instead.
+ *
+ * `dateKey` is the open day's label, which is what `rider_shifts.shift_date` holds. `dayOf`
+ * puts any instant on its working day (closed days and the open one), so a delivery is
+ * counted on the day it went out, not on the calendar date it happened to fall on.
+ * Before anything has ever been closed (or until migration 0027 is run) there is no closing
+ * to go by, and the day falls back to the calendar — see `openDayFor`.
+ */
+export interface RiderDay {
+  dateKey: string;
+  /** When this day opened: the last closing, or midnight if none yet. */
+  openedAt: string;
+  dayOf: (iso: string) => string;
+}
+
+export async function currentRiderDay(now: Date = new Date()): Promise<RiderDay> {
+  const { closed, open } = await getBusinessCalendar(now);
+  return { dateKey: open.businessDate, openedAt: open.openedAt, dayOf: makeDayOf(closed, open) };
+}
+
+/**
+ * The latest day that exists: the open day's label can be a day *ahead* of the calendar (close
+ * at 23:30 on the 26th and the new day is the 27th while it is still the 26th), and a round on
+ * it is not "in the future". Used wherever a date is checked against "hasn't happened yet".
+ */
+export async function latestDayKey(): Promise<string> {
+  const { dateKey } = await currentRiderDay();
+  const calendar = todayKey();
+  return dateKey > calendar ? dateKey : calendar;
 }
 
 /** One rider's round for one day, or null when they haven't started it. */
@@ -228,19 +271,6 @@ export async function estimateForDeliveries(orders: AdminOrder[]): Promise<Milea
   }
 
   return estimateStraightLine(distances, unlocated);
-}
-
-/**
- * Which of a rider's orders count as "driven on this day". The delivery timestamp is what the
- * round actually consisted of; an order with none (it was marked delivered before that column
- * existed) falls back to the day it was booked for.
- */
-export function deliveriesOnDay(orders: AdminOrder[], dateKey: string): AdminOrder[] {
-  return orders.filter((o) => {
-    if (o.status !== "delivered") return false;
-    const day = o.deliveredAt ? amsterdamNow(new Date(o.deliveredAt)).dateKey : o.deliveryDate;
-    return day === dateKey;
-  });
 }
 
 /**

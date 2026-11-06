@@ -3,11 +3,11 @@ import { redirect } from "next/navigation";
 import { Clock, LogOut, MapPin, MessageCircle, Navigation, Phone, StickyNote, User } from "lucide-react";
 import MileageCard from "@/components/rider/MileageCard";
 import {
+  currentRiderDay,
   deliveriesOnDay,
   estimateForDeliveries,
   getShift,
   listShiftsForRider,
-  todayKey,
 } from "@/lib/rider-shifts";
 import { formatKm } from "@/lib/rider-mileage";
 import { mapsDirectionsHref, telHref, whatsappDigits } from "@/lib/phone";
@@ -50,11 +50,13 @@ export default async function RiderPage() {
   const user = session.user;
   const orders = await listOrdersForRider(user.id);
 
-  // Today's round: the two odometer readings, and the straight-line cross-check built from
-  // what they have actually delivered today. The log is a convenience, so a failure to read
-  // it renders a "not set up" card rather than taking the deliveries list down with it.
-  const today = todayKey();
-  const deliveredToday = deliveriesOnDay(orders, today);
+  // This day's round: the two odometer readings, and the straight-line cross-check built from
+  // what they have actually delivered in it. "Today" is the working day that is open, which
+  // ends when the office closes the day — not at midnight. The log is a convenience, so a
+  // failure to read it renders a "not set up" card rather than taking the deliveries list down
+  // with it.
+  const { dateKey: today, dayOf } = await currentRiderDay();
+  const deliveredToday = deliveriesOnDay(orders, today, dayOf);
   const [{ ready: logReady, shift }, { shifts }, estimate] = await Promise.all([
     getShift(user.id, today).catch(() => ({ ready: false as const, shift: null })),
     listShiftsForRider(user.id).catch(() => ({ ready: false as const, shifts: [] })),

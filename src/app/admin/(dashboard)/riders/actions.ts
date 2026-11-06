@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { OWNER_STAFF, requireRole } from "@/lib/admin/guard";
-import { amsterdamLocalToUtc, amsterdamNow } from "@/lib/delivery-slots";
-import { deleteShift, updateShiftAdmin } from "@/lib/rider-shifts";
+import { amsterdamLocalToUtc } from "@/lib/delivery-slots";
+import { deleteShift, latestDayKey, updateShiftAdmin } from "@/lib/rider-shifts";
 
 /**
  * Correcting and deleting riders' rounds from /admin/riders. Owner/staff only, checked here
@@ -38,7 +38,7 @@ export async function updateShiftAction(input: ShiftEditInput): Promise<{ ok: bo
 
   if (!UUID.test(input?.id ?? "")) return { ok: false, message: "Unknown round." };
   if (!DATE.test(input.shiftDate ?? "")) return { ok: false, message: "Pick the day of the round." };
-  if (input.shiftDate > amsterdamNow().dateKey) {
+  if (input.shiftDate > (await latestDayKey())) {
     return { ok: false, message: "A round can't be on a day that hasn't happened yet." };
   }
 
