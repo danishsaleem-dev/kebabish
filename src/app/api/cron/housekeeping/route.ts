@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { escalateUnacceptedOrders, expireStaleOrders } from "@/lib/orders";
 import { purgeUnusedAccounts } from "@/lib/customers/accounts";
+import { syncContactsDaily } from "@/lib/brevo/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -24,14 +25,19 @@ export async function GET(request: Request) {
   }
 
   // The sweeps are independent. Also clears accounts made at checkout that nobody ever
-  // confirmed (no password after 90 days) — their orders are kept.
-  const [, , removedAccounts] = await Promise.all([
+  // confirmed (no password after 90 days) — their orders are kept — and brings Brevo's
+  // marketing contacts up to date (at most once a day; it is a no-op without a Brevo key).
+  const [, , removedAccounts, syncedContacts] = await Promise.all([
     expireStaleOrders(),
     escalateUnacceptedOrders(),
     purgeUnusedAccounts().catch((error) => {
       console.error("[housekeeping] could not clear unused accounts:", error);
       return 0;
     }),
+    syncContactsDaily().catch((error) => {
+      console.error("[housekeeping] could not sync marketing contacts:", error);
+      return 0;
+    }),
   ]);
-  return NextResponse.json({ ok: true, removedAccounts });
+  return NextResponse.json({ ok: true, removedAccounts, syncedContacts });
 }

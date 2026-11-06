@@ -1,6 +1,9 @@
 import type { Allergen, IngredientGroup } from "@/lib/admin/ingredients";
 import type { Unit } from "@/lib/admin/units";
 import type { RewardsConfig } from "@/lib/rewards-math";
+// Type-only, so it is erased at compile time: no runtime import of a
+// server-only module, and no cycle with brevo/settings.ts reading the store.
+import type { BrevoSettings } from "@/lib/brevo/settings";
 
 /**
  * The admin panel's mutable domain model.
@@ -219,6 +222,13 @@ export interface StoredSettings {
    * default rates. Edited at /admin/rewards, never by the general settings form.
    */
   rewards?: Partial<RewardsConfig>;
+  /**
+   * The Brevo email-marketing integration: list and folder ids, the sender,
+   * when contacts last synced. Edited at /admin/marketing/email, never by the
+   * general settings form. The API key is NOT here — it is `BREVO_API_KEY`,
+   * server-side only. See src/lib/brevo/settings.ts.
+   */
+  brevo?: BrevoSettings;
 }
 
 export interface StoredIngredient {

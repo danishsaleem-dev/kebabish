@@ -23,6 +23,7 @@ import { releaseDeliverySlot, reserveDeliverySlot } from "@/lib/delivery-slots-d
 import { PAYMENT_LINK_HOLD_MINUTES } from "@/lib/payment-link";
 import { amsterdamNow, weekdayForDateKey } from "@/lib/delivery-slots";
 import { isFutureDelivery } from "@/lib/admin/order-types";
+import { queueContactSync } from "@/lib/brevo/sync-hook";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { consumeOrderStock, readStockMap } from "@/lib/stock";
 import { stockLevel } from "@/lib/stock-status";
@@ -698,6 +699,10 @@ export async function createOrder(input: CreateOrderInput) {
       await supabase.from("orders").delete().eq("id", data.id);
       throw new Error(itemsError.message);
     }
+
+    // A guest who ticked "keep me posted" at checkout becomes a marketing
+    // contact. Only the tick does this — an order on its own never does.
+    if (input.marketingOptIn) queueContactSync(input.customerEmail);
 
     return { id: data.id as string, reference: data.reference as string, totalCents };
   }

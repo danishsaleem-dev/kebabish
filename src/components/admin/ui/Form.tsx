@@ -105,9 +105,12 @@ export function Checkbox({
 export function SubmitButton({
   children,
   variant = "primary",
+  disabled = false,
 }: {
   children: ReactNode;
   variant?: "primary" | "danger";
+  /** Greyed out because the action can't be run yet — separate from the pending state. */
+  disabled?: boolean;
 }) {
   const { pending } = useFormStatus();
 
@@ -119,7 +122,7 @@ export function SubmitButton({
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || disabled}
       className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60 ${tone}`}
     >
       {pending && <Loader2 size={15} className="animate-spin" />}

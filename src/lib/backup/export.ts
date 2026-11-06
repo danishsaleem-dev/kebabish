@@ -78,6 +78,11 @@ export const BACKUP_TABLES: BackupTableSpec[] = [
   { name: "customer_referral_codes", pk: ["customer_id"] },
   { name: "referrals", pk: ["id"] },
   { name: "customer_contact_saved", pk: ["customer_key"] },
+  // Marketing (0032). No `omit`: there are no secrets in either, and the
+  // suppression list is the one thing that must survive a restore intact —
+  // losing it would mean emailing people who had unsubscribed.
+  { name: "marketing_suppressions", pk: ["email"] },
+  { name: "marketing_events", pk: ["id"] },
   { name: "site_content", pk: ["key", "locale"] },
   { name: "site_content_history", pk: ["id"] },
   { name: "delivery_slot_config", pk: ["id"] },

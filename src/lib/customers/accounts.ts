@@ -2,6 +2,7 @@ import "server-only";
 import bcrypt from "bcryptjs";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { UNUSED_ACCOUNT_DAYS, type AccountForRules } from "@/lib/customers/account-rules";
+import { queueContactSync } from "@/lib/brevo/sync-hook";
 
 /**
  * Customer-facing accounts — deliberately a separate table from
@@ -148,27 +149,36 @@ export async function setMarketingConsent(
   const supabase = supabaseAdmin();
   const { data: current, error: readError } = await supabase
     .from("customers")
-    .select("marketing_opt_in")
+    .select("marketing_opt_in, email")
     .eq("id", customerId)
     .maybeSingle();
   if (readError) throw new Error(readError.message);
-  if (!current || current.marketing_opt_in === optIn) return;
+  if (!current) return;
 
-  const now = new Date().toISOString();
-  const { error } = await supabase
-    .from("customers")
-    .update(
-      optIn
-        ? {
-            marketing_opt_in: true,
-            marketing_consent_at: now,
-            marketing_consent_source: source,
-            marketing_withdrawn_at: null,
-          }
-        : { marketing_opt_in: false, marketing_withdrawn_at: now }
-    )
-    .eq("id", customerId);
-  if (error) throw new Error(error.message);
+  // Unchanged: skip the *write* only. The Brevo sync below still runs, because
+  // "the database already says what you're asking for" does not mean Brevo
+  // agrees — a sync that failed once (an outage, a missing key at the time)
+  // would otherwise leave the contact out of Brevo for good, with this
+  // function insisting there is nothing to do.
+  if (current.marketing_opt_in !== optIn) {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("customers")
+      .update(
+        optIn
+          ? {
+              marketing_opt_in: true,
+              marketing_consent_at: now,
+              marketing_consent_source: source,
+              marketing_withdrawn_at: null,
+            }
+          : { marketing_opt_in: false, marketing_withdrawn_at: now }
+      )
+      .eq("id", customerId);
+    if (error) throw new Error(error.message);
+  }
+
+  queueContactSync(current.email as string | null);
 }
 
 export async function saveCustomerAddress(
@@ -238,6 +248,10 @@ export async function createCustomer(input: {
     }
     throw new Error(error.message);
   }
+
+  // Only somebody who ticked the box becomes a marketing contact. A sign-up
+  // without the tick is deliberately not synced at all.
+  if (input.marketingOptIn) queueContactSync(data.email);
 
   return data;
 }
@@ -453,6 +467,10 @@ export async function ensureCheckoutAccount(orderId: string): Promise<CheckoutAc
       .is("customer_id", null);
     if (linkError) console.error("[customers] could not link the order to its new account:", linkError.message);
 
+    // The guest who ticked the box at checkout now has an account, so their
+    // contact moves from guest to registered in Brevo. Only if they ticked it.
+    if (order.marketing_opt_in) queueContactSync(email);
+
     return { status: "created", customerId: created.id, passwordless: true };
   } catch (error) {
     console.error("[customers] could not create the checkout account:", error);
@@ -465,11 +483,18 @@ export async function updateCustomerProfile(
   id: string,
   input: { name: string; phone: string | null }
 ): Promise<void> {
-  const { error } = await supabaseAdmin()
+  const { data, error } = await supabaseAdmin()
     .from("customers")
     .update({ name: input.name.trim(), phone: input.phone })
-    .eq("id", id);
+    .eq("id", id)
+    .select("email, marketing_opt_in")
+    .maybeSingle();
   if (error) throw new Error(error.message);
+
+  // Their name is a personalisation field in Brevo, so a changed name should
+  // reach it. Only for somebody who consented — this must never be the thing
+  // that creates a contact for a customer who never opted in.
+  if (data?.marketing_opt_in) queueContactSync(data.email as string | null);
 }
 
 /** Change the password of a signed-in customer who knows the current one. */
