@@ -27,7 +27,7 @@ import { fetchLineExtras } from "@/lib/order-extras";
 import { consumeOrderStock, readStockMap } from "@/lib/stock";
 import { stockLevel } from "@/lib/stock-status";
 import { awardOrderPoints, recordOrderRedemption } from "@/lib/rewards";
-import { ensureCheckoutAccount } from "@/lib/customers/accounts";
+import { customerIdForEmail, ensureCheckoutAccount } from "@/lib/customers/accounts";
 import { createAccountSetupToken } from "@/lib/password-reset";
 
 /**
@@ -603,6 +603,13 @@ export async function createOrder(input: CreateOrderInput) {
   // for a later day then falls back to "preparing" rather than failing to save.
   let noScheduledStatus = false;
 
+  // Whoever is ordering is the owner of an account if the address is one. Typing your own
+  // email while logged out (another phone, a cleared browser) must not turn a registered
+  // customer into a guest: the order joins their account, which is what their dashboard,
+  // their points and the admin's Customers list all key on. Only the account is found here —
+  // nobody is signed in by it, see customers/account-rules.ts.
+  const customerId = input.customerId ?? (await customerIdForEmail(input.customerEmail));
+
   // The reference is unique in the database; on the rare collision, try a
   // new one rather than failing someone's checkout.
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -612,7 +619,7 @@ export async function createOrder(input: CreateOrderInput) {
       .from("orders")
       .insert({
         reference,
-        customer_id: input.customerId,
+        customer_id: customerId,
         customer_name: input.customerName,
         customer_email: input.customerEmail,
         customer_phone: input.customerPhone,
@@ -974,6 +981,9 @@ export async function markOrderPaid(orderId: string): Promise<boolean> {
   // Committed now: take its dishes out of stock (a no-op if a phone order already did at creation).
   await consumeOrderStock(orderId);
   await recordOrderRedemption(orderId);
+  // The buyer's account first (it also links the order to an existing account by email), so
+  // the points just below have an account to go to.
+  const accountSetupUrl = await accountSetupLinkFor(orderId);
   // A cash order is often marked paid only after the ride: if it is already delivered, pay its points now.
   await awardOrderPoints(orderId);
 
@@ -983,7 +993,6 @@ export async function markOrderPaid(orderId: string): Promise<boolean> {
     // the moment it needs the same alert an online payment sends; hand-entered
     // (phone / cash) orders were already known to staff.
     if (order.paymentMethod === "payment_link") after(() => sendNewOrderEmail(order));
-    const accountSetupUrl = await accountSetupLinkFor(order.id);
     if (order.customerEmail) after(() => sendOrderConfirmationEmail(order, order.locale, accountSetupUrl));
   }
   return true;

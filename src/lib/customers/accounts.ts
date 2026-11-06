@@ -275,6 +275,7 @@ function toState(row: StateRow): CustomerAccountState {
     phone: row.phone,
     passwordless: !row.password_hash,
     createdVia: row.created_via === "checkout" ? "checkout" : "signup",
+    createdAtMs: Date.parse(row.created_at),
     createdAt: row.created_at,
     sessionsValidAfterMs: row.sessions_valid_after ? Date.parse(row.sessions_valid_after) : null,
   };
@@ -326,6 +327,35 @@ export async function findCustomerStateByEmail(email: string): Promise<CustomerA
   return data ? toState(data as StateRow) : null;
 }
 
+/**
+ * Attach an order to an account — only if it has none yet, so it can never move an order
+ * from one account to another. Never throws: an order that is placed or paid is that,
+ * whatever happens to the link.
+ */
+export async function linkOrderToCustomer(orderId: string, customerId: string): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("orders")
+    .update({ customer_id: customerId })
+    .eq("id", orderId)
+    .is("customer_id", null);
+  if (error) console.error("[customers] could not link the order to the account:", error.message);
+}
+
+/**
+ * The account an email address belongs to, if any, for an order being written now. Null
+ * when there is none, the address is empty or malformed, or the lookup fails.
+ */
+export async function customerIdForEmail(email: string | null | undefined): Promise<string | null> {
+  const clean = String(email ?? "").trim();
+  if (!clean || !clean.includes("@")) return null;
+  try {
+    return (await findCustomerStateByEmail(clean))?.id ?? null;
+  } catch (error) {
+    console.error("[customers] could not look up the account for an order:", error);
+    return null;
+  }
+}
+
 export type CheckoutAccountResult =
   | { status: "skipped" }
   /** The order already belongs to an account (a signed-in customer ordered). */
@@ -371,6 +401,10 @@ export async function ensureCheckoutAccount(orderId: string): Promise<CheckoutAc
 
     const existing = await findCustomerStateByEmail(email);
     if (existing) {
+      // Same address, so the same customer: the order joins their account (and their points
+      // and history) even though they weren't signed in. Linking is not signing in — nobody
+      // is let into the account (see account-rules.ts `canEnterWithOrder`).
+      await linkOrderToCustomer(orderId, existing.id);
       return { status: "existing", customerId: existing.id, passwordless: existing.passwordless };
     }
 
@@ -401,7 +435,10 @@ export async function ensureCheckoutAccount(orderId: string): Promise<CheckoutAc
           if (state) return { status: "linked", customerId: state.id, passwordless: state.passwordless };
         }
         const other = await findCustomerStateByEmail(email);
-        if (other) return { status: "existing", customerId: other.id, passwordless: other.passwordless };
+        if (other) {
+          await linkOrderToCustomer(orderId, other.id);
+          return { status: "existing", customerId: other.id, passwordless: other.passwordless };
+        }
         return { status: "skipped" };
       }
       warnMigration("creating a checkout account", error.message);

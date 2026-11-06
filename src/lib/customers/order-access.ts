@@ -11,7 +11,9 @@ import { canEnterWithOrder } from "@/lib/customers/account-rules";
  * carry) is not, on its own, enough: `canEnterWithOrder` also needs the account to have
  * been **created by this very order** (so it holds nothing but this order), still to have
  * no password, the order to be paid and recent. An address that already had an account
- * is never signed in this way — that person signs in with their password.
+ * is never signed in this way — that person signs in with their password. (Such an order
+ * is *linked* to the account, but it was paid after the account existed, which is what
+ * `canEnterWithOrder` checks.)
  *
  * Kept lean on purpose (own queries, no `orders.ts`): the sign-in config imports this.
  */
@@ -20,7 +22,7 @@ export async function checkOrderAccess(ref: string, token: string): Promise<Cust
 
   const { data: order, error } = await supabaseAdmin()
     .from("orders")
-    .select("payment_status, created_at, customer_id")
+    .select("payment_status, created_at, paid_at, customer_id")
     .eq("reference", ref)
     .maybeSingle();
   if (error || !order) return null;
@@ -31,6 +33,7 @@ export async function checkOrderAccess(ref: string, token: string): Promise<Cust
       paid: order.payment_status === "paid",
       customerId: order.customer_id,
       placedAtMs: Date.parse(order.created_at),
+      paidAtMs: order.paid_at ? Date.parse(order.paid_at) : null,
     },
     account,
     nowMs: Date.now(),
