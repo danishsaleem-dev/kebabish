@@ -210,5 +210,8 @@ export function brevoProblem(error: unknown): string {
     if (error.status === 429) return "Brevo's rate limit was reached — try again in a minute.";
     return error.message;
   }
+  // Our own explanatory errors ("Brevo is still importing…", "…could not be synced")
+  // are written for the admin to read, so they are shown as they are.
+  if (error instanceof Error && error.message) return error.message;
   return "Brevo could not be reached.";
 }

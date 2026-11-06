@@ -353,7 +353,7 @@ real per-day hours table and a live open/closed pill, and
 `openingHoursSpecification` for local SEO.
 
 `(site)/layout.tsx` fetches settings once per request and revalidates
-every 60s (`export const revalidate = 60`) since hours can flip on their
+every 5 minutes (`export const revalidate = 300`; it was 60 and burned the free plan's ISR writes — it applies to every public page) since hours can flip on their
 own at a hours boundary without anyone touching `/admin/settings`; saving
 there also calls `revalidatePath("/", "layout")` / `revalidatePath("/en",
 "layout")` for an immediate update instead of waiting on that window.
@@ -837,7 +837,7 @@ and a failure is cached 10 s so a dead database isn't hammered).
   values. Both tables are in `BACKUP_TABLES`.
 - **Publishing:** every save calls `publish()` → `revalidatePath("/", "layout")`, `("/en", "layout")`,
   `/sitemap.xml` and the admin screens. In production a static page can be a little stale on a
-  *different* server instance (≤ 15 s cache, then the layout's 60 s revalidate heals it), so the
+  *different* server instance (≤ 15 s cache, then the layout's 5-minute revalidate heals it), so the
   toasts say **"live within a minute"**, not "now". In dev it is instant.
 - **Homepage sections** (`/admin/content/homepage`, `HOME_SECTIONS` in `model.ts`): show/hide and
   reorder (drag or arrows). `page.tsx` renders `getHomeLayout()`'s order. The **top banner is pinned**

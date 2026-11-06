@@ -5,7 +5,8 @@ import { redirect } from "next/navigation";
 import { OWNER_STAFF, requireRole } from "@/lib/admin/guard";
 import { flashRedirect } from "@/lib/admin/flash";
 import { amsterdamLocalToUtc } from "@/lib/delivery-slots";
-import { brevoProblem, clearBrevoCache, isBrevoConfigured } from "@/lib/brevo/client";
+import { BrevoError, brevoProblem, clearBrevoCache, isBrevoConfigured } from "@/lib/brevo/client";
+import { readSuppressed } from "@/lib/brevo/suppressions";
 import { isSendableEmail, normalizeEmail, resolveRecipients } from "@/lib/brevo/audience";
 import {
   ensureBrevoSetup,
@@ -16,6 +17,7 @@ import {
   alreadySent,
   createCampaign,
   createSelectionList,
+  createTestList,
   deleteCampaign,
   deleteList,
   rememberSend,
@@ -270,16 +272,29 @@ export async function sendTestAction(formData: FormData): Promise<void> {
     redirect(flashRedirect(back, "Put in an address to send the test to.", "error"));
   }
 
-  const { contacts } = await prepare(plan, back);
+  // A test address that unsubscribed must not be mailed either: the rule has no
+  // exception for the person pressing the button.
+  const suppressed = await readSuppressed();
+  if (suppressed === null || suppressed.has(plan.testTo)) {
+    redirect(
+      flashRedirect(
+        back,
+        suppressed === null
+          ? "The unsubscribe list couldn't be read, so no test was sent."
+          : "That address unsubscribed from marketing email, so no test can be sent to it.",
+        "error"
+      )
+    );
+  }
+
+  await prepare({ ...plan, mode: "all" }, back); // template, subject and Brevo checks
 
   let listId: number | null = null;
-  let disposable = false;
+  const disposable = true;
   let campaignId: number | null = null;
 
   try {
-    const list = await listFor(plan, contacts, `Test · ${stamp()}`);
-    listId = list.listId;
-    disposable = list.disposable;
+    listId = await createTestList(`Test · ${stamp()}`, plan.testTo);
 
     campaignId = await createCampaign({
       name: `[test] ${plan.subject} · ${stamp()}`,
@@ -291,7 +306,16 @@ export async function sendTestAction(formData: FormData): Promise<void> {
 
     await sendCampaignTest(campaignId, [plan.testTo]);
   } catch (error) {
-    redirect(flashRedirect(back, brevoProblem(error), "error"));
+    const blocked = error instanceof BrevoError && /blacklisted/i.test(error.message);
+    redirect(
+      flashRedirect(
+        back,
+        blocked
+          ? "Brevo won't send to that address — it is blocked in Brevo (for example it unsubscribed or bounced before). Try another address."
+          : brevoProblem(error),
+        "error"
+      )
+    );
   } finally {
     // Tidy up whichever of these got made, success or failure.
     if (campaignId) await deleteCampaign(campaignId);
@@ -359,6 +383,18 @@ export async function sendCampaignAction(formData: FormData): Promise<void> {
   let campaignId: number | null = null;
 
   try {
+    // "Everyone" sends to the standing list, which is only as current as the
+    // last sync — and is empty before the first one. Sync and wait, so the
+    // list holds exactly who is eligible right now.
+    if (plan.mode === "all") {
+      const synced = await syncAudienceToBrevo();
+      // Thrown, not redirected: a redirect() inside this try would be caught by
+      // the catch below and replaced with a generic message.
+      if (!synced.ok) {
+        throw new Error(synced.problem ?? "Contacts could not be synced, so nothing was sent.");
+      }
+    }
+
     const list = await listFor(plan, contacts, `Selection · ${stamp()}`);
     listId = list.listId;
     disposable = list.disposable;

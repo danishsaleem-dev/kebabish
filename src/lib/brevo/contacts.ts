@@ -414,6 +414,49 @@ export async function readListState(): Promise<BrevoList | null> {
   }
 }
 
+/* ---------------------------------------------------------- the import */
+
+const IMPORT_POLL_MS = 1500;
+const IMPORT_TIMEOUT_MS = 45_000;
+
+/**
+ * Import contacts into a list and **wait until Brevo has finished**.
+ *
+ * `POST /contacts/import` is asynchronous: it answers 202 with a process id
+ * straight away and does the work in the background. Anything that needs the
+ * contacts to exist afterwards — creating a campaign against the list, above
+ * all — has to wait, or Brevo sees an empty list and refuses with "There are no
+ * contacts associated with the given recipients info". That was the first
+ * real-world failure of this feature.
+ */
+export async function importContacts(listId: number, rows: ReturnType<typeof buildImportRows>): Promise<void> {
+  for (const batch of batched(rows)) {
+    const started = await brevoPost<{ processId?: number }>("/contacts/import", {
+      listIds: [listId],
+      jsonBody: batch,
+      updateExistingContacts: true,
+      emptyContactsAttributes: false,
+      emailBlacklist: false,
+      smsBlacklist: false,
+      disableNotification: true,
+    });
+    if (started?.processId) await waitForProcess(started.processId);
+  }
+}
+
+async function waitForProcess(processId: number): Promise<void> {
+  const deadline = Date.now() + IMPORT_TIMEOUT_MS;
+  while (Date.now() < deadline) {
+    const process = await brevoGet<{ status?: string }>(`/processes/${processId}`);
+    if (process.status === "completed") return;
+    if (process.status === "failed" || process.status === "cancelled") {
+      throw new Error("Brevo could not import the contacts. Try again in a minute.");
+    }
+    await new Promise((resolve) => setTimeout(resolve, IMPORT_POLL_MS));
+  }
+  throw new Error("Brevo is still importing the contacts. Wait a minute and try again.");
+}
+
 /* ------------------------------------------------------------- the sync */
 
 export interface SyncResult {
@@ -458,17 +501,7 @@ export async function syncAudienceToBrevo(): Promise<SyncResult> {
     return { ok: true, count: 0 };
   }
 
-  for (const batch of batched(rows)) {
-    await brevoPost("/contacts/import", {
-      listIds: [listId],
-      jsonBody: batch,
-      updateExistingContacts: true,
-      emptyContactsAttributes: false,
-      emailBlacklist: false,
-      smsBlacklist: false,
-      disableNotification: true,
-    });
-  }
+  await importContacts(listId, rows);
 
   await supabaseStore.update({
     lastSyncAt: new Date().toISOString(),

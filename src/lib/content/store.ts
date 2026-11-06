@@ -62,7 +62,7 @@ function empty(loaded: boolean): ContentSnapshot {
 
 /**
  * How long a snapshot is trusted. Pages are statically generated and revalidated
- * (60 s on the site layout, plus an immediate revalidatePath when the owner
+ * (five minutes on the site layout, plus an immediate revalidatePath when the owner
  * saves), so this only matters for pages that render per request — and for the
  * moment between a save and another server instance noticing it. Short enough
  * that nobody waits for an edit; long enough that a busy minute is one query

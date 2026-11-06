@@ -19,10 +19,19 @@ import { normalizeRewards } from "@/lib/rewards-math";
 import { getPublicDeals } from "@/lib/public-deals";
 import { getPromoPopups } from "@/lib/public-promos";
 
-// Revalidate at most every minute — status can flip on its own (opening
-// hours boundary) without anyone touching /admin/settings. A save there
-// also calls revalidatePath for an immediate update; see settings/actions.ts.
-export const revalidate = 60;
+// Revalidate at most every five minutes — status can flip on its own (opening
+// hours boundary) without anyone touching /admin/settings, so the banner can
+// lag a boundary by up to this long. A save there (and any content, menu or
+// promo save) also calls revalidatePath for an immediate update; see
+// settings/actions.ts.
+//
+// This is 300 and not 60 on purpose: the value applies to EVERY page under
+// this layout (every route, dish and deal, in both languages), and each
+// regeneration is one Vercel ISR write. At 60 s, crawler traffic alone burned
+// ~72K of the free plan's 200K monthly writes against only ~22K reads.
+// Checkout does not depend on it — whether orders are accepted is checked on
+// the server — so a late banner is cosmetic.
+export const revalidate = 300;
 
 /**
  * The normal site chrome (header nav, footer, floating WhatsApp button) —

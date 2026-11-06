@@ -8,7 +8,7 @@ import {
 } from "@/lib/brevo/client";
 import { campaignSender, supabaseStore } from "@/lib/brevo/settings";
 import { buildImportRows, type MarketingContact } from "@/lib/brevo/audience";
-import { ensureBrevoSetup } from "@/lib/brevo/contacts";
+import { ensureBrevoSetup, importContacts } from "@/lib/brevo/contacts";
 
 /**
  * Campaigns — created, tested, sent and reported on entirely by Brevo.
@@ -140,18 +140,31 @@ export async function createSelectionList(
   });
 
   const rows = buildImportRows(contacts);
-  if (rows.length > 0) {
-    await brevoPost("/contacts/import", {
-      listIds: [created.id],
-      jsonBody: rows,
-      updateExistingContacts: true,
-      emptyContactsAttributes: false,
-      emailBlacklist: false,
-      smsBlacklist: false,
-      disableNotification: true,
-    });
-  }
+  // Waits for Brevo to finish: a campaign made against a still-empty list is refused.
+  if (rows.length > 0) await importContacts(created.id, rows);
 
+  clearBrevoCache();
+  return created.id;
+}
+
+
+/**
+ * A throwaway list holding only the address a test is going to.
+ *
+ * Brevo refuses a test to anybody who is not already a contact in a list
+ * ("Test emails cannot be sent to non-existent/blacklisted/without-contact-list
+ * users"). The address is added with the synchronous single-contact call, so
+ * there is nothing to wait for. It goes in this list only — never the
+ * subscribers list — so putting an address here can't make it a recipient of a
+ * real campaign.
+ */
+export async function createTestList(label: string, email: string): Promise<number> {
+  const { folderId } = await ensureBrevoSetup();
+  const created = await brevoPost<{ id: number }>("/contacts/lists", {
+    name: label.slice(0, 50),
+    folderId,
+  });
+  await brevoPost("/contacts", { email, listIds: [created.id], updateEnabled: true });
   clearBrevoCache();
   return created.id;
 }
