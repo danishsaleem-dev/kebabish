@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 import { getCustomerSession } from "@/lib/customers/session";
 import { z } from "zod";
 import {
@@ -23,6 +24,23 @@ async function customerId(): Promise<string | null> {
 }
 
 /**
+ * Which language to answer in. The dashboard sits outside `[locale]`, so
+ * there is nothing in the URL to read: every form posts a hidden `locale`
+ * (the same approach the signup action takes). An unexpected value falls
+ * back to Dutch rather than throwing — a mangled field must not cost
+ * someone their edit.
+ */
+async function translate(formData: FormData) {
+  const locale = formData.get("locale") === "en" ? "en" : "nl";
+  return getTranslations({ locale, namespace: "account" });
+}
+
+/** Both the overview and the account page show this data, so the whole segment is refreshed. */
+function refresh() {
+  revalidatePath("/dashboard", "layout");
+}
+
+/**
  * The "email me offers" switch on the account page. The checkbox is the only
  * thing that can turn it on, and the customer can always turn it off here —
  * withdrawing is as easy as giving it.
@@ -31,42 +49,39 @@ export async function updateMarketingAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  const t = await translate(formData);
   const id = await customerId();
-  if (!id) return { ok: false, message: "Sign in again to do that." };
+  if (!id) return { ok: false, message: t("msgSignInAgain") };
 
   const optIn = formData.get("marketingOptIn") === "on";
   try {
     await setMarketingConsent(id, optIn, "dashboard");
   } catch (error) {
     console.error("[dashboard] could not save the marketing preference:", error);
-    return { ok: false, message: "Couldn't save that — please try again." };
+    return { ok: false, message: t("msgSaveFailed") };
   }
 
-  revalidatePath("/dashboard");
-  return {
-    ok: true,
-    message: optIn
-      ? "Saved — we'll email you news and offers."
-      : "Saved — we won't email you news or offers.",
-  };
+  refresh();
+  return { ok: true, message: t(optIn ? "msgMarketingOn" : "msgMarketingOff") };
 }
 
 export async function removeSavedAddressAction(
   _prev: FormState,
-  _formData: FormData
+  formData: FormData
 ): Promise<FormState> {
+  const t = await translate(formData);
   const id = await customerId();
-  if (!id) return { ok: false, message: "Sign in again to do that." };
+  if (!id) return { ok: false, message: t("msgSignInAgain") };
 
   try {
     await clearCustomerAddress(id);
   } catch (error) {
     console.error("[dashboard] could not remove the saved address:", error);
-    return { ok: false, message: "Couldn't remove it — please try again." };
+    return { ok: false, message: t("msgAddressFailed") };
   }
 
-  revalidatePath("/dashboard");
-  return { ok: true, message: "Your saved address was removed." };
+  refresh();
+  return { ok: true, message: t("msgAddressRemoved") };
 }
 
 /* ---------------------------------------------------------------- profile */
@@ -88,20 +103,21 @@ function makeThrottle(max: number, windowMs: number) {
 const passwordTries = makeThrottle(5, 10 * 60_000);
 const setupEmails = makeThrottle(1, 60_000);
 
-const profileSchema = z.object({
-  name: z.string().trim().min(2, "Enter your name.").max(80, "Keep your name under 80 characters."),
-  phone: z.string().trim().max(30, "That phone number is too long.").default(""),
-});
-
 /** Change name and phone. The email address is the account's identity and stays as it is. */
 export async function updateProfileAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  const t = await translate(formData);
   const id = await customerId();
-  if (!id) return { ok: false, message: "Sign in again to do that." };
+  if (!id) return { ok: false, message: t("msgSignInAgain") };
 
-  const parsed = profileSchema.safeParse({
+  const schema = z.object({
+    name: z.string().trim().min(2, t("errName")).max(80, t("errNameLong")),
+    phone: z.string().trim().max(30, t("errPhoneLong")).default(""),
+  });
+
+  const parsed = schema.safeParse({
     name: formData.get("name"),
     phone: formData.get("phone") ?? "",
   });
@@ -114,39 +130,40 @@ export async function updateProfileAction(
   let phone: string | null = null;
   if (parsed.data.phone) {
     phone = normalizeDutchPhone(parsed.data.phone);
-    if (!phone) return { ok: false, errors: { phone: "That doesn't look like a Dutch phone number." } };
+    if (!phone) return { ok: false, errors: { phone: t("errPhone") } };
   }
 
   try {
     await updateCustomerProfile(id, { name: parsed.data.name, phone });
   } catch (error) {
     console.error("[dashboard] could not save the profile:", error);
-    return { ok: false, message: "Couldn't save that — please try again." };
+    return { ok: false, message: t("msgSaveFailed") };
   }
-  revalidatePath("/dashboard");
-  return { ok: true, message: "Saved." };
+  refresh();
+  return { ok: true, message: t("msgSaved") };
 }
-
-const passwordSchema = z
-  .object({
-    current: z.string().min(1, "Enter your current password."),
-    password: z.string().min(8, "Password needs to be at least 8 characters."),
-    confirm: z.string(),
-  })
-  .refine((v) => v.password === v.confirm, {
-    message: "The two passwords don't match.",
-    path: ["confirm"],
-  });
 
 /** Change the password, for someone who knows the current one. */
 export async function changePasswordAction(
   _prev: FormState,
   formData: FormData
 ): Promise<FormState> {
+  const t = await translate(formData);
   const id = await customerId();
-  if (!id) return { ok: false, message: "Sign in again to do that." };
+  if (!id) return { ok: false, message: t("msgSignInAgain") };
 
-  const parsed = passwordSchema.safeParse({
+  const schema = z
+    .object({
+      current: z.string().min(1, t("errPasswordCurrent")),
+      password: z.string().min(8, t("errPasswordShort")),
+      confirm: z.string(),
+    })
+    .refine((v) => v.password === v.confirm, {
+      message: t("errPasswordMatch"),
+      path: ["confirm"],
+    });
+
+  const parsed = schema.safeParse({
     current: formData.get("current"),
     password: formData.get("password"),
     confirm: formData.get("confirm"),
@@ -158,37 +175,36 @@ export async function changePasswordAction(
   }
 
   // Someone with a borrowed, signed-in browser must not be able to guess the password.
-  if (!passwordTries(id)) {
-    return { ok: false, message: "Too many tries. Wait a few minutes and try again." };
-  }
+  if (!passwordTries(id)) return { ok: false, message: t("msgPasswordTooMany") };
 
   try {
     const result = await changeCustomerPassword(id, parsed.data.current, parsed.data.password);
-    if (result === "wrong") return { ok: false, errors: { current: "That isn't your current password." } };
-    if (result === "none") return { ok: false, message: "Choose your password from the email we sent you." };
+    if (result === "wrong") return { ok: false, errors: { current: t("msgPasswordWrong") } };
+    if (result === "none") return { ok: false, message: t("msgPasswordNone") };
   } catch (error) {
     console.error("[dashboard] could not change the password:", error);
-    return { ok: false, message: "Couldn't change it — please try again." };
+    return { ok: false, message: t("msgPasswordFailed") };
   }
-  return { ok: true, message: "Your password has been changed." };
+  return { ok: true, message: t("msgPasswordChanged") };
 }
 
 /** "Send it again": the choose-your-password email, for an account that has no password yet. */
 export async function resendSetupEmailAction(
   _prev: FormState,
-  _formData: FormData
+  formData: FormData
 ): Promise<FormState> {
+  const t = await translate(formData);
   const id = await customerId();
-  if (!id) return { ok: false, message: "Sign in again to do that." };
-  if (!setupEmails(id)) {
-    return { ok: false, message: "We just sent it — give it a minute, and check your spam folder." };
-  }
+  if (!id) return { ok: false, message: t("msgSignInAgain") };
+  if (!setupEmails(id)) return { ok: false, message: t("msgSetupTooSoon") };
 
   try {
     const account = await getCustomerAccountState(id);
-    if (!account || !account.passwordless) return { ok: true, message: "Your account is already confirmed." };
+    if (!account || !account.passwordless) {
+      return { ok: true, message: t("msgAlreadyConfirmed") };
+    }
     const token = await createAccountSetupToken(id);
-    if (!token) return { ok: false, message: "Couldn't send it — please try again." };
+    if (!token) return { ok: false, message: t("msgSetupFailed") };
 
     // The language of their latest order, like the other customer emails.
     const { data: latest } = await supabaseAdmin()
@@ -207,7 +223,7 @@ export async function resendSetupEmailAction(
     });
   } catch (error) {
     console.error("[dashboard] could not resend the setup email:", error);
-    return { ok: false, message: "Couldn't send it — please try again." };
+    return { ok: false, message: t("msgSetupFailed") };
   }
-  return { ok: true, message: "Sent. Check your inbox (and spam folder)." };
+  return { ok: true, message: t("msgSetupSent") };
 }

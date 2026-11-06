@@ -2,36 +2,39 @@
 
 import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
-import Card from "@/components/admin/ui/Card";
-import type { LedgerKind, LedgerRow } from "@/lib/rewards";
 
 const STORAGE_KEY = "kebabish-points-seen-v1";
 const RECENT_DAYS = 30;
 const SHOWN = 4;
 
-const n = (value: number) => Math.abs(value).toLocaleString("en-GB");
-
-/** The customer's words for each movement. A referral never says whose order it was. */
-function headline(row: LedgerRow): string {
-  const on = row.orderReference ? ` on ${row.orderReference}` : "";
-  const words: Record<LedgerKind, string> = {
-    earn: `You earned ${n(row.points)} points${on}`,
-    welcome: `Your ${n(row.points)} welcome points are here`,
-    redeem: `You used ${n(row.points)} points${on}`,
-    restore: `${n(row.points)} points came back to your account`,
-    clawback: `${n(row.points)} points were removed after a refund`,
-    adjust: `${row.points > 0 ? "We added" : "We removed"} ${n(row.points)} points`,
-    referral: `A friend ordered: you got ${n(row.points)} points`,
-  };
-  return words[row.kind] ?? `${n(row.points)} points`;
-}
+/** One movement on the account, with its sentence already written on the server. */
+export type UpdateRow = {
+  id: string;
+  createdAt: string;
+  /** "You earned 450 points on KBB-2026-000123" — translated by the page. */
+  headline: string;
+};
 
 /**
- * What changed on the account lately, newest first. "New" means since the last visit on this
- * device: it is a reminder, not a record, so it is kept in the browser and the full history
- * stays on the Kebabish Punten card.
+ * What changed on the account lately, newest first. "New" means since the
+ * last visit on this device: it is a reminder, not a record, so the mark is
+ * kept in the browser and the full history lives on the points page.
+ *
+ * The count of new rows can only be known in the browser, so the "N new"
+ * badge is built here from a one-placeholder template rather than a
+ * translator — this component sits outside the locale routing and has no
+ * next-intl provider above it.
  */
-export default function PointsUpdates({ rows }: { rows: LedgerRow[] }) {
+export default function PointsUpdates({
+  rows,
+  title,
+  newTemplate,
+}: {
+  rows: UpdateRow[];
+  title: string;
+  /** Contains `{count}`, e.g. "{count} nieuw". */
+  newTemplate: string;
+}) {
   const [clock, setClock] = useState<{ now: number; seenAt: number } | null>(null);
 
   useEffect(() => {
@@ -59,15 +62,17 @@ export default function PointsUpdates({ rows }: { rows: LedgerRow[] }) {
   const fresh = recent.filter((row) => Date.parse(row.createdAt) > seenAt).length;
 
   return (
-    <Card>
+    <section className="rounded-2xl border border-hairline bg-panel p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
       <div className="flex items-center gap-2.5">
         <Bell size={17} aria-hidden="true" className="text-ember-600" />
-        <h2 className="font-display text-base font-semibold text-heading">Updates</h2>
+        <h2 className="font-display text-base font-semibold text-heading">{title}</h2>
         {fresh > 0 && (
-          <span className="rounded-full bg-ember-600 px-2 py-0.5 text-xs font-semibold text-cream-50">{fresh} new</span>
+          <span className="rounded-full bg-ember-600 px-2 py-0.5 text-xs font-semibold text-cream-50">
+            {newTemplate.replace("{count}", String(fresh))}
+          </span>
         )}
       </div>
-      <ul className="mt-3 space-y-2 text-sm">
+      <ul className="mt-3 space-y-2.5 text-sm">
         {recent.map((row) => (
           <li key={row.id} className="flex items-start gap-2.5">
             <span
@@ -76,10 +81,10 @@ export default function PointsUpdates({ rows }: { rows: LedgerRow[] }) {
                 Date.parse(row.createdAt) > seenAt ? "bg-ember-600" : "bg-hairline"
               }`}
             />
-            <span className="min-w-0 text-body-text">{headline(row)}</span>
+            <span className="min-w-0 text-body-text">{row.headline}</span>
           </li>
         ))}
       </ul>
-    </Card>
+    </section>
   );
 }

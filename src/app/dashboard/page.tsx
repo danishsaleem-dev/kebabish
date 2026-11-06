@@ -1,28 +1,58 @@
-import Image from "next/image";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Clock, FileText, LogOut, MapPin, MessageSquareHeart, Phone, RotateCcw, ShoppingBag, Star } from "lucide-react";
-import { orderAccessToken } from "@/lib/order-token";
-import { listCreditNotesForCustomer } from "@/lib/refunds";
+import Link from "next/link";
+import {
+  ArrowRight,
+  MessageSquareHeart,
+  ReceiptText,
+  ShoppingBag,
+  Star,
+  Truck,
+  Users,
+} from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
-import { signOutAction } from "@/app/logout-action";
-import { listCustomerOrders } from "@/lib/orders";
-import { orderIdsWithFeedback } from "@/lib/feedback/data";
-import { getCustomerProfile } from "@/lib/customers/accounts";
-import AccountPreferences from "@/components/shared/AccountPreferences";
-import CurrentOrders from "@/components/dashboard/CurrentOrders";
-import RewardsCard from "@/components/dashboard/RewardsCard";
-import ReferralCard from "@/components/dashboard/ReferralCard";
-import { getCustomerRewards, pointsByOrder, type CustomerRewards } from "@/lib/rewards";
-import { getReferralCode, referralLink, referralShareText, referralStats, referralTracks } from "@/lib/referrals";
-import PointsUpdates from "@/components/dashboard/PointsUpdates";
-import { earnedPoints } from "@/lib/rewards-math";
-import { ConfirmAccountBanner, PasswordCard, ProfileCard } from "@/components/dashboard/AccountCards";
-import { getCustomerAccountState } from "@/lib/customers/accounts";
 import { formatEuro, fromCents } from "@/lib/money";
-import Card from "@/components/admin/ui/Card";
-import OrderStatusPill from "@/components/admin/OrderStatusPill";
-import type { OrderStatus } from "@/lib/admin/order-types";
+import { orderIdsWithFeedback } from "@/lib/feedback/data";
+import { localizeLineNames, type OrderSummary } from "@/lib/orders";
+import { pointsByOrder } from "@/lib/rewards";
+import { progressToReward, valueOfPoints } from "@/lib/rewards-math";
+import { getReferralCode, referralStats } from "@/lib/referrals";
+import { accountLocale } from "@/lib/account-page";
+import {
+  customerAccount,
+  customerOrders,
+  customerProfile,
+  customerRewards,
+  liveOrders,
+} from "@/lib/account-data";
+import {
+  feedbackHref,
+  formatDeliveryWindow,
+  formatLongDate,
+  formatNumber,
+  invoiceHref,
+  ledgerHeadline,
+  orderCardLines,
+  orderDetailsHref,
+  orderPointsNote,
+  orderStatusPill,
+  reorderHref,
+  wasPaid,
+} from "@/lib/account-view";
+import AutoRefresh from "@/components/cart/AutoRefresh";
+import { ConfirmAccountBanner } from "@/components/dashboard/AccountCards";
+import OrderCard from "@/components/dashboard/OrderCard";
+import OrderTracker, { trackerPosition } from "@/components/dashboard/OrderTracker";
+import PointsHero from "@/components/dashboard/PointsHero";
+import PointsUpdates from "@/components/dashboard/PointsUpdates";
+import QuickActions, { type QuickAction } from "@/components/dashboard/QuickActions";
+import {
+  EmptyState,
+  LinkButton,
+  PageHeading,
+  SectionHeading,
+  StatTile,
+} from "@/components/dashboard/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -31,342 +61,343 @@ function placedRecently(placedAt: string): boolean {
   return Date.now() - Date.parse(placedAt) < 14 * 24 * 60 * 60 * 1000;
 }
 
-/** What one order did to the customer's points, on the order itself. */
-function OrderPointsLine({
-  order,
-  points,
-  rewards,
-}: {
-  order: { status: string; paymentStatus: string; subtotalCents: number; discountCents: number };
-  points?: { earned: number; used: number };
-  rewards: CustomerRewards;
-}) {
-  const coming =
-    order.paymentStatus === "paid" && !["delivered", "cancelled"].includes(order.status)
-      ? earnedPoints(order.subtotalCents, order.discountCents, rewards.config)
-      : 0;
-  const parts = [
-    ...(points && points.used > 0 ? [`${points.used.toLocaleString("en-GB")} points used`] : []),
-    ...(points && points.earned > 0 ? [`+${points.earned.toLocaleString("en-GB")} points`] : []),
-    ...(coming > 0 ? [`+${coming.toLocaleString("en-GB")} points after delivery`] : []),
-  ];
-  if (parts.length === 0) return null;
-  return (
-    <p className="border-b border-hairline px-5 py-2.5 text-xs font-semibold text-ember-700">{parts.join(" · ")}</p>
-  );
+/** Paid and still in flight: the same rule the navigation badge counts. */
+function isLive(order: OrderSummary): boolean {
+  return order.paymentStatus === "paid" && !["delivered", "cancelled"].includes(order.status);
 }
 
-export default async function DashboardPage({
+export default async function AccountOverviewPage({
   searchParams,
 }: {
   searchParams: Promise<{ order?: string }>;
 }) {
   const { order: justPlaced } = await searchParams;
   const session = await auth();
-  // The layout above already redirects an unauthenticated request — this is
-  // a defensive fallback for the rare case this page renders before that
-  // redirect lands, so a null session can't crash the page instead.
+  // The layout already redirects an unauthenticated request; this is a
+  // defensive fallback so a null session can't crash the page instead.
   if (!session?.user) redirect("/login");
   const user = session.user;
-  // Checkouts that were started and never paid (failed, expired, cancelled at
-  // the bank) aren't orders as far as the customer is concerned — hide them
-  // here. Staff still see them in the admin, for troubleshooting.
-  const orders = (await listCustomerOrders(user.id)).filter(
-    (o) => !["failed", "expired", "canceled"].includes(o.paymentStatus)
-  );
-  const profile = await getCustomerProfile(user.id);
-  // No password yet = the account was made when an order was paid and is waiting to be
-  // confirmed from the email (see customers/account-rules.ts).
-  const account = await getCustomerAccountState(user.id);
-  const passwordless = account?.passwordless ?? false;
-  // Kebabish Punten: null when the programme is off or not set up, and then nothing shows.
-  const rewards = await getCustomerRewards(user.id, 30).catch(() => null);
-  const orderPoints = rewards ? await pointsByOrder(user.id).catch(() => new Map()) : new Map();
-  const referral = await (async () => {
-    if (!rewards?.config.referralEnabled) return null;
-    const code = await getReferralCode(user.id);
-    if (!code) return null;
-    const friendAmount = formatEuro(fromCents(rewards.config.referralFriendCents));
-    const link = referralLink(code, "nl");
-    return {
-      code,
-      link,
-      friendAmount,
-      rewardPoints: rewards.config.referralRewardPoints.toLocaleString("en-GB"),
-      // Dutch, like the page the link opens: it is read by the friend.
-      shareText: referralShareText(code, friendAmount, "nl"),
-      stats: await referralStats(user.id),
-      tracks: await referralTracks(user.id),
-    };
-  })().catch(() => null);
 
-  // Feedback: which delivered orders have been rated, and the most recent one
-  // that hasn't (within a fortnight — after that it's too long ago to ask).
-  const delivered = orders.filter((o) => o.status === "delivered");
-  const rated = await orderIdsWithFeedback(delivered.map((o) => o.id));
-  const feedbackHref = (o: (typeof orders)[number]) =>
-    `${o.locale === "en" ? "/en" : ""}/feedback?order=${encodeURIComponent(o.reference)}&t=${orderAccessToken(o.reference)}&src=dashboard`;
-  // "Order again" goes through the public menu, where the basket lives: it reads these
-  // two parameters, puts the order's lines back (at today's prices) and opens the basket.
-  const reorderHref = (o: (typeof orders)[number]) =>
-    `${o.locale === "en" ? "/en" : ""}/menu?reorder=${encodeURIComponent(o.reference)}&t=${orderAccessToken(o.reference)}`;
-  const toRate = delivered.find((o) => !rated.has(o.id) && placedRecently(o.placedAt));
-  const creditNotesByRef = new Map(
-    await Promise.all(
-      orders
-        .filter((o) => o.refundedCents > 0 || o.paymentStatus === "refunded")
-        .map(async (o) => [o.reference, await listCreditNotesForCustomer(o.id)] as const)
-    )
+  const locale = await accountLocale(user.id);
+  const t = await getTranslations({ locale, namespace: "account" });
+  const n = formatNumber(locale);
+  const longDate = formatLongDate(locale);
+
+  const [orders, profile, account, rewards] = await Promise.all([
+    customerOrders(user.id),
+    customerProfile(user.id),
+    customerAccount(user.id),
+    customerRewards(user.id),
+  ]);
+
+  const live = liveOrders(orders);
+  const past = orders.filter((order) => !isLive(order));
+  const delivered = orders.filter((order) => order.status === "delivered");
+  // No password yet = the account was made when an order was paid and is waiting
+  // to be confirmed from the email (see customers/account-rules.ts).
+  const passwordless = account?.passwordless ?? false;
+
+  const orderPoints = rewards ? await pointsByOrder(user.id).catch(() => new Map()) : new Map();
+
+  /** The invite programme, with the amounts already formatted. Null while it's off. */
+  const referral = rewards?.config.referralEnabled
+    ? await (async () => {
+        const code = await getReferralCode(user.id);
+        if (!code) return null;
+        return {
+          friendAmount: formatEuro(fromCents(rewards.config.referralFriendCents)),
+          stats: await referralStats(user.id),
+        };
+      })().catch(() => null)
+    : null;
+
+  // The most recent delivered order that hasn't been rated yet.
+  const rated = await orderIdsWithFeedback(delivered.map((order) => order.id));
+  const toRate = delivered.find((order) => !rated.has(order.id) && placedRecently(order.placedAt));
+
+  // Dish names follow the dashboard's language where an English name exists,
+  // the same way the customer's own receipt and emails do.
+  const liveCards = await Promise.all(
+    live.map(async (order) => ({
+      order,
+      items: (await localizeLineNames(order.lines, locale))
+        .map((line) => `${line.quantity}× ${line.name}`)
+        .join(", "),
+    }))
   );
+
+  const latest = past[0] ?? null;
+  const latestLines = latest ? await localizeLineNames(latest.lines, locale) : [];
+  const progress = rewards ? progressToReward(rewards.available, rewards.config) : null;
+  const worth = rewards ? valueOfPoints(rewards.available, rewards.config) : 0;
+
+  const actions: QuickAction[] = [
+    { key: "menu", href: "/menu", title: t("quickMenu"), note: t("quickMenuNote") },
+    ...(latest && wasPaid(latest)
+      ? [
+          {
+            key: "reorder" as const,
+            href: reorderHref(latest),
+            title: t("quickReorder"),
+            note: t("quickReorderNote"),
+          },
+        ]
+      : []),
+    ...(rewards
+      ? [
+          {
+            key: "rewards" as const,
+            href: "/dashboard/rewards",
+            title: t("quickRewards"),
+            note: t("quickRewardsNote"),
+          },
+        ]
+      : []),
+    ...(referral
+      ? [
+          {
+            key: "invite" as const,
+            href: "/dashboard/rewards#invite",
+            title: t("quickInvite"),
+            note: t("quickInviteNote", { amount: referral.friendAmount }),
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <div className="min-h-screen bg-canvas">
-      <header className="border-b border-hairline bg-panel">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4 sm:px-6">
-          <Image
-            src="/logo/Kebabish-light.png"
-            alt="Kebabish"
-            width={300}
-            height={225}
-            priority
-            className="h-9 w-auto"
-          />
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-muted transition-colors hover:bg-canvas hover:text-danger"
-            >
-              <LogOut size={15} />
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
+    <div className="space-y-6">
+      <PageHeading
+        title={t(orders.length <= 1 && passwordless ? "welcome" : "welcomeBack", {
+          name: profile?.name || user.name || user.email,
+        })}
+        subtitle={t("homeSubtitle")}
+      />
 
-      <main className="mx-auto max-w-3xl space-y-4 px-4 py-8 sm:px-6">
-        <div>
-          <h1 className="font-display text-2xl font-semibold text-heading">
-            {orders.length <= 1 && passwordless ? "Welcome" : "Welcome back"}, {profile?.name || user.name || user.email}
-          </h1>
-          <p className="mt-1 text-sm text-muted">
-            Your Kebabish account.
-          </p>
-        </div>
-
-        {passwordless && <ConfirmAccountBanner email={user.email} />}
-
-        <CurrentOrders orders={orders} highlight={justPlaced} />
-
-        {rewards && <PointsUpdates rows={rewards.history} />}
-        {rewards && <RewardsCard rewards={rewards} />}
-        {referral && (
-          <ReferralCard
-            link={referral.link}
-            code={referral.code}
-            friendAmount={referral.friendAmount}
-            rewardPoints={referral.rewardPoints}
-            shareText={referral.shareText}
-            pending={referral.stats.pending}
-            rewarded={referral.stats.rewarded}
-            pointsEarned={referral.stats.pointsEarned.toLocaleString("en-GB")}
-            tracks={referral.tracks}
-          />
-        )}
-
-        {toRate && (
-          <Card className="border-ember-600/30 bg-ember-600/5">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
-                  <MessageSquareHeart size={20} />
-                </span>
-                <div>
-                  <h2 className="font-display text-base font-semibold text-heading">
-                    How was your order {toRate.reference}?
-                  </h2>
-                  <p className="mt-0.5 text-sm text-muted">
-                    Two minutes, and it tells us what to keep doing and what to fix.
-                  </p>
-                </div>
-              </div>
-              <a
-                href={feedbackHref(toRate)}
-                className="inline-flex items-center gap-2 rounded-lg bg-ember-600 px-4 py-2.5 text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
-              >
-                <Star size={15} />
-                Give feedback
-              </a>
-            </div>
-          </Card>
-        )}
-
-        <ProfileCard
-          name={profile?.name ?? user.name}
-          email={user.email}
-          phone={profile?.phone ?? ""}
+      {passwordless && (
+        <ConfirmAccountBanner
+          locale={locale}
+          title={t("confirmTitle")}
+          text={t("confirmText", { email: user.email })}
+          resend={t("confirmResend")}
         />
+      )}
 
-        {profile && (
-          <AccountPreferences
-            marketingOptIn={profile.marketingOptIn}
-            consentDate={
-              profile.marketingConsentAt
-                ? new Date(profile.marketingConsentAt).toLocaleDateString("en-GB", {
-                    timeZone: "Europe/Amsterdam",
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })
-                : null
+      {/* ------------------------------------------- what is happening now */}
+      {liveCards.length > 0 ? (
+        <div className="space-y-4">
+          {/* The page refreshes itself while an order is in flight, so the
+              tracker keeps up with the kitchen without the customer reloading. */}
+          <AutoRefresh intervalMs={30_000} />
+          {liveCards.map(({ order, items }) => {
+            const at = trackerPosition(order.status);
+            return (
+              <OrderTracker
+                key={order.reference}
+                reference={order.reference}
+                total={formatEuro(fromCents(order.totalCents))}
+                at={at}
+                when={formatDeliveryWindow(locale, order)}
+                items={items}
+                justPlaced={order.reference === justPlaced}
+                detailsHref={orderDetailsHref(order)}
+                labels={{
+                  eyebrow: t("trackerYourOrder"),
+                  justPlaced: t("trackerJustPlaced"),
+                  steps: [
+                    t("stepReceived"),
+                    t("stepPreparing"),
+                    t("stepOnTheWay"),
+                    t("stepDelivered"),
+                  ],
+                  message:
+                    order.status === "scheduled"
+                      ? t("trackerLater")
+                      : at === 0
+                        ? t("trackerReceived")
+                        : at === 1
+                          ? t("trackerPreparing")
+                          : t("trackerOnTheWay"),
+                  details: t("trackerDetails"),
+                }}
+              />
+            );
+          })}
+        </div>
+      ) : (
+        orders.length > 0 && (
+          <EmptyState
+            icon={<Truck size={22} aria-hidden="true" />}
+            title={t("noLiveTitle")}
+            text={t("noLiveText")}
+            action={
+              <LinkButton href="/menu">
+                <ShoppingBag size={15} aria-hidden="true" />
+                {t("orderCta")}
+              </LinkButton>
             }
-            savedAddress={profile.savedAddress}
           />
-        )}
+        )
+      )}
 
-        {!passwordless && <PasswordCard />}
+      {/* ------------------------------------------------------- the points */}
+      {rewards && progress && (
+        <PointsHero
+          label={t("rewardsBalanceLabel")}
+          points={n(rewards.available)}
+          worth={worth > 0 ? t("statPointsWorth", { amount: formatEuro(fromCents(worth)) }) : null}
+          progress={progress.fraction}
+          progressLabel={
+            progress.canRedeem
+              ? t("rewardsCanRedeem")
+              : t("rewardsToGo", {
+                  points: n(progress.toGo),
+                  amount: formatEuro(fromCents(rewards.config.redeemStepCents)),
+                })
+          }
+          linkLabel={t("navRewards")}
+          href="/dashboard/rewards"
+        />
+      )}
 
-        <div>
-          <h2 className="font-display text-lg font-semibold text-heading">
-            Your orders
-          </h2>
-
-          {orders.length === 0 ? (
-            <Card className="mt-3 flex flex-col items-center gap-2 py-12 text-center">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
-                <ShoppingBag size={22} />
-              </span>
-              <h3 className="font-display text-lg font-semibold text-heading">
-                No orders yet
-              </h3>
-              <p className="max-w-sm text-sm text-muted">
-                Once you place an order, it&apos;ll show up here.
-              </p>
-              <Link
-                href="/menu"
-                className="mt-2 inline-flex items-center gap-2 rounded-lg bg-ember-600 px-4 py-2.5 text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
-              >
-                <Phone size={15} />
-                View the menu
-              </Link>
-            </Card>
-          ) : (
-            <div className="mt-3 space-y-3">
-              {orders.map((order) => (
-                <Card key={order.reference} padded={false}>
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline p-5">
-                    <div>
-                      <p className="font-display text-sm font-semibold text-heading">
-                        {order.reference}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted">
-                        {new Date(order.placedAt).toLocaleDateString("en-GB", {
-timeZone: "Europe/Amsterdam",
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3">
-                      {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (
-                        <a
-                          href={reorderHref(order)}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-ember-600 px-2.5 py-1.5 text-xs font-semibold text-cream-50 transition-colors hover:bg-ember-500"
-                        >
-                          <RotateCcw size={13} />
-                          Order again
-                        </a>
-                      )}
-                      {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (
-                        <a
-                          href={`/api/invoice?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}&download=1`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs font-semibold text-heading transition-colors hover:bg-canvas"
-                        >
-                          <FileText size={13} />
-                          Invoice (PDF)
-                        </a>
-                      )}
-                      {order.status === "delivered" &&
-                        (rated.has(order.id) ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-success">
-                            Feedback sent
-                          </span>
-                        ) : (
-                          <a
-                            href={feedbackHref(order)}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-ember-600/40 px-2.5 py-1.5 text-xs font-semibold text-ember-700 transition-colors hover:bg-ember-600/10"
-                          >
-                            <Star size={13} />
-                            Give feedback
-                          </a>
-                        ))}
-                      <OrderStatusPill status={order.status as OrderStatus} />
-                      <p className="font-display text-sm font-semibold text-heading">
-                        {formatEuro(fromCents(order.totalCents))}
-                      </p>
-                    </div>
-                  </div>
-
-                  {(creditNotesByRef.get(order.reference) ?? []).length > 0 && (
-                    <div className="flex flex-wrap gap-2 border-b border-hairline px-5 py-3">
-                      {(creditNotesByRef.get(order.reference) ?? []).map((n) => (
-                        <a
-                          key={n.number}
-                          href={`/api/credit-note?ref=${encodeURIComponent(order.reference)}&t=${orderAccessToken(order.reference)}&n=${encodeURIComponent(n.number)}&download=1`}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-2.5 py-1.5 text-xs font-semibold text-heading transition-colors hover:bg-canvas"
-                        >
-                          <FileText size={13} />
-                          Credit note {n.number} · {formatEuro(fromCents(n.amountCents))}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-
-                  {rewards && <OrderPointsLine order={order} points={orderPoints.get(order.id)} rewards={rewards} />}
-
-                  <ul className="divide-y divide-hairline">
-                    {order.lines.map((line, i) => (
-                      <li
-                        key={i}
-                        className="flex justify-between gap-3 px-5 py-3 text-sm"
-                      >
-                        <span className="text-body-text">
-                          {line.quantity}× {line.name}
-                          {line.options.length > 0 && (
-                            <span className="block text-xs text-faint">
-                              {line.options.map((o) => o.optionLabel).join(", ")}
-                            </span>
-                          )}
-                        </span>
-                        <span className="shrink-0 text-heading">
-                          {formatEuro(fromCents(line.lineTotalCents))}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <div className="border-t border-hairline p-5 text-xs text-muted">
-                    {order.deliveryDate && order.deliverySlotStart && (
-                      <p className="mb-2 flex items-center gap-2">
-                        <Clock size={13} className="shrink-0 text-faint" />
-                        {new Date(`${order.deliveryDate}T00:00:00`).toLocaleDateString(
-                          "en-GB",
-                          { weekday: "long", day: "numeric", month: "long" }
-                        )}
-                        , {order.deliverySlotStart}–{order.deliverySlotEnd}
-                      </p>
-                    )}
-                    <p className="flex items-start gap-2">
-                      <MapPin size={13} className="mt-0.5 shrink-0 text-faint" />
-                      {order.addressStreet}, {order.addressPostcode} {order.addressCity}
-                    </p>
-                  </div>
-                </Card>
-              ))}
-            </div>
+      {orders.length > 0 && (
+        <div className="grid grid-cols-2 gap-3">
+          <StatTile
+            label={t("statOrders")}
+            value={String(orders.length)}
+            note={
+              delivered.length > 0
+                ? t("statOrdersCount", { count: delivered.length })
+                : t("statOrdersEmpty")
+            }
+            icon={<ReceiptText size={13} aria-hidden="true" />}
+          />
+          {referral && (
+            <StatTile
+              label={t("statFriends")}
+              value={String(referral.stats.rewarded + referral.stats.pending)}
+              note={t("statFriendsOrdered", { count: referral.stats.rewarded })}
+              icon={<Users size={13} aria-hidden="true" />}
+            />
           )}
         </div>
-      </main>
+      )}
+
+      {/* ------------------------------------------------- what to do next */}
+      <div className="space-y-3">
+        <SectionHeading title={t("quickTitle")} />
+        <QuickActions actions={actions} />
+      </div>
+
+      {/* --------------------------------------------- how was your order? */}
+      {toRate && (
+        <section className="rounded-2xl border border-ember-600/30 bg-ember-600/5 p-5 sm:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
+                <MessageSquareHeart size={20} aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="font-display text-base font-semibold text-heading">
+                  {t("feedbackTitle", { reference: toRate.reference })}
+                </h2>
+                <p className="mt-0.5 text-sm text-muted">{t("feedbackText")}</p>
+              </div>
+            </div>
+            <LinkButton href={feedbackHref(toRate, "dashboard")}>
+              <Star size={15} aria-hidden="true" />
+              {t("orderFeedback")}
+            </LinkButton>
+          </div>
+        </section>
+      )}
+
+      {/* ------------------------------------------------------ what is new */}
+      {rewards && rewards.history.length > 0 && (
+        <PointsUpdates
+          rows={rewards.history.map((row) => ({
+            id: row.id,
+            createdAt: row.createdAt,
+            headline: ledgerHeadline(row, t, n),
+          }))}
+          title={t("updatesTitle")}
+          // The count is only known in the browser, so the template crosses
+          // the boundary and is filled in there.
+          newTemplate={t.raw("updatesNew") as string}
+        />
+      )}
+
+      {/* -------------------------------------------------- the last order */}
+      {latest ? (
+        <div className="space-y-3">
+          <SectionHeading
+            title={t("lastOrderTitle")}
+            action={
+              <Link
+                href="/dashboard/orders"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-ember-700 hover:text-ember-600"
+              >
+                {t("allOrders")}
+                <ArrowRight size={15} aria-hidden="true" />
+              </Link>
+            }
+          />
+          <OrderCard
+            reference={latest.reference}
+            date={longDate(latest.placedAt)}
+            status={orderStatusPill(latest, t)}
+            total={formatEuro(fromCents(latest.totalCents))}
+            lines={orderCardLines(latestLines)}
+            pointsNote={
+              rewards
+                ? orderPointsNote(
+                    orderPoints.get(latest.id)?.used ?? 0,
+                    orderPoints.get(latest.id)?.earned ?? 0,
+                    // A finished order has nothing more coming.
+                    0,
+                    t,
+                    n
+                  )
+                : null
+            }
+            creditNotes={[]}
+            reorderHref={wasPaid(latest) ? reorderHref(latest) : null}
+            invoiceHref={wasPaid(latest) ? invoiceHref(latest) : null}
+            feedbackHref={
+              latest.status === "delivered" && !rated.has(latest.id)
+                ? feedbackHref(latest, "dashboard")
+                : null
+            }
+            feedbackSent={latest.status === "delivered" && rated.has(latest.id)}
+            when={formatDeliveryWindow(locale, latest)}
+            address={`${latest.addressStreet}, ${latest.addressPostcode} ${latest.addressCity}`}
+            labels={{
+              showItems: t("orderShowItems"),
+              itemCount: t("itemCount", { count: latest.lines.length }),
+              reorder: t("orderReorder"),
+              invoice: t("orderInvoice"),
+              feedback: t("orderFeedback"),
+              feedbackSent: t("orderFeedbackSent"),
+              address: t("orderAddress"),
+              total: t("orderTotal"),
+            }}
+          />
+        </div>
+      ) : (
+        orders.length === 0 && (
+          <EmptyState
+            icon={<ShoppingBag size={22} aria-hidden="true" />}
+            title={t("ordersEmptyTitle")}
+            text={t("ordersEmptyText")}
+            action={
+              <LinkButton href="/menu">
+                <ShoppingBag size={15} aria-hidden="true" />
+                {t("quickMenu")}
+              </LinkButton>
+            }
+          />
+        )
+      )}
     </div>
   );
 }

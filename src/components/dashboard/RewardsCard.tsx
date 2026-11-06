@@ -1,132 +1,124 @@
 import Link from "next/link";
-import { Gift } from "lucide-react";
-import Card from "@/components/admin/ui/Card";
-import { formatEuro, fromCents } from "@/lib/money";
-import { progressToReward, valueOfPoints } from "@/lib/rewards-math";
-import type { CustomerRewards, LedgerRow } from "@/lib/rewards";
+import { Gift, Info } from "lucide-react";
 
-const n = (value: number) => value.toLocaleString("en-GB");
 /** How many movements show before "Show all activity". */
-const RECENT = 5;
+const RECENT = 6;
 
-/** The customer's Kebabish Punten: balance, how close the next reward is, and the last movements. */
-export default function RewardsCard({ rewards }: { rewards: CustomerRewards }) {
-  const { config, available, held, pending, history } = rewards;
-  const progress = progressToReward(available, config);
-  const worth = valueOfPoints(available, config);
+export type HistoryEntry = {
+  id: string;
+  /** What happened, in the customer's words. */
+  label: string;
+  /** Already formatted date. */
+  date: string;
+  /** Signed and formatted, e.g. "+450" or "−200". */
+  points: string;
+  positive: boolean;
+};
 
+/**
+ * The points page below the balance hero: the rules in one line, anything
+ * the customer should know about points on their way, and the full ledger.
+ *
+ * The ledger is the record — a balance is always the sum of these rows,
+ * never a stored number (see lib/rewards.ts) — so showing all of it is the
+ * honest thing to do, folded behind a `<details>` so it isn't a wall.
+ */
+export default function RewardsCard({
+  rate,
+  howItWorks,
+  howItWorksHref,
+  notes,
+  historyTitle,
+  showAll,
+  historyEmpty,
+  history,
+}: {
+  rate: string;
+  howItWorks: string;
+  howItWorksHref: string;
+  /** Welcome points, points pending delivery, points held for an unpaid order. */
+  notes: string[];
+  historyTitle: string;
+  showAll: string;
+  historyEmpty: string;
+  history: HistoryEntry[];
+}) {
   return (
-    <Card>
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
-          <Gift size={20} />
-        </span>
-        <div className="min-w-0 flex-1">
-          <h2 className="font-display text-base font-semibold text-heading">Kebabish Punten</h2>
-          <p className="mt-0.5 text-sm text-muted">
-            {n(config.pointsPerEuro)} points for every €1 of food. {n(config.redeemStepPoints)} points ={" "}
-            {formatEuro(fromCents(config.redeemStepCents))} off your next order.{" "}
-            {/* This dashboard is English, so its link goes to the English page. */}
-            <Link href="/en/rewards" className="font-semibold text-ember-700 underline underline-offset-2">
-              How it works
+    <div className="space-y-4">
+      <section className="rounded-2xl border border-hairline bg-panel p-5 shadow-[0_1px_2px_rgba(16,24,40,0.04)] sm:p-6">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-ember-600/10 text-ember-600">
+            <Gift size={20} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm text-body-text">{rate}</p>
+            <Link
+              href={howItWorksHref}
+              className="mt-1.5 inline-block text-sm font-semibold text-ember-700 underline underline-offset-2 hover:text-ember-600"
+            >
+              {howItWorks}
             </Link>
-          </p>
+          </div>
         </div>
-        <div className="shrink-0 text-right">
-          <p className="font-display text-2xl font-semibold tabular-nums text-heading">{n(available)}</p>
-          <p className="text-xs text-muted">
-            {worth > 0 ? `worth ${formatEuro(fromCents(worth))}` : "points"}
-          </p>
-        </div>
-      </div>
 
-      <div className="mt-4">
-        <div
-          className="h-2 overflow-hidden rounded-full bg-hairline"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={config.redeemStepPoints}
-          aria-valuenow={Math.min(available, config.redeemStepPoints)}
-          aria-label="Progress to your next reward"
-        >
-          <div
-            className="h-full rounded-full bg-ember-600"
-            style={{ width: `${Math.round(progress.fraction * 100)}%` }}
-          />
-        </div>
-        <p className="mt-2 text-sm text-body-text">
-          {progress.canRedeem ? (
-            <>
-              You can use your points at checkout.{" "}
-              <Link href="/menu" className="font-semibold text-ember-700 underline underline-offset-2">
-                Order now
-              </Link>
-            </>
-          ) : (
-            <>
-              {n(progress.toGo)} more points for {formatEuro(fromCents(config.redeemStepCents))} off.
-            </>
-          )}
-        </p>
-        {config.welcomePoints > 0 && !history.some((row) => row.kind === "welcome") && (
-          <p className="mt-1 text-xs text-muted">
-            Your first delivered order adds {n(config.welcomePoints)} welcome points.
-          </p>
-        )}
-        {pending > 0 && (
-          <p className="mt-1 text-xs text-muted">
-            +{n(pending)} points on the way once your open orders are delivered.
-          </p>
-        )}
-        {held > 0 && (
-          <p className="mt-1 text-xs text-muted">{n(held)} points are set aside for an order still waiting for payment.</p>
-        )}
-      </div>
-
-      {history.length > 0 && (
-        <>
-          <ul className="mt-4 divide-y divide-hairline border-t border-hairline text-sm">
-            {history.slice(0, RECENT).map((row) => (
-              <HistoryRow key={row.id} row={row} />
+        {notes.length > 0 && (
+          <ul className="mt-4 space-y-2 border-t border-hairline pt-4">
+            {notes.map((note) => (
+              <li key={note} className="flex items-start gap-2 text-xs text-muted">
+                <Info size={13} aria-hidden="true" className="mt-0.5 shrink-0 text-faint" />
+                {note}
+              </li>
             ))}
           </ul>
-          {history.length > RECENT && (
-            <details className="group">
-              <summary className="cursor-pointer list-none py-2 text-sm font-semibold text-ember-700 marker:content-none group-open:hidden">
-                Show all activity
-              </summary>
-              <ul className="divide-y divide-hairline border-t border-hairline text-sm">
-                {history.slice(RECENT).map((row) => (
-                  <HistoryRow key={row.id} row={row} />
-                ))}
-              </ul>
-            </details>
-          )}
-        </>
-      )}
-    </Card>
+        )}
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-hairline bg-panel shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
+        <h2 className="border-b border-hairline px-5 py-4 font-display text-base font-semibold text-heading sm:px-6">
+          {historyTitle}
+        </h2>
+
+        {history.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-muted sm:px-6">{historyEmpty}</p>
+        ) : (
+          <>
+            <ul className="divide-y divide-hairline">
+              {history.slice(0, RECENT).map((row) => (
+                <HistoryRow key={row.id} row={row} />
+              ))}
+            </ul>
+            {history.length > RECENT && (
+              <details className="group border-t border-hairline">
+                <summary className="cursor-pointer list-none px-5 py-3 text-sm font-semibold text-ember-700 marker:content-none hover:bg-canvas group-open:hidden sm:px-6">
+                  {showAll}
+                </summary>
+                <ul className="divide-y divide-hairline">
+                  {history.slice(RECENT).map((row) => (
+                    <HistoryRow key={row.id} row={row} />
+                  ))}
+                </ul>
+              </details>
+            )}
+          </>
+        )}
+      </section>
+    </div>
   );
 }
 
-function HistoryRow({ row }: { row: LedgerRow }) {
+function HistoryRow({ row }: { row: HistoryEntry }) {
   return (
-    <li className="flex items-baseline justify-between gap-3 py-2">
+    <li className="flex items-baseline justify-between gap-3 px-5 py-3 sm:px-6">
       <span className="min-w-0">
-        <span className="block truncate text-body-text">{row.note || row.kind}</span>
-        <span className="block text-xs text-faint">
-          {new Date(row.createdAt).toLocaleDateString("en-GB", {
-            timeZone: "Europe/Amsterdam",
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-          })}
-        </span>
+        <span className="block truncate text-sm text-body-text">{row.label}</span>
+        <span className="block text-xs text-faint">{row.date}</span>
       </span>
       <span
-        className={`shrink-0 font-semibold tabular-nums ${row.points > 0 ? "text-success" : "text-heading"}`}
+        className={`shrink-0 font-display text-sm font-semibold tabular-nums ${
+          row.positive ? "text-success" : "text-heading"
+        }`}
       >
-        {row.points > 0 ? "+" : "−"}
-        {n(Math.abs(row.points))}
+        {row.points}
       </span>
     </li>
   );

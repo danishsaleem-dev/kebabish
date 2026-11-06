@@ -567,8 +567,8 @@ welcome points with the first rewarded order.
   (`statusPointsNote`, called inside `sendOrderStatusEmail`, so every path gets it); a short email when staff change points or a referral
   pays out (`email/rewards.ts`, language = their latest order's). Wording is pure and tested in `rewards-copy.ts`. These describe the
   customer's own points, so they go out regardless of marketing consent; they must never carry offers.
-- **Account:** `/dashboard` has `RewardsCard` (balance, progress, history with "Show all activity"), `ReferralCard`, and a points line on
-  each order. The dashboard is English-only like the rest of it.
+- **Account:** the points live on their own page now, `/dashboard/rewards` — balance hero, the rules, the full ledger and `ReferralCard`,
+  plus a points line on each order under `/dashboard/orders`. See "The customer dashboard" below; it is Dutch **and** English.
 - **Not built:** expiry (the FAQ says points don't expire "at the moment"), free items as rewards, marketing emails ("almost there",
   win-back), and points wording in Terms/Privacy (needs Danish's approval). **Not yet run against a real database:** try one order and
   one refund after 0029, and one referral after 0030. Checked in the browser with a local store: `/rewards` at desktop and 375px in nl/en,
@@ -620,6 +620,68 @@ No migration. Everything below reads the live rules and disappears while rewards
   **Not seen (needs a signed-in customer with data):** `PointsUpdates`, the friend tracker, the confirmation share card, the signed-in link in the `/referral` hero.
 - **Menu links:** `Header` shows Rewards and Invite a friend (`nav.rewards` / `nav.referral`) only while each page exists, like the footer. Seven links don't fit at tablet width, so while they show the bar turns into the menu button at `lg` (1024px) instead of `md`. A 404 on `/referral` means referrals are switched off in /admin/rewards, not that the page is broken.
 - **Next:** Google, Facebook and Apple sign-in. Not started: no buttons exist yet.
+
+### The customer dashboard: four pages, bottom bar on phones (Nov 2026)
+
+No migration. `/dashboard` was one 372-line page that stacked everything — live order, points, referral,
+feedback prompt, profile, email preference, saved address, password and the whole order history — down a
+single column. Danish asked for it to be split up and modernised, phone first. It is now **four pages
+behind one shell**, and it is **Dutch and English** (it used to be English only).
+
+- **The pages**, each its own `page.tsx` under `src/app/dashboard/`: **`/dashboard`** (overview — live order
+  tracker, points balance, two figures, quick actions, the feedback prompt, what's new, the last order),
+  **`/orders`** (live trackers then the full history), **`/rewards`** (balance, the rules, the full ledger,
+  invite a friend) and **`/account`** (details, emails, saved address, password, language, sign out).
+- **The chrome is the layout's**, not each page's: `AccountShell` draws a **sidebar from `lg` up and a fixed
+  bottom bar below it** (`AccountNav.tsx` — the two lists are the only client components, since the active
+  item needs the path). Same breakpoint and same shape as `/admin`, so there is one mental model for every
+  signed-in screen. The bottom bar is 4 items with `env(safe-area-inset-bottom)` padding, and `<main>`
+  carries the matching `pb-*` or the last card hides under it.
+- **The Rewards tab only exists while the points programme does.** `customerRewards()` returning null hides
+  the tab *and* `/dashboard/rewards` redirects to the overview — a bookmark never lands on an empty screen.
+  The Orders tab carries a badge with the number of live orders.
+- **Language, and why it is a cookie.** `accountLocale()` (`src/lib/account-page.ts`): the cookie the
+  Account page's NL/EN switch writes, else **the language of the customer's latest order** (the same
+  fallback the customer emails use — accounts store no language), else Dutch. Deliberately **not** `?lang=`
+  or the referrer the way `/login` does it: the layout renders the navigation and can read neither a page's
+  search params nor a referrer that stays stable across the four pages, so either would have the chrome and
+  the page disagreeing, or the language flipping on the second click. The switch is a server action
+  (`language-action.ts`) because a cookie can only be written from an action, and its `back` is validated
+  against `/dashboard…` so a crafted value can't bounce the customer off-site.
+- **Copy is the `account` namespace** in `messages/*.json` (161 keys), **not** in the editable-content
+  registry — same call as `auth`. There is no next-intl provider over this tree, so **every client component
+  takes its strings as props** and each form posts a hidden `locale` that tells the server actions which
+  language to answer in (the trick `signupAction` already used). Two strings cross the boundary as
+  templates with `{count}` / `{number}` in them, because the value is only known in the browser.
+- **`npx tsx scripts/check-account-copy.mts` (1932 checks) guards this copy** and should be run after
+  touching the dashboard or the namespace. `check-content.mts` does **not** cover it — it only knows the
+  registry — and a missing key here does not degrade, it *throws* while the page renders and the customer
+  gets the error page. That is not hypothetical: `ordersEmptyCta` was missing and only turned up by opening
+  the page. The script checks every `t("…")` resolves in both files, that the two files hold the same keys,
+  that nothing is defined and unused, that every value is valid ICU in its own locale with the same
+  placeholders in both, and that no string names Marfah.
+- **All formatting happens on the server**, in `src/lib/account-view.ts` — euros, Amsterdam dates, points,
+  the ledger sentences, the status pill, every href — so the components under `components/dashboard/` are
+  presentational and hold no locale logic. `src/lib/account-data.ts` wraps the reads in React's `cache`, so
+  the layout (which needs the name and the live-order count) and the page share one query each.
+- **Dish names follow the dashboard's language** via `localizeLineNames`, as the customer's own receipt and
+  emails already did; the old dashboard showed the kitchen's Dutch names on `/en`.
+- **A past order's dishes are folded behind a native `<details>`** — someone scanning their history wants
+  the date, the total and a way to reorder, not twelve lines of extras — so it works with no JavaScript and
+  the dish names stay in the HTML.
+- `components/shared/AccountPreferences.tsx` **moved to `components/dashboard/`**: it had always imported
+  the dashboard's own server actions, so "shared" was never true. `CurrentOrders.tsx` was replaced by
+  `OrderTracker.tsx`.
+- **Checked in the browser** (desktop and 375px, nl and en) through a throwaway preview route rendering the
+  real components with made-up data, since this machine has no customer sign-in — overview, orders, points,
+  the invite card, both empty states, the language switch, the bottom bar and its badge, no horizontal
+  overflow at 375px, no console errors. Then on the **real** route: `/dashboard/rewards` signed out
+  redirects to `/login`, so the new nested paths are covered by the guard and by `proxy.ts`'s matcher
+  exclusion. The preview route was deleted afterwards. **Not seen with real data** (needs a signed-in
+  customer): the account forms saving, the resend-setup banner, the language cookie round-trip, and a real
+  live order moving through the tracker — worth one pass each next time there is a test account.
+- **Not built:** an order-detail page inside the dashboard (an order still links out to
+  `/checkout/complete?ref=…`), re-ordering a single dish from the history, and a notifications page.
 
 ### Customer feedback (migration `0018_feedback.sql`)
 
@@ -2176,8 +2238,7 @@ gate off (`SITE_COMING_SOON=false` in Vercel, redeploy):
    Console; the canonical host is **www** (the apex 308-redirects to it).
 
 Known and accepted: no login/checkout rate limiting, no error monitoring, no 2FA,
-partial refunds/credit notes and marketing *sending* not built, login/signup pages
-English-only. Root SPF lists only Hostinger; Resend authenticates by DKIM + its
+and marketing *sending* not built. Root SPF lists only Hostinger; Resend authenticates by DKIM + its
 own return-path subdomain, so mail from info@ works, but anything sent from
 Google Workspace as info@ would fail SPF (DMARC is `p=none`).
 
