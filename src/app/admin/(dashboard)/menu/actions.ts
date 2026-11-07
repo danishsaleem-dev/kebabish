@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { OWNER_STAFF, OWNER_STAFF_MANAGER, requireRole } from "@/lib/admin/guard";
-import { PAIRS_LIMIT } from "@/lib/admin/store/types";
+import { PAIRS_LIMIT, type StoredItem } from "@/lib/admin/store/types";
 import {
   createAllergen,
   createCategory,
@@ -18,6 +18,7 @@ import {
   deleteOptionGroup,
   deleteRecipe,
   getItem,
+  listCategories,
   moveCategory,
   moveItem,
   listItems,
@@ -27,6 +28,7 @@ import {
   updateCategory,
   updateIngredient,
   updateItem,
+  updateItems,
   updateOptionGroup,
 } from "@/lib/admin/store";
 import type { IngredientGroup } from "@/lib/admin/ingredients";
@@ -457,6 +459,170 @@ export async function setStockAction(formData: FormData): Promise<void> {
     lowThreshold: current?.lowThreshold ?? DEFAULT_LOW_THRESHOLD,
   });
   refreshMenu();
+}
+
+/* ------------------------------------------------- quick edit & bulk edit */
+
+/**
+ * The fields the items table can change without opening a dish: WooCommerce's "Quick edit",
+ * plus the same set applied to a selection ("Bulk edit"). Everything else — photos, recipe,
+ * extras, allergens, description — still needs the full editor, deliberately: those are
+ * decisions, not switches.
+ */
+const STATUS_FIELDS = ["visible", "soldOut", "isNew", "chefsPick", "featured", "vegetarian"] as const;
+type StatusField = (typeof STATUS_FIELDS)[number];
+
+const quickSchema = z.object({
+  name: z.string().trim().min(2, "Give the dish a name."),
+  categoryId: z.string().trim().min(1, "Pick a category."),
+  price: z
+    .union([
+      z.literal(""),
+      z.coerce
+        .number()
+        .min(0, "Price can't be negative.")
+        .refine(
+          (v) => v === 0 || v >= MIN_DISH_PRICE,
+          `Prices under €${MIN_DISH_PRICE.toFixed(2)} aren't sold — leave it empty until you have the real price.`
+        ),
+    ])
+    .transform((v) => (v === "" ? null : Number(v))),
+  tags: z
+    .string()
+    .default("")
+    .transform((v) => v.split(",").map((s) => s.trim()).filter(Boolean)),
+});
+
+/** A category has to exist before a dish can be moved into it. */
+async function unknownCategory(id: string): Promise<boolean> {
+  return !(await listCategories()).some((c) => c.id === id);
+}
+
+/**
+ * One row's inline edit. Only the fields on that little form are touched — the dish keeps its
+ * photos, recipe, extras and everything else, because `updateItem` assigns just the keys given.
+ */
+export async function quickUpdateItemAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  await requireRole(OWNER_STAFF_MANAGER);
+
+  const slug = String(formData.get("slug") ?? "");
+  const item = await getItem(slug);
+  if (!item) return { ok: false, message: "That dish no longer exists — reload the page." };
+
+  const parsed = quickSchema.safeParse({
+    name: formData.get("name"),
+    categoryId: formData.get("categoryId"),
+    price: formData.get("price") ?? "",
+    tags: formData.get("tags") ?? "",
+  });
+  if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
+
+  if (await unknownCategory(parsed.data.categoryId)) {
+    return { ok: false, errors: { categoryId: "That category no longer exists." } };
+  }
+
+  const status = Object.fromEntries(
+    STATUS_FIELDS.map((field) => [field, formData.get(field) === "on"])
+  ) as Record<StatusField, boolean>;
+
+  // Same cap as the full editor: the homepage only has room for FEATURED_LIMIT.
+  const limit = await featuredLimitError(status.featured, slug);
+  if (limit) return { ok: false, errors: limit };
+
+  await updateItem(slug, {
+    ...parsed.data,
+    ...status,
+    // `spicy` is kept in step with the spice level everywhere else; quick edit never
+    // touches either, so it is left exactly as it was.
+  });
+  refreshMenu();
+  return { ok: true, message: `“${parsed.data.name}” saved.` };
+}
+
+/**
+ * Bulk edit. Every field defaults to "leave as it is": a status is a three-way choice
+ * ("" = no change, "on", "off") rather than a checkbox, because an unticked checkbox and
+ * "don't touch this" look identical in a form and would silently clear a flag on every dish
+ * in the selection.
+ */
+const BULK_TAG_MODES = ["add", "remove", "replace"] as const;
+
+export async function bulkUpdateItemsAction(
+  _prev: FormState,
+  formData: FormData
+): Promise<FormState> {
+  await requireRole(OWNER_STAFF_MANAGER);
+
+  const slugs = [...new Set(formData.getAll("slugs").map(String).filter(Boolean))];
+  if (slugs.length === 0) return { ok: false, message: "Nothing was selected." };
+
+  const items = await listItems();
+  const known = new Set(items.map((i) => i.slug));
+  const targets = slugs.filter((s) => known.has(s));
+  if (targets.length === 0) {
+    return { ok: false, message: "Those dishes no longer exist — reload the page." };
+  }
+
+  // ---- category
+  const categoryId = String(formData.get("categoryId") ?? "").trim();
+  if (categoryId && (await unknownCategory(categoryId))) {
+    return { ok: false, errors: { categoryId: "That category no longer exists." } };
+  }
+
+  // ---- status, three-way per field
+  const status: Partial<Record<StatusField, boolean>> = {};
+  for (const field of STATUS_FIELDS) {
+    const raw = String(formData.get(field) ?? "");
+    if (raw === "on" || raw === "off") status[field] = raw === "on";
+  }
+
+  // Featured is capped, so switching it on for a selection is checked against the dishes
+  // *outside* that selection — otherwise ticking it for ten dishes would quietly blow the limit.
+  if (status.featured === true) {
+    const others = items.filter((i) => i.featured && !targets.includes(i.slug)).length;
+    if (others + targets.length > FEATURED_LIMIT) {
+      return {
+        ok: false,
+        errors: {
+          featured: `Only ${FEATURED_LIMIT} dishes can be featured, and ${others} already are. Pick at most ${Math.max(FEATURED_LIMIT - others, 0)}.`,
+        },
+      };
+    }
+  }
+
+  // ---- tags: add to, remove from, or replace each dish's own list
+  const rawMode = String(formData.get("tagMode") ?? "");
+  const tagMode = BULK_TAG_MODES.find((m) => m === rawMode);
+  const tagList = String(formData.get("tags") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const changesTags = Boolean(tagMode) && (tagMode !== "replace" ? tagList.length > 0 : true);
+
+  if (!categoryId && Object.keys(status).length === 0 && !changesTags) {
+    return { ok: false, message: "Nothing to change — pick at least one field." };
+  }
+
+  const changed = await updateItems(targets, (item) => {
+    const patch: Partial<StoredItem> = { ...status };
+    if (categoryId) patch.categoryId = categoryId;
+    if (changesTags) {
+      const current = item.tags ?? [];
+      if (tagMode === "replace") patch.tags = [...new Set(tagList)];
+      else if (tagMode === "add") patch.tags = [...new Set([...current, ...tagList])];
+      else patch.tags = current.filter((t) => !tagList.includes(t));
+    }
+    return patch;
+  });
+
+  refreshMenu();
+  return {
+    ok: true,
+    message: `${changed} ${changed === 1 ? "dish" : "dishes"} updated.`,
+  };
 }
 
 /* --------------------------------------------------------------- ingredients */

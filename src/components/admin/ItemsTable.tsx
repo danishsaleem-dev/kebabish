@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowDown,
@@ -12,6 +12,7 @@ import {
   Leaf,
   Pencil,
   Search,
+  SlidersHorizontal,
   Star,
 } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
@@ -25,6 +26,8 @@ import {
 } from "@/app/admin/(dashboard)/menu/actions";
 import type { StoredCategory, StoredItem } from "@/lib/admin/store/types";
 import StockCell from "@/components/admin/StockCell";
+import QuickEditRow from "@/components/admin/QuickEditRow";
+import BulkEditPanel from "@/components/admin/BulkEditPanel";
 import { stockLevel, type StockEntry } from "@/lib/stock-status";
 
 export interface ItemRow {
@@ -61,6 +64,11 @@ export default function ItemsTable({
   const [sort, setSort] = useState<SortKey>("order");
   const [desc, setDesc] = useState(false);
   const [stockFilter, setStockFilter] = useState<"all" | "attention">("all");
+  // Which row is folded open for quick edit (one at a time, like WooCommerce), and which
+  // rows are ticked for a bulk edit. Both are slugs.
+  const [quickEditing, setQuickEditing] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   // Position in the store's array = position on the public menu, within a
   // category. First/last per category decides which arrows are live.
@@ -133,6 +141,20 @@ export default function ItemsTable({
     }
   };
 
+  // Ticking only ever covers what is on screen: "select all" on a filtered list that quietly
+  // included the dishes the filter hid is how a bulk edit goes wrong.
+  const visibleSlugs = filtered.map((r) => r.item.slug);
+  const chosen = selected.filter((slug) => visibleSlugs.includes(slug));
+  const allShown = visibleSlugs.length > 0 && chosen.length === visibleSlugs.length;
+  const toggleRow = (slug: string) =>
+    setSelected((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
+  const clearSelection = () => {
+    setSelected([]);
+    setBulkOpen(false);
+  };
+  /** Columns in the table — the quick-edit form spans all of them. */
+  const COLUMNS = 9;
+
   return (
     <Card padded={false}>
       <div className="flex flex-wrap items-center justify-between gap-3 p-5 sm:p-6">
@@ -193,10 +215,48 @@ export default function ItemsTable({
         </div>
       </div>
 
+      {chosen.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 border-t border-hairline bg-ember-600/5 px-5 py-3 sm:px-6">
+          <p className="text-sm font-semibold text-heading">
+            {chosen.length} selected
+          </p>
+          <button
+            type="button"
+            onClick={() => setBulkOpen((open) => !open)}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-ember-600 px-3.5 py-2 text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-500"
+          >
+            <SlidersHorizontal size={14} />
+            {bulkOpen ? "Hide bulk edit" : "Bulk edit"}
+          </button>
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="text-sm font-semibold text-muted transition-colors hover:text-heading"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+
+      {chosen.length > 0 && bulkOpen && (
+        <BulkEditPanel slugs={chosen} categories={categories} onDone={clearSelection} />
+      )}
+
       <div className="overflow-x-auto border-t border-hairline">
-        <table className="w-full min-w-[960px] border-collapse text-left">
+        <table className="w-full min-w-[1040px] border-collapse text-left">
           <thead>
             <tr className="bg-canvas/60">
+              <th scope="col" className="w-12 px-4 py-3">
+                <input
+                  type="checkbox"
+                  checked={allShown}
+                  onChange={() =>
+                    setSelected(allShown ? [] : [...new Set([...selected, ...visibleSlugs])])
+                  }
+                  aria-label={allShown ? "Clear selection" : "Select every dish shown"}
+                  className="h-4 w-4 rounded border-hairline accent-ember-600"
+                />
+              </th>
               <Th sortKey="order" {...{ sort, desc, toggleSort }}>
                 Menu order
               </Th>
@@ -218,17 +278,28 @@ export default function ItemsTable({
               <th className="px-4 py-3 text-xs font-semibold text-muted">
                 On website
               </th>
-              <th className="w-24 px-4 py-3" />
+              <th className="w-44 px-4 py-3" />
             </tr>
           </thead>
 
           <tbody className="divide-y divide-hairline">
             {filtered.map(({ item, categoryLabel, costPerPortion, stock }) => (
+              <Fragment key={item.slug}>
               <tr
-                key={item.slug}
                 onClick={() => router.push(`/admin/menu/items/${item.slug}/edit`)}
-                className="cursor-pointer transition-colors hover:bg-canvas/60"
+                className={`cursor-pointer transition-colors hover:bg-canvas/60 ${
+                  chosen.includes(item.slug) ? "bg-ember-600/5" : ""
+                }`}
               >
+                <td className="w-12 px-4 py-4" onClick={(ev) => ev.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={chosen.includes(item.slug)}
+                    onChange={() => toggleRow(item.slug)}
+                    aria-label={`Select ${item.name}`}
+                    className="h-4 w-4 rounded border-hairline accent-ember-600"
+                  />
+                </td>
                 <td
                   className="w-24 px-4 py-4"
                   onClick={(ev) => ev.stopPropagation()}
@@ -349,9 +420,23 @@ export default function ItemsTable({
                   onClick={(ev) => ev.stopPropagation()}
                 >
                   <div className="flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setQuickEditing((open) => (open === item.slug ? null : item.slug))
+                      }
+                      aria-expanded={quickEditing === item.slug}
+                      className={`whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                        quickEditing === item.slug
+                          ? "bg-ember-600 text-cream-50"
+                          : "text-muted hover:bg-canvas hover:text-heading"
+                      }`}
+                    >
+                      Quick edit
+                    </button>
                     <a
                       href={`/admin/menu/items/${item.slug}/edit`}
-                      aria-label={`Edit ${item.name}`}
+                      aria-label={`Open the full editor for ${item.name}`}
                       className="flex h-9 w-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-heading"
                     >
                       <Pencil size={15} />
@@ -365,6 +450,16 @@ export default function ItemsTable({
                   </div>
                 </td>
               </tr>
+
+              {quickEditing === item.slug && (
+                <QuickEditRow
+                  item={item}
+                  categories={categories}
+                  columns={COLUMNS}
+                  onDone={() => setQuickEditing(null)}
+                />
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

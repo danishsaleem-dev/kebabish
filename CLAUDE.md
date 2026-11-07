@@ -2417,6 +2417,51 @@ message.
 store flagged `statutory: true` — renameable but not deletable. Danish can add
 his own at `/admin/menu/allergens`.
 
+### Quick edit and bulk edit in the items table (Nov 2026)
+
+No migration. Danish asked for WooCommerce's two list-screen shortcuts on `/admin/menu`, with
+**status as the thing he actually wants to change** — plus categories and tags.
+
+- **Quick edit** (`components/admin/QuickEditRow.tsx`, `quickUpdateItemAction`): the row folds
+  open into a small form — name, category, price, tags, and the six status switches (*Show on
+  website, Sold out, New badge, Chef's pick, Featured, Vegetarian*) — and saves without leaving
+  the list. One row at a time, like WooCommerce. It sends **only those fields**, and `updateItem`
+  assigns only the keys it is given, so photos, recipe, extras, allergens and description are
+  untouched. Anything that is a decision rather than a switch stays in the full editor, which the
+  form links to.
+- **Bulk edit** (`components/admin/BulkEditPanel.tsx`, `bulkUpdateItemsAction`): tick rows, then
+  change one thing across all of them.
+  - **Every field means "leave it alone" until you say otherwise.** The statuses are **three-way
+    selects** (No change / Yes / No), not checkboxes: an unticked checkbox and "don't touch this"
+    are indistinguishable in a submitted form, so checkboxes would silently clear a flag on every
+    dish in the selection. The server applies the same rule — it only reads `"on"` / `"off"`.
+  - **Tags** are add / remove / replace against each dish's own list (replace with an empty box
+    clears them, and the hint says so). **Category** moves the selection.
+  - **Select-all only ever covers what the filters are showing** (`chosen` is `selected` ∩ the
+    filtered rows). Ticking rows, then filtering, then applying must not touch dishes that are no
+    longer on screen.
+  - **`FEATURED_LIMIT` is enforced for a selection**: featured dishes *outside* the selection plus
+    the selection size must not exceed it, so ticking "Featured: Yes" on ten dishes is refused with
+    the number that would fit, rather than quietly blowing the cap.
+- **A bulk edit is one document write** — `updateItems` in `store/index.ts`, a single `mutate`.
+  This matters: the store is read and written **whole**, so `updateItem` in a loop is N
+  read-modify-write cycles and anything saved between the first read and the last write is
+  overwritten. It takes a per-dish patch function rather than one object because tags are merged
+  against each dish's existing list.
+- **Deliberately not offered in bulk:** price (bulk money changes are the easiest way to do real
+  damage, and he didn't ask) and delete (there is no undo — the row's own delete button stays).
+- Both actions are `requireRole(OWNER_STAFF_MANAGER)`, like the other dish actions, and both call
+  `refreshMenu()` so the public menu revalidates too.
+- **Checked in the browser** through a throwaway preview route (deleted afterwards), since /admin
+  needs a sign-in this machine doesn't have: the row folding open with the dish's real values,
+  the selection bar and highlight, the panel's defaults, the tags input enabling only once a mode
+  is picked and the replace hint warning about clearing, select-all respecting a category filter
+  (2 of 5), and the posted `FormData` — only ticked boxes appear as `on`, an unticked one is
+  absent, which is what the action reads as false. The "Quick edit" label is `whitespace-nowrap`
+  in a `w-44` column after Danish saw it wrap to two lines.
+  **Not exercised** (needs a sign-in): an actual save through either action, so try one quick edit
+  and one bulk edit on a couple of dishes first.
+
 ### The menu editor — one page per dish, WordPress-style
 
 `/admin/menu/items/new` and `/admin/menu/items/[slug]/edit` are now the

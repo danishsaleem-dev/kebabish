@@ -198,6 +198,33 @@ export async function updateItem(
 }
 
 /**
+ * Apply a change to several dishes in **one** document write — what the items table's bulk
+ * edit uses.
+ *
+ * It has to be one write: the store is read and written whole (see the adapters), so calling
+ * `updateItem` in a loop is N read-modify-write cycles, and anything saved between the first
+ * read and the last write is silently overwritten. One `mutate` reads once and writes once.
+ *
+ * `patch` is given per dish rather than as one object, because tags are edited by adding to
+ * or removing from each dish's own list. Returns how many dishes it actually touched.
+ */
+export async function updateItems(
+  slugs: string[],
+  patch: (item: StoredItem) => Partial<Omit<StoredItem, "slug">>
+) {
+  const wanted = new Set(slugs);
+  return mutate((data) => {
+    let changed = 0;
+    for (const item of data.items) {
+      if (!wanted.has(item.slug)) continue;
+      Object.assign(item, patch(item));
+      changed += 1;
+    }
+    return changed;
+  });
+}
+
+/**
  * Move a dish one step up or down *within its category*. The public menu
  * shows dishes in array order, so reordering is just swapping with the
  * nearest neighbour that shares the category — no separate position field
