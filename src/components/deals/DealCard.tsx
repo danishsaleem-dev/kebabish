@@ -12,10 +12,15 @@ export interface DealCardLabels {
   soldOut: string;
 }
 
-/** The deal's photo, or the photos of what's inside it side by side. */
+/**
+ * The deal's photo: **one** picture filling the frame — the owner's upload when there is
+ * one, else a photo of a dish inside it (see `images` in lib/public-deals.ts). It used to
+ * tile up to three side by side, which read as a collage of unrelated plates rather than a
+ * picture of the deal, and ignored the photo the owner had uploaded for it.
+ */
 export function DealPhoto({ deal, sizes, priority = false }: { deal: PublicDeal; sizes: string; priority?: boolean }) {
-  const photos = deal.images.slice(0, 3);
-  if (photos.length === 0) {
+  const photo = deal.images[0];
+  if (!photo) {
     return (
       <span className="flex h-full w-full items-center justify-center bg-charcoal-700">
         <BrandLogo src="/logo/kebabish-dark.png" alt="" width={200} height={150} className="h-auto w-24 opacity-50" />
@@ -23,19 +28,15 @@ export function DealPhoto({ deal, sizes, priority = false }: { deal: PublicDeal;
     );
   }
   return (
-    <span className="flex h-full w-full gap-0.5">
-      {photos.map((src, i) => (
-        <span key={src} className="relative h-full min-w-0 flex-1 overflow-hidden">
-          <Image
-            src={src}
-            alt={i === 0 ? deal.name : ""}
-            fill
-            sizes={sizes}
-            priority={priority && i === 0}
-            className="object-cover transition-transform duration-700 ease-brand group-hover:scale-105"
-          />
-        </span>
-      ))}
+    <span className="relative block h-full w-full overflow-hidden">
+      <Image
+        src={photo}
+        alt={deal.name}
+        fill
+        sizes={sizes}
+        priority={priority}
+        className="object-cover transition-transform duration-700 ease-brand group-hover:scale-105"
+      />
     </span>
   );
 }

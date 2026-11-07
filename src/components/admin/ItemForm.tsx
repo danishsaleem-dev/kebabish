@@ -136,7 +136,11 @@ export default function ItemForm({
                 />
               </Field>
 
-              <Field label="Price (€)" error={e.price} hint='Leave empty to show "price on request".'>
+              <Field
+                label="Price (€)"
+                error={e.price}
+                hint='What the customer pays. Leave empty to show "price on request".'
+              >
                 <Input
                   name="price"
                   type="number"
@@ -145,6 +149,22 @@ export default function ItemForm({
                   defaultValue={item?.price ?? ""}
                   placeholder="12.50"
                   invalid={Boolean(e.price)}
+                />
+              </Field>
+
+              <Field
+                label="Old price (€) — optional"
+                error={e.compareAtPrice}
+                hint="For a discount: the higher price it used to be. It shows crossed out next to the new one, with the % off. Leave empty for no discount."
+              >
+                <Input
+                  name="compareAtPrice"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  defaultValue={item?.compareAtPrice ?? ""}
+                  placeholder="15.00"
+                  invalid={Boolean(e.compareAtPrice)}
                 />
               </Field>
 
@@ -433,6 +453,16 @@ export default function ItemForm({
               label="Vegetarian"
               defaultChecked={item?.vegetarian}
             />
+            <Checkbox
+              name="isNew"
+              form="item-form"
+              label="New badge"
+              defaultChecked={item?.isNew}
+            />
+            <p className="-mt-1 pl-6 text-xs text-muted">
+              Puts a “Nieuw / New” badge on the dish everywhere it is shown. It stays on until you
+              untick it — nothing switches it off on its own.
+            </p>
             <Checkbox
               name="chefsPick"
               form="item-form"

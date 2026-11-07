@@ -48,6 +48,13 @@ export interface PublicMenuItem {
   spiceLevel: number | null;
   /** The owner's "Chef's pick" badge. */
   chefsPick: boolean;
+  /** The owner's "New" badge — a tick in the dish editor, never a date. */
+  isNew: boolean;
+  /**
+   * What the dish used to cost, struck through beside `price`. Null unless the owner set one
+   * that is really higher than today's price. Never charged: `price` is the only money.
+   */
+  compareAtPrice: number | null;
   /** Counted from paid orders (lib/bestsellers.ts), never set by hand. */
   bestseller: boolean;
   /**
@@ -215,6 +222,13 @@ export function toPublicItem(
     spicy: item.spiceLevel !== undefined ? item.spiceLevel > 0 : item.spicy,
     spiceLevel: item.spiceLevel ?? (item.spicy ? null : 0),
     chefsPick: Boolean(item.chefsPick),
+    isNew: Boolean(item.isNew),
+    // Only a real reduction is advertised: a "was" at or below today's price is a mistake,
+    // not an offer, and showing it would overstate what the customer saves.
+    compareAtPrice:
+      price != null && isSellablePrice(item.compareAtPrice) && item.compareAtPrice != null && item.compareAtPrice > price
+        ? item.compareAtPrice
+        : null,
     bestseller: bestsellers.has(item.slug),
     quickAdd: price != null && !soldOut && !optionGroups.some((g) => g.minChoices > 0),
     soldOut,

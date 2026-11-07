@@ -71,6 +71,19 @@ export interface StoredItem {
   spiceLevel?: SpiceLevel;
   /** The owner's "Chef's pick" badge. ("Bestseller" is never set by hand — it is counted from orders.) */
   chefsPick?: boolean;
+  /**
+   * The owner's "New" badge. A tick, not a date: a dish can be new to the menu long after it
+   * was created (a recipe reworked, a seasonal one brought back), and nothing should start
+   * or stop shouting about itself on a timer the owner didn't set. Switched off by hand.
+   */
+  isNew?: boolean;
+  /**
+   * What this dish used to cost, in euros, shown struck through beside `price`. **Display
+   * only** — `price` is the one that is charged, and `priceCart` never reads this, so a
+   * stale or silly value can never take money off an order. Absent, 0 or not above `price`
+   * = no discount is shown.
+   */
+  compareAtPrice?: number | null;
   soldOut: boolean;
   /**
    * Shown on the public menu at all. Separate from `soldOut` — a sold-out

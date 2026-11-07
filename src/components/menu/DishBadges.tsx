@@ -5,6 +5,8 @@ import { Award, ChefHat } from "lucide-react";
  * "Chef's pick" (set by the owner) and "Bestseller" (counted from paid orders — see
  * lib/bestsellers.ts). Plain component, so the same pills render on the server
  * (homepage, dish page) and inside the client-side menu grid.
+ *
+ * The owner's "New" flag is **not** a pill here: it is the corner sticker, `NewSticker`.
  */
 export default function DishBadges({
   chefsPick,

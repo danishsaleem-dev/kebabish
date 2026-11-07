@@ -272,7 +272,10 @@
     "quickAdded": "Added",
     "popularTitle": "Popular now",
     "popularSub": "Ordered most often",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "newItem": "New",
+    "wasPrice": "Was {price}",
+    "discountBadge": "{percent}% off"
   },
   "contact": {
     "title": "Contact & Delivery Area",

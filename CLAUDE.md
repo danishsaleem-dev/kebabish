@@ -1093,6 +1093,66 @@ Dishes sold together for one price: *Menu → Deals* (`/admin/menu/deals`, owner
 - **Not built:** deals in *Create order* (phone orders) and *Edit order*'s dish picker (an existing deal line can still be kept, repriced or removed), extras inside a deal, a report row per deal, time limits (Danish said none).
 - **Verified:** typecheck, lint, content checks, production build; the SQL on a throwaway Postgres (take once, repeat no-op, clamp at 0, release, resync after an edit); `priceCart` with a local store (2 deals with one part removed + 1 dish = €43.00, report net adds up to €43.00; removing a fixed part or everything refused); in the browser with a local store: `/deals`, `/menu`, homepage and `/deals/[slug]` at desktop and 375px, nl/en, remove and put back, basket and cart page; the form via a throwaway page. **Not seen:** the signed-in admin list, saving a deal for real, and a paid order containing a deal. Try one after running 0031.
 
+### The "New" sticker, a discount price, and clearer deals (Nov 2026)
+
+Danish's list after looking at the live menu. No migration — both new dish fields are optional
+keys in the store document.
+
+- **The "New" sticker** (`components/menu/NewSticker.tsx`, `StoredItem.isNew`): a tick in the dish
+  editor under *Status*, not a date. A dish can be new to the menu long after it was created (a
+  recipe reworked, a seasonal one back on), so nothing starts or stops shouting about itself on a
+  timer the owner didn't set — **it stays on until he unticks it**. It is the starburst Danish
+  asked for, pasted on the **top-right corner** of the card, tilted, overhanging the edge, with a
+  light sweeping across it.
+  - **The star is a `clip-path`** (`.sticker-star` / `.new-sticker` in globals.css), which is why
+    the pale rim is a **second, larger star behind the face and not a border**: a border is
+    painted outside the box and the clip-path shears it straight off. Two stacked stars is also
+    what a real die-cut sticker looks like.
+  - **It is ember, not the pillar-box red of the reference** Danish sent. Ember-600 is the brand's
+    one accent, and a second red on a card already carrying ember badges and an ember price would
+    read as another brand's sticker.
+  - The word is **ordinary HTML text over the shape**, not drawn into it, so "Nieuw"/"New" both
+    fit, it is read out normally, and it never needs re-exporting as an image.
+  - **The caller positions it** — `.new-sticker` deliberately sets no `position`. It is plain CSS,
+    so a `position: relative` there beats Tailwind's `absolute` utility (utilities sit in a layer,
+    this does not) and the sticker drops back into the flow. That is exactly what happened first
+    time: it rendered in the top-left, in flow.
+  - Two sizes: the full one from `16rem` of card width, a small one below it (the menu grid is two
+    per row on a phone). Measured at 375px in a real two-column grid: the rightmost sticker's edge
+    lands at 372px of 375, absorbed by the page gutter — **no horizontal scroll**, but there is
+    little headroom, so check that again if the offsets grow.
+  - The sweep stops under `prefers-reduced-motion`; the shape, colour and word stay.
+  - It is **not** a `DishBadges` pill. That component is back to Bestseller + Chef's pick only.
+- **A discount price** (`StoredItem.compareAtPrice`, *Old price (€)* in the dish editor): shown
+  struck through beside the real one, with the % off on the dish page. **Display only** —
+  `priceCart` never reads it, so a stale or silly value can never take money off an order. It is
+  still a claim made to a customer, so it is checked rather than ignored: `toPublicItem` only
+  passes one that is **really above** today's price, and the dish action refuses one that isn't
+  (or one set with no selling price), which is how the owner finds out the two prices went in the
+  wrong boxes.
+- **The portion ("500 g", "5 stuks") is no longer on the dish card** — Danish's call: it crowded a
+  card already carrying badges, chillies and a price. It is still on the dish's own page, where
+  someone is actually deciding, and `StoredItem.portion` is unchanged.
+- **A deal shows the photo the owner uploaded, and only that.** `DealPhoto` used to tile up to
+  three pictures side by side, which read as a collage of unrelated plates and ignored the deal's
+  own photo. `PublicDeal.images` is now **one entry**: the uploaded photo, or — only when there is
+  none — one dish photo standing in.
+- **"What's in the deal" was rewritten**, because Danish said it was confusing. Nothing about the
+  model changed, only how it is put: "part" became **"line"**, with a worked example at the top
+  ("line 1 = 1 × Chicken Biryani, line 2 = 4 × Naan, line 3 = Cola or Fanta or Water"), and every
+  line says back **in the customer's words what it now contains** (`describeSlot`: "4 × Naan",
+  "4 × one of: Naan, Knoflook Naan" — the count sits before "one of", or it reads as four of each).
+  Labels went plain: *Which dish?*, *How many?*, *Add another dish they can pick instead*, *Let the
+  customer leave this out* / *Then take off (€)*, *Lines that must stay*.
+- **Checked in the browser** through throwaway preview routes (deleted afterwards), since the admin
+  needs a sign-in this machine doesn't have: the card with every combination of new / bestseller /
+  chef's pick / discount / sold out at desktop and 375px, both sticker sizes, the sweep running and
+  clipped, no horizontal overflow, the single deal photo and its logo fallback, and the deal form
+  with three lines. Then on the **real** `/menu`: 32 cards, no console errors, no overflow, no
+  sticker (no dish is flagged yet — the feature is off until Danish ticks one), and a card's text
+  confirmed as "BBQ Gegrilde Kipwings | Medium | …" with the portion gone.
+  **Not seen** (needs a sign-in): the dish editor's two new controls and the deal form saving.
+
 ### Create order: pick a returning customer (Oct 2026)
 
 *Orders → Create order → Customer* starts with **Existing customer**: type a name, phone number or email, pick the person, and name, phone, email and
@@ -1815,7 +1875,9 @@ fields in the JSONB store document, so no migration:
   functions take a `locale`. **Orders always snapshot the default (Dutch)
   name** — it's what the kitchen reads — and `localizeLineNames()` swaps in
   the English name only for the customer-facing receipt and confirmation email.
-- **`portion`** is free text ("500 g", "4 stuks") shown beside the price.
+- **`portion`** is free text ("500 g", "4 stuks"), shown on the dish's own page beside the
+  price. **Not on the dish card** since Nov 2026 — see "The “New” sticker, a discount price, and
+  clearer deals".
 - **Featured** (`featured`, at most `FEATURED_LIMIT` = 4, enforced in the
   create/update actions) replaces the old hard-coded slug list in
   `Popular.tsx`; with none flagged, the homepage falls back to the first

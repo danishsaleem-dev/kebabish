@@ -18,6 +18,7 @@ import ItemGallery from "@/components/menu/ItemGallery";
 import FeaturedDishCard from "@/components/home/FeaturedDishCard";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
 import DishBadges from "@/components/menu/DishBadges";
+import NewSticker from "@/components/menu/NewSticker";
 import SpiceMeter, { Chili } from "@/components/menu/SpiceMeter";
 import ExpandableText from "@/components/menu/ExpandableText";
 import ShareButton from "@/components/menu/ShareButton";
@@ -179,7 +180,11 @@ export default async function ItemPage({
 
           <div className="mt-6 grid items-start gap-8 lg:mt-8 lg:grid-cols-2 lg:gap-12">
             {/* ---- photos (stick while the buy box scrolls) ------------- */}
-            <div className="min-w-0 lg:sticky lg:top-24">
+            <div className="relative min-w-0 lg:sticky lg:top-24">
+              {/* Same sticker as the menu card, on the gallery's top-right corner. */}
+              {item.isNew && (
+                <NewSticker className="absolute -right-3 -top-5 z-20 drop-shadow-[0_8px_14px_rgba(20,18,15,0.3)]" />
+              )}
               {item.images.length > 0 ? (
                 <ItemGallery
                   images={item.images}
@@ -228,9 +233,27 @@ export default async function ItemPage({
               </h1>
 
               <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-1">
-                <span className="font-display text-3xl font-bold tabular-nums text-charcoal-700">
+                <span
+                  className={`font-display text-3xl font-bold tabular-nums ${
+                    item.compareAtPrice != null ? "text-ember-700" : "text-charcoal-700"
+                  }`}
+                >
                   {item.price != null ? formatEuro(item.price) : t("menu.priceOnRequest")}
                 </span>
+                {item.compareAtPrice != null && (
+                  <>
+                    <s className="pb-1 text-lg font-semibold tabular-nums text-ink/45 decoration-ember-600/70">
+                      {formatEuro(item.compareAtPrice)}
+                    </s>
+                    <span className="mb-1 rounded-full bg-ember-600 px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-cream-50">
+                      {t("menu.discountBadge", {
+                        percent: Math.round(
+                          ((item.compareAtPrice - (item.price ?? 0)) / item.compareAtPrice) * 100
+                        ),
+                      })}
+                    </span>
+                  </>
+                )}
                 {item.portion && <span className="pb-1 text-sm text-ink/55">{item.portion}</span>}
                 {item.variants.length > 0 && (
                   <span className="pb-1 text-sm text-ink/55">· {item.variants.join(" · ")}</span>

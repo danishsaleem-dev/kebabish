@@ -5,6 +5,7 @@ import { formatEuro } from "@/lib/money";
 import type { PublicMenuItem } from "@/lib/public-menu";
 import BrandLogo from "@/components/shared/BrandLogo";
 import DishBadges from "@/components/menu/DishBadges";
+import NewSticker from "@/components/menu/NewSticker";
 import SpiceMeter from "@/components/menu/SpiceMeter";
 import QuickAdd from "@/components/menu/QuickAdd";
 
@@ -70,6 +71,20 @@ export default function FeaturedDishCard({
       >
         {/* ---- photo (inset) ------------------------------------------- */}
         <div className="relative">
+          {/* Stuck on the card's top-right corner, overhanging it: this sits outside the
+              photo's `overflow-hidden`, which is why it is here and not with the badges.
+              z-20 clears the stretched title link (z-[1]) and the add button. */}
+          {item.isNew && (
+            <NewSticker
+              size="sm"
+              className="absolute -right-3.5 -top-3.5 z-20 drop-shadow-[0_6px_10px_rgba(20,18,15,0.3)] @min-[16rem]:hidden"
+            />
+          )}
+          {item.isNew && (
+            <NewSticker
+              className="absolute -right-5 -top-5 z-20 drop-shadow-[0_8px_14px_rgba(20,18,15,0.32)] @max-[16rem]:hidden"
+            />
+          )}
           <div className="relative aspect-[5/4] overflow-hidden rounded-[1.1rem] bg-cream-300 @min-[16rem]:rounded-[1.35rem]">
             {item.image ? (
               <Image
@@ -116,6 +131,8 @@ export default function FeaturedDishCard({
                 compact
                 className="@min-[16rem]:hidden"
               />
+              {/* The "New" sticker overhangs the card's corner, outside the photo, so the
+                  leaf keeps its place here and the two don't meet. */}
               {item.vegetarian && (
                 <span
                   className="ml-auto flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-cream-50/95 text-green-800 shadow-sm backdrop-blur-sm @min-[16rem]:h-8 @min-[16rem]:w-8"
@@ -128,9 +145,18 @@ export default function FeaturedDishCard({
               )}
             </div>
 
-            {/* The price, frosted, bottom-left of the photo. */}
-            <span className="absolute bottom-2 left-2 rounded-full bg-cream-50/92 px-2.5 py-1 font-display text-[0.8rem] font-bold tabular-nums text-charcoal-700 shadow-sm backdrop-blur-md @min-[16rem]:bottom-3 @min-[16rem]:left-3 @min-[16rem]:px-3.5 @min-[16rem]:py-1.5 @min-[16rem]:text-base">
-              {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
+            {/* The price, frosted, bottom-left of the photo. A reduced dish carries what it
+                used to cost beside it, struck through — the chip stays one element so the
+                two prices can never wrap apart from each other. */}
+            <span className="absolute bottom-2 left-2 inline-flex items-baseline gap-1.5 rounded-full bg-cream-50/92 px-2.5 py-1 font-display text-[0.8rem] font-bold tabular-nums text-charcoal-700 shadow-sm backdrop-blur-md @min-[16rem]:bottom-3 @min-[16rem]:left-3 @min-[16rem]:px-3.5 @min-[16rem]:py-1.5 @min-[16rem]:text-base">
+              {item.compareAtPrice != null && (
+                <s className="text-[0.7em] font-semibold text-ink/45 decoration-ember-600/70">
+                  {formatEuro(item.compareAtPrice)}
+                </s>
+              )}
+              <span className={item.compareAtPrice != null ? "text-ember-700" : undefined}>
+                {item.price != null ? formatEuro(item.price) : priceOnRequestLabel}
+              </span>
             </span>
 
             {item.soldOut && (
@@ -172,10 +198,12 @@ export default function FeaturedDishCard({
             </Link>
           </h3>
 
-          {(item.spiceLevel !== 0 || item.portion || (item.lowStock && lowStockLabel)) && (
+          {/* Deliberately no portion ("500 g", "5 stuks") here — Danish's call: it crowded a
+              card that is already carrying badges, chillies and a price, and it is on the
+              dish's own page where someone is actually deciding. */}
+          {(item.spiceLevel !== 0 || (item.lowStock && lowStockLabel)) && (
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[0.7rem] text-ink/55 @min-[16rem]:text-xs">
               <SpiceMeter level={item.spiceLevel} size="xs" />
-              {item.portion && <span>{item.portion}</span>}
               {item.lowStock && lowStockLabel && (
                 <span className="inline-flex items-center gap-1.5 font-semibold text-ember-700">
                   <span className="relative flex h-2 w-2">

@@ -37,7 +37,10 @@ export interface PublicDeal {
   descriptionTranslated: boolean;
   /** The deal's own photo, else the first dish photo. */
   image?: string;
-  /** Own photo first, then each dish's: what the page and a card without a photo show. */
+  /**
+   * The deal's picture, as one entry — its own uploaded photo, or one dish's standing in
+   * when it has none. Never several: a card shows `images[0]`.
+   */
   images: string[];
   price: number;
   /** What the parts cost separately, each at its cheapest choice. */
@@ -93,10 +96,13 @@ function toPublicDeal(deal: StoredDeal, data: StoreShape, stock: StockMap | null
   const served = slots.filter(canServe).length;
   const soldOut = slots.some((s) => !s.removable && !canServe(s)) || served < Math.max(deal.minItems, 1);
 
+  // The deal's own photo is the deal's photo, full stop: when there is one it is the only
+  // one, so nothing of the dishes inside is mixed into it. Without one, the first dish photo
+  // stands in — one picture, never a collage of them (Danish's call, Nov 2026).
   const own = deal.imageId ? (data.media ?? []).find((m) => m.id === deal.imageId)?.url : undefined;
-  const images = [
-    ...new Set([...(own ? [own] : []), ...slots.flatMap((s) => (s.choices[0]?.image ? [s.choices[0].image] : []))]),
-  ];
+  const images = own
+    ? [own]
+    : [...new Set(slots.flatMap((s) => (s.choices[0]?.image ? [s.choices[0].image] : [])))].slice(0, 1);
 
   const allergens = new Map([...dish.values()].flatMap((i) => i.allergens).map((a) => [a.id, a]));
   const mayContain = new Map(

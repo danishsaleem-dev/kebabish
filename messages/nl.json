@@ -272,7 +272,10 @@
     "quickAdded": "Toegevoegd",
     "popularTitle": "Populair nu",
     "popularSub": "Het vaakst besteld",
-    "clearSearch": "Zoekopdracht wissen"
+    "clearSearch": "Zoekopdracht wissen",
+    "newItem": "Nieuw",
+    "wasPrice": "Normaal {price}",
+    "discountBadge": "{percent}% korting"
   },
   "contact": {
     "title": "Contact & Bezorggebied",

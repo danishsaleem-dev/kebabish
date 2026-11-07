@@ -217,6 +217,18 @@ const itemSchema = z.object({
   spicy: z.boolean(),
   spiceLevel: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]).optional(),
   chefsPick: z.boolean(),
+  isNew: z.boolean(),
+  /**
+   * The "was" price, shown struck through beside the real one. Display only — `priceCart`
+   * never reads it — but it is still a claim made to a customer, so an empty box clears it
+   * and a value that isn't above the selling price is refused rather than quietly dropped.
+   */
+  compareAtPrice: z
+    .union([
+      z.literal(""),
+      z.coerce.number().min(0, "The old price can't be negative."),
+    ])
+    .transform((v) => (v === "" || Number(v) === 0 ? null : Number(v))),
   soldOut: z.boolean(),
   visible: z.boolean(),
   imageIds: z.array(z.string()),
@@ -227,6 +239,24 @@ const itemSchema = z.object({
     .transform((v) => v.split(",").map((s) => s.trim()).filter(Boolean)),
   allergenIds: z.array(z.string()),
   pairsWith: z.array(z.string()).max(PAIRS_LIMIT, `Pick at most ${PAIRS_LIMIT} dishes.`),
+}).superRefine((item, ctx) => {
+  // A crossed-out price is a claim about a saving, so it is checked rather than ignored:
+  // the public page already refuses to draw one that isn't a real reduction, and saying so
+  // here is how the owner finds out they typed the two prices the wrong way round.
+  if (item.compareAtPrice == null) return;
+  if (item.price == null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["compareAtPrice"],
+      message: "Set the price you charge first — an old price on its own shows nothing.",
+    });
+  } else if (item.compareAtPrice <= item.price) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["compareAtPrice"],
+      message: "The old price has to be higher than the price you charge now.",
+    });
+  }
 });
 
 /**
@@ -246,6 +276,8 @@ function readItemForm(formData: FormData) {
   return itemSchema.safeParse({
     ...readSpice(formData),
     chefsPick: formData.get("chefsPick") === "on",
+    isNew: formData.get("isNew") === "on",
+    compareAtPrice: formData.get("compareAtPrice") ?? "",
     name: formData.get("name"),
     nameEn: formData.get("nameEn") ?? "",
     portion: formData.get("portion") ?? "",

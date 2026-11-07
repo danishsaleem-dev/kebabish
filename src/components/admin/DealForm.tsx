@@ -28,6 +28,21 @@ interface SlotDraft {
   removeCredit: string;
 }
 
+/**
+ * One part, said back to the owner in the words a customer would use: "2 × Naan", or
+ * "Customer picks 1 of 3: Cola, Fanta, Water". This is the whole point of the section —
+ * "Part 2, portions 2, 3 dishes" is a form; this is what the deal actually contains.
+ */
+function describeSlot(slot: SlotDraft, nameOf: (slug: string) => string): string | null {
+  if (slot.itemSlugs.length === 0) return null;
+  const names = slot.itemSlugs.map(nameOf);
+  const each = slot.quantity > 1 ? `${slot.quantity} × ` : "";
+  if (names.length === 1) return `${each}${names[0]}`;
+  // "4 × one of: Naan, Knoflook Naan" — the count has to sit before "one of", or
+  // "4 × Naan, Knoflook Naan" reads as four of each rather than four of whichever they pick.
+  return `${each}one of: ${names.join(", ")}`;
+}
+
 const newSlot = (): SlotDraft => ({
   id: `p-${Math.random().toString(36).slice(2, 9)}`,
   label: "",
@@ -142,7 +157,7 @@ export default function DealForm({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <CardHeader
               title="What's in the deal"
-              subtitle="Each part is one dish, or a choice of several (a drink, a sauce). Add a second dish to a part and the customer chooses."
+              subtitle="List what the customer gets, one line at a time."
             />
             <button
               type="button"
@@ -150,28 +165,57 @@ export default function DealForm({
               className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-2 text-xs font-semibold text-heading transition-colors hover:border-ember-500 hover:text-ember-600"
             >
               <Plus size={14} />
-              Add part
+              Add a line
             </button>
+          </div>
+
+          <div className="mt-3 rounded-xl bg-canvas px-4 py-3 text-xs leading-relaxed text-body-text">
+            <p>
+              <strong className="text-heading">One line = one thing the customer gets.</strong> Pick
+              the dish and say how many.
+            </p>
+            <p className="mt-1.5">
+              Want to let them choose? Add a second dish to the <em>same</em> line and they pick one
+              of them — that is how “a drink with the meal” works.
+            </p>
+            <p className="mt-2 text-muted">
+              Example — a family deal: line 1 = <em>1 × Chicken Biryani</em>, line 2 ={" "}
+              <em>4 × Naan</em>, line 3 = <em>Cola or Fanta or Water</em> (three dishes on one line).
+            </p>
           </div>
 
           <ul className="mt-4 space-y-3">
             {slots.map((slot, index) => (
               <li key={slot.id} className="rounded-xl border border-hairline p-3 sm:p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-heading">Part {index + 1}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-heading">Line {index + 1}</p>
+                    {/* What this line means, in the customer's words, as it is built. */}
+                    <p className="mt-0.5 text-sm text-ember-700">
+                      {describeSlot(slot, nameOf) ?? (
+                        <span className="text-muted">Nothing picked yet — choose a dish below.</span>
+                      )}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setSlots((prev) => prev.filter((s) => s.id !== slot.id))}
                     disabled={slots.length === 1}
-                    aria-label={`Remove part ${index + 1}`}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg text-faint transition-colors hover:text-danger disabled:opacity-30"
+                    aria-label={`Remove line ${index + 1}`}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-faint transition-colors hover:text-danger disabled:opacity-30"
                   >
                     <Trash2 size={16} />
                   </button>
                 </div>
 
                 {slot.itemSlugs.length > 0 && (
-                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                  <>
+                    <p className="mt-3 text-xs font-semibold text-muted">
+                      {slot.itemSlugs.length > 1
+                        ? "The customer picks one of these:"
+                        : "On this line:"}
+                    </p>
+                  <ul className="mt-1.5 flex flex-wrap gap-1.5">
                     {slot.itemSlugs.map((slug) => (
                       <li
                         key={slug}
@@ -192,10 +236,18 @@ export default function DealForm({
                       </li>
                     ))}
                   </ul>
+                  </>
                 )}
 
-                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_6rem]">
-                  <Field label={slot.itemSlugs.length ? "Add a choice" : "Dish"}>
+                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_7rem]">
+                  <Field
+                    label={slot.itemSlugs.length ? "Add another dish they can pick instead" : "Which dish?"}
+                    hint={
+                      slot.itemSlugs.length
+                        ? "Leave this alone if there is nothing to choose."
+                        : undefined
+                    }
+                  >
                     <Select
                       value=""
                       onChange={(e) => {
@@ -217,7 +269,7 @@ export default function DealForm({
                       ))}
                     </Select>
                   </Field>
-                  <Field label="Portions">
+                  <Field label="How many?" hint="Of the dish on this line.">
                     <Input
                       type="number"
                       min={1}
@@ -230,14 +282,14 @@ export default function DealForm({
 
                 {slot.itemSlugs.length > 1 && (
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <Field label="Choice heading (Dutch)">
+                    <Field label="Question above the choice (Dutch)" hint="What the customer is asked on the deal page.">
                       <Input
                         value={slot.label}
                         onChange={(e) => update(slot.id, { label: e.target.value })}
                         placeholder="Kies je drankje"
                       />
                     </Field>
-                    <Field label="Choice heading (English)">
+                    <Field label="Question above the choice (English)">
                       <Input
                         value={slot.labelEn}
                         onChange={(e) => update(slot.id, { labelEn: e.target.value })}
@@ -247,14 +299,21 @@ export default function DealForm({
                   </div>
                 )}
 
-                <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_9rem] sm:items-end">
-                  <Checkbox
-                    label="The customer can remove this"
-                    checked={slot.removable}
-                    onChange={(e) => update(slot.id, { removable: e.target.checked })}
-                  />
+                <div className="mt-3 grid gap-3 border-t border-hairline pt-3 sm:grid-cols-[1fr_10rem] sm:items-end">
+                  <div>
+                    <Checkbox
+                      label="Let the customer leave this out"
+                      checked={slot.removable}
+                      onChange={(e) => update(slot.id, { removable: e.target.checked })}
+                    />
+                    <p className="mt-1 pl-6 text-xs text-muted">
+                      {slot.removable
+                        ? "They get money off instead — say how much on the right."
+                        : "Off = this always comes with the deal."}
+                    </p>
+                  </div>
                   {slot.removable && (
-                    <Field label="Takes off (€)">
+                    <Field label="Then take off (€)" hint="From the deal price.">
                       <Input
                         type="number"
                         min={0}
@@ -303,7 +362,11 @@ export default function DealForm({
               The separate price comes from the menu, with the cheapest dish in each choice. It
               follows your dish prices, so it is shown crossed out on the site.
             </p>
-            <Field label="Parts that must stay" hint="1 = the customer can remove everything removable but one part." error={state.errors?.minItems}>
+            <Field
+              label="Lines that must stay"
+              hint="However much they leave out, the deal keeps at least this many lines. 1 = they can strip it back to a single dish."
+              error={state.errors?.minItems}
+            >
               <Input
                 name="minItems"
                 type="number"
@@ -320,7 +383,7 @@ export default function DealForm({
                 className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-hairline px-3 py-2 text-xs font-semibold text-heading transition-colors hover:border-ember-500 hover:text-ember-600"
               >
                 <Sparkles size={14} />
-                Suggest amounts to take off
+                Fill in the amounts for me
               </button>
             )}
           </div>
@@ -351,7 +414,7 @@ export default function DealForm({
               library={library}
               initialId={deal?.imageId}
               label="Photo"
-              hint="Without one, the page shows the photos of the dishes inside."
+              hint="The deal's own picture. Without one, a photo of a dish inside it stands in."
             />
             <Checkbox label="Show on the website" name="visible" defaultChecked={deal?.visible ?? true} />
             <Checkbox label="Feature first" name="featured" defaultChecked={deal?.featured ?? false} />
