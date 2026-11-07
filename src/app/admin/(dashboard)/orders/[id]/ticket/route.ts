@@ -69,7 +69,11 @@ export async function GET(
       (line) => `
       <li>
         <span class="qty">${line.quantity}×</span>
-        <span class="name">${esc(line.name)}</span>
+        <span class="name">${esc(line.baseName)}${
+          (line.details?.length ?? 0) > 0
+            ? `<span class="sub">${line.details!.map((d) => `– ${esc(d)}`).join("<br/>")}</span>`
+            : ""
+        }${line.instructions ? `<span class="sub"><i>${esc(line.instructions)}</i></span>` : ""}</span>
       </li>`
     )
     .join("");
@@ -99,6 +103,7 @@ export async function GET(
   ul { list-style: none; padding: 0; margin: 0; }
   li { display: flex; gap: 8px; font-size: 18px; padding: 7px 0; border-bottom: 1px dashed #999; }
   .qty { font-weight: bold; min-width: 36px; }
+  .sub { display: block; font-size: 14px; margin-top: 2px; }
   .note { margin-top: 12px; border: 3px solid #000; padding: 8px; font-size: 16px; font-weight: bold; }
   .note small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
   .who { margin-top: 12px; font-size: 15px; line-height: 1.35; }

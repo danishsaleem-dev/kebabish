@@ -14,16 +14,19 @@ import {
   MIN_SLOT_MINUTES,
 } from "@/lib/delivery-slots";
 
+const cents = (v: number) => Math.round(v * 100) / 100;
+
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const settingsSchema = z.object({
   deliveryRadiusKm: z.coerce.number().min(1).max(50),
-  deliveryFee: z.coerce.number().min(0).max(50),
+  // Money is kept to whole cents; any amount is allowed (1.99 used to be refused by a step of 0.05).
+  deliveryFee: z.coerce.number().min(0).max(100).transform(cents),
   freeDeliveryOver: z
     .union([z.literal(""), z.coerce.number().min(0)])
-    .transform((v) => (v === "" ? null : Number(v))),
-  minimumOrder: z.coerce.number().min(0).max(200),
+    .transform((v) => (v === "" ? null : cents(Number(v)))),
+  minimumOrder: z.coerce.number().min(0).max(500).transform(cents),
   averagePrepMinutes: z.coerce.number().int().min(5).max(180),
   acceptingOrders: z.boolean(),
   orderNotice: z.string().trim().max(200, "Keep the notice under 200 characters."),

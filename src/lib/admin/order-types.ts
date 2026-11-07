@@ -50,6 +50,10 @@ export interface AdminOrderLine {
   name: string;
   /** The dish alone, as ordered — what Top Dishes groups by. */
   baseName: string;
+  /** Extras, or a deal's dishes, one per entry (parts taken out of a deal are left out). */
+  details?: string[];
+  /** The customer's note on this line, if any. */
+  instructions?: string | null;
   /** The dishes inside a deal line, for the per-dish reports. Absent on an ordinary dish. */
   dealParts?: { slug: string; name: string; quantity: number; listPrice: number }[];
   /** item_slug — what Sales by Category looks up against today's menu. */

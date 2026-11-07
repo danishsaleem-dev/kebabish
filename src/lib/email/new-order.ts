@@ -2,6 +2,7 @@ import "server-only";
 import { Resend } from "resend";
 import { siteConfig } from "@/lib/site-config";
 import { fromCents } from "@/lib/money";
+import { lineDetails } from "@/lib/deals";
 import type { OrderSummary } from "@/lib/orders";
 
 /**
@@ -25,7 +26,8 @@ function newOrderEmailHtml(order: OrderSummary, awaitingPayment = false): string
 
   const rows = order.lines
     .map((line) => {
-      const extras = line.options.map((o) => o.optionLabel).join(", ");
+      // A deal lists only the dishes in it, not the parts the customer took out.
+      const extras = lineDetails(line.options).join(", ");
       const suffix = [extras, line.instructions].filter(Boolean).join(" — ");
       return `
         <tr>

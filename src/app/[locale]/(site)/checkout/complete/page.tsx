@@ -27,6 +27,7 @@ import RememberLastOrder from "@/components/reorder/RememberLastOrder";
 import { getPublicMenu } from "@/lib/public-menu";
 import AutoRefresh from "@/components/cart/AutoRefresh";
 import ReceiptPrintButton from "@/components/cart/ReceiptPrintButton";
+import { lineDetails } from "@/lib/deals";
 
 export const dynamic = "force-dynamic";
 
@@ -414,9 +415,9 @@ export default async function CheckoutCompletePage({
               <li key={i} className="flex justify-between gap-3">
                 <span className="text-ink/75">
                   {line.quantity}× {line.name}
-                  {line.options.length > 0 && (
+                  {lineDetails(line.options).length > 0 && (
                     <span className="block text-ink/50">
-                      {line.options.map((o) => o.optionLabel).join(", ")}
+                      {lineDetails(line.options).join(", ")}
                     </span>
                   )}
                   {line.instructions && (

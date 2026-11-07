@@ -64,6 +64,7 @@ export default function DealCard({
       return s.quantity > 1 && !s.label ? `${s.quantity} × ${name}` : name;
     })
     .filter(Boolean);
+  const percent = deal.savingPercent;
 
   return (
     <article
@@ -78,8 +79,15 @@ export default function DealCard({
           priority={lead}
         />
         {deal.saving > 0 && (
-          <span className="absolute left-3 top-3 -rotate-3 rounded-2xl bg-ember-600 px-3.5 py-2 font-display text-base font-bold text-cream-50 shadow-lg shadow-ember-800/40 sm:text-lg">
-            {labels.save.replace("{amount}", formatEuro(deal.saving))}
+          <span className="absolute left-3 top-3 flex -rotate-3 flex-col items-center rounded-2xl bg-ember-600 px-3.5 py-2 text-cream-50 shadow-lg shadow-ember-800/40">
+            {percent > 0 && (
+              <span className={`font-display font-bold leading-none tabular-nums ${lead ? "text-3xl sm:text-4xl" : "text-2xl sm:text-3xl"}`}>
+                −{percent}%
+              </span>
+            )}
+            <span className={`font-display font-semibold ${percent > 0 ? "mt-1 text-xs sm:text-sm" : "text-base font-bold sm:text-lg"}`}>
+              {labels.save.replace("{amount}", formatEuro(deal.saving))}
+            </span>
           </span>
         )}
         {deal.soldOut && (

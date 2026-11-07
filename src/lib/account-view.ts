@@ -6,6 +6,7 @@ import type { LedgerRow } from "@/lib/rewards";
 import type { AccountLocale } from "@/lib/account-page";
 import type { HistoryEntry } from "@/components/dashboard/RewardsCard";
 import type { OrderCardLink } from "@/components/dashboard/OrderCard";
+import { lineDetails } from "@/lib/deals";
 
 /**
  * Turns orders and ledger rows into the plain strings the dashboard's
@@ -127,7 +128,7 @@ export function orderCardLines(
   return lines.map((line) => ({
     quantity: line.quantity,
     name: line.name,
-    options: line.options.map((option) => option.optionLabel).join(", "),
+    options: lineDetails(line.options).join(", "),
     total: formatEuro(fromCents(line.lineTotalCents)),
   }));
 }

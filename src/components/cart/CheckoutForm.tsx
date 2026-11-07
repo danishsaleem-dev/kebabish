@@ -24,6 +24,7 @@ import {
   checkPromoCodeAction,
   type CheckoutState,
 } from "@/app/[locale]/(site)/checkout/actions";
+import { lineDetails } from "@/lib/deals";
 
 const EMPTY: CheckoutState = { ok: false };
 
@@ -425,9 +426,9 @@ function CheckoutFormInner({
             <li key={line.id} className="flex justify-between gap-3">
               <span className="text-ink/70">
                 {line.quantity}× {line.name}
-                {line.options.length > 0 && (
+                {lineDetails(line.options).length > 0 && (
                   <span className="block text-ink/45">
-                    {line.options.map((o) => o.optionLabel).join(", ")}
+                    {lineDetails(line.options).join(", ")}
                   </span>
                 )}
                 <CartLineNotice issue={issues[line.id]} repriced={repriced.includes(line.id)} />

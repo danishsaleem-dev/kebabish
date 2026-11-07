@@ -19,7 +19,7 @@ import { releaseDeliverySlot } from "@/lib/delivery-slots-data";
 import { amsterdamNow } from "@/lib/delivery-slots";
 import { listStockAlerts, releaseOrderStock } from "@/lib/stock";
 import { awardOrderPoints, reverseOrderRewards } from "@/lib/rewards";
-import type { DealPartMeta } from "@/lib/deals";
+import { lineDetails, type DealPartMeta } from "@/lib/deals";
 import { fetchLineExtras } from "@/lib/order-extras";
 import { parseAddressLine } from "@/lib/address-parse";
 import { listSavedContactKeys } from "@/lib/admin/customer-contacts";
@@ -93,7 +93,7 @@ function mapOrder(row: OrderRow): AdminOrder {
       (sum, o) => sum + o.priceCents,
       0
     );
-    const extras = (item.options ?? []).map((o) => o.optionLabel);
+    const extras = lineDetails(item.options);
     const suffix = [extras.join(", "), item.instructions]
       .filter(Boolean)
       .join(" — ");
@@ -108,6 +108,8 @@ function mapOrder(row: OrderRow): AdminOrder {
       id: item.id,
       name: suffix ? `${item.name} (${suffix})` : item.name,
       baseName: item.name,
+      details: extras,
+      instructions: item.instructions || null,
       slug: item.item_slug,
       ...(dealParts.length > 0 ? { dealParts } : {}),
       quantity: item.quantity,

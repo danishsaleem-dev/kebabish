@@ -48,7 +48,12 @@ export async function GET() {
       deliveryDate: o.deliveryDate,
       slotStart: o.deliverySlotStart,
       slotEnd: o.deliverySlotEnd,
-      lines: o.lines.map((l) => ({ quantity: l.quantity, name: l.name })),
+      lines: o.lines.map((l) => ({
+        quantity: l.quantity,
+        name: l.baseName,
+        details: l.details,
+        instructions: l.instructions,
+      })),
       note: o.note ?? null,
     })),
   });

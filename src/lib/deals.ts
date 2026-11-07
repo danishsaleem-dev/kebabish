@@ -40,6 +40,25 @@ export interface DealPartMeta {
   listCents: number;
 }
 
+/**
+ * What to print under an order line, one entry each: a dish's chosen extras, or a deal's dishes.
+ * A deal part the customer took out is left out — there is nothing to cook or pack for it, and its
+ * stored label ("Zonder Cola / Fanta / …" for a choice) is long and only confuses the kitchen.
+ */
+export function lineDetails(options: readonly ShownOption[] | null | undefined): string[] {
+  return visibleOptions(options).map((o) => o.optionLabel);
+}
+
+type ShownOption = { optionLabel: string; groupLabel?: string; optionId?: string; deal?: DealPartMeta };
+
+/** `lineDetails` for callers that still need the option itself (the basket shows extra prices). */
+export function visibleOptions<T extends ShownOption>(options: readonly T[] | null | undefined): T[] {
+  return (options ?? []).filter((o) =>
+    // On an order the snapshot says it; in the basket a taken-out deal part has the REMOVED id.
+    o.deal ? o.deal.item !== null : !(o.groupLabel === "Deal" && o.optionId === REMOVED)
+  );
+}
+
 /** The dish chosen for each slot: slot id -> dish slug, or `REMOVED`. */
 export type DealPicks = Record<string, string>;
 

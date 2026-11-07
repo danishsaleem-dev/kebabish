@@ -18,7 +18,7 @@ import { useCart, lineTotal, type CartLine } from "@/components/cart/CartProvide
 import CartLineNotice from "@/components/cart/CartLineNotice";
 import PointsHint from "@/components/cart/PointsHint";
 import BrandLogo from "@/components/shared/BrandLogo";
-import { lineHref } from "@/lib/deals";
+import { lineHref, visibleOptions } from "@/lib/deals";
 import { formatEuro } from "@/lib/money";
 import { siteConfig } from "@/lib/site-config";
 
@@ -106,9 +106,9 @@ export default function CartView({
                       {line.name}
                     </Link>
 
-                    {line.options.length > 0 && (
+                    {visibleOptions(line.options).length > 0 && (
                       <p className="mt-1 text-sm leading-snug text-ink/60">
-                        {line.options
+                        {visibleOptions(line.options)
                           .map((o) =>
                             o.price > 0
                               ? `${o.optionLabel} (+${formatEuro(o.price)})`

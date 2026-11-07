@@ -318,7 +318,7 @@ export default function SettingsForm({
               name="deliveryFee"
               type="number"
               min="0"
-              step="0.05"
+              step="0.01"
               defaultValue={settings.deliveryFee}
               invalid={Boolean(e.deliveryFee)}
             />
@@ -333,7 +333,7 @@ export default function SettingsForm({
               name="freeDeliveryOver"
               type="number"
               min="0"
-              step="0.5"
+              step="0.01"
               defaultValue={settings.freeDeliveryOver ?? ""}
             />
           </Field>
@@ -343,7 +343,7 @@ export default function SettingsForm({
               name="minimumOrder"
               type="number"
               min="0"
-              step="0.5"
+              step="0.01"
               defaultValue={settings.minimumOrder}
               invalid={Boolean(e.minimumOrder)}
             />

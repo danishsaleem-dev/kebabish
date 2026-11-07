@@ -11,6 +11,7 @@ import CartLineNotice from "@/components/cart/CartLineNotice";
 import PointsHint from "@/components/cart/PointsHint";
 import Suggestions from "@/components/menu/Suggestions";
 import { formatEuro } from "@/lib/money";
+import { lineDetails } from "@/lib/deals";
 
 /** Slide-in order summary. Mounted once, in the site layout. */
 export default function CartDrawer() {
@@ -123,9 +124,9 @@ export default function CartDrawer() {
                       <p className="font-display text-[0.95rem] font-semibold text-charcoal-600">
                         {line.name}
                       </p>
-                      {line.options.length > 0 && (
+                      {lineDetails(line.options).length > 0 && (
                         <p className="mt-1 text-sm leading-snug text-ink/55">
-                          {line.options.map((o) => o.optionLabel).join(", ")}
+                          {lineDetails(line.options).join(", ")}
                         </p>
                       )}
                       {line.instructions && (

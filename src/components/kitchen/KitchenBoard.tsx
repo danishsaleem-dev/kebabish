@@ -39,7 +39,8 @@ export interface BoardOrder {
   deliveryDate: string | null;
   slotStart: string | null;
   slotEnd: string | null;
-  lines: { quantity: number; name: string }[];
+  /** `details`: extras, or the dishes inside a deal, one per entry. */
+  lines: { quantity: number; name: string; details?: string[]; instructions?: string | null }[];
   note: string | null;
 }
 
@@ -649,7 +650,20 @@ function Card({
                 <span className="inline-flex min-w-8 shrink-0 justify-center rounded-md bg-ember-600/10 px-1.5 py-0.5 font-display text-base font-bold tabular-nums text-ember-700">
                   {l.quantity}
                 </span>
-                <span className="font-medium text-heading">{l.name}</span>
+                <div className="min-w-0">
+                  <span className="font-medium text-heading">{l.name}</span>
+                  {(l.details?.length ?? 0) > 0 && (
+                    <ul className="mt-0.5 space-y-0.5 text-sm text-body-text">
+                      {l.details!.map((d, j) => (
+                        <li key={j} className="flex gap-1.5">
+                          <span aria-hidden="true" className="text-faint">–</span>
+                          <span>{d}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {l.instructions && <p className="mt-0.5 text-sm italic text-muted">“{l.instructions}”</p>}
+                </div>
               </li>
             ))}
           </ul>

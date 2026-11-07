@@ -129,7 +129,10 @@ function html(
 
   const rows = order.lines
     .map((line) => {
-      const extras = line.options.map((o) => o.optionLabel).join(", ");
+      // A deal reads as its name alone: the customer chose what is in it a minute ago, and the
+      // list of every choice made the receipt hard to read. A dish keeps its extras.
+      const isDeal = line.options.some((o) => "deal" in o && o.deal);
+      const extras = isDeal ? "" : line.options.map((o) => o.optionLabel).join(", ");
       const suffix = [extras, line.instructions].filter(Boolean).join(" — ");
       return `
         <tr>
