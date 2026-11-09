@@ -92,8 +92,18 @@ export default function PromoPopup({ promos }: { promos: PromoPopupData[] }) {
 
     const seen = readSeen();
     const quietMs = QUIET_DAYS * 86_400_000;
+    // Check the end date here, in the browser, rather than trusting the list
+    // the server put in the page: this page is statically generated and now
+    // only revalidates once a day (a short window cost ~168K of the free
+    // plan's 200K monthly Vercel ISR writes), so a promo can lapse while the
+    // cached HTML still carries it. Offering an expired code and then having
+    // checkout refuse it is worse than showing no popup. PromoWidget already
+    // does the same with its own countdown.
     const pick = promos.find(
-      (p) => p.code !== promoCode && !(seen[p.id] && Date.now() - seen[p.id] < quietMs)
+      (p) =>
+        p.code !== promoCode &&
+        !(p.endsAt !== null && p.endsAt <= Date.now()) &&
+        !(seen[p.id] && Date.now() - seen[p.id] < quietMs)
     );
     if (!pick) return;
 

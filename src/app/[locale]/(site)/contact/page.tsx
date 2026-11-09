@@ -25,6 +25,13 @@ import FeedbackCta from "@/components/feedback/FeedbackCta";
 import DeliveryCheck from "@/components/DeliveryCheck";
 import { amsterdamNow } from "@/lib/delivery-slots";
 
+// The only clock-dependent thing on the public site: the live "open now" pill
+// and today's hours row. The (site) layout revalidates daily to keep Vercel
+// ISR writes down, so this page opts back in to a short window for itself —
+// two pages (nl + en) rather than the ~90 under that layout. The smallest
+// revalidate in a segment's hierarchy wins, so this one applies here only.
+export const revalidate = 600;
+
 export async function generateMetadata({
   params,
 }: {

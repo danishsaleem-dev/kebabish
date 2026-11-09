@@ -1,5 +1,6 @@
 import "server-only";
 import { after } from "next/server";
+import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { readStore } from "@/lib/admin/store";
 import { stockLevel, type StockEntry } from "@/lib/stock-status";
@@ -134,6 +135,29 @@ export function crossings(rows: MoveRow[]): { slug: string; level: "low" | "out"
   return result;
 }
 
+/**
+ * A dish going out of stock (or coming back) changes the PUBLIC menu: the
+ * "sold out" state, the "selling fast" tag, whether it can be added at all.
+ * The (site) layout only revalidates once a day now — a short window there
+ * cost ~168K of the free plan's 200K monthly Vercel ISR writes — so a stock
+ * move has to say so itself instead of being picked up by polling.
+ *
+ * Only called on a real crossing (in or out of stock), which happens at most
+ * a handful of times a day, so this stays far cheaper than a timed window.
+ * Best-effort: revalidatePath throws if we are inside a render (syncPaymentStatus
+ * runs from the confirmation page too), and stock bookkeeping must never fail
+ * an order that has already been paid.
+ */
+function refreshPublicMenu(): void {
+  try {
+    revalidatePath("/", "layout");
+    revalidatePath("/en", "layout");
+  } catch {
+    // Not in a revalidatable context (a render, or a plain script). The daily
+    // window and the next admin save both heal it.
+  }
+}
+
 async function runMove(fn: "consume_order_stock" | "resync_order_stock", orderId: string): Promise<void> {
   try {
     const { data, error } = await supabaseAdmin().rpc(fn, { p_order: orderId });
@@ -142,7 +166,10 @@ async function runMove(fn: "consume_order_stock" | "resync_order_stock", orderId
       return;
     }
     const alerts = crossings((data ?? []) as MoveRow[]);
-    if (alerts.length > 0) await notify(alerts);
+    if (alerts.length > 0) {
+      refreshPublicMenu();
+      await notify(alerts);
+    }
   } catch (error) {
     // Stock bookkeeping must never fail an order that has already been paid or accepted.
     console.error(`[stock] ${fn} failed for order ${orderId}:`, error);
@@ -159,7 +186,12 @@ export const resyncOrderStock = (orderId: string) => runMove("resync_order_stock
 export async function releaseOrderStock(orderId: string): Promise<void> {
   try {
     const { error } = await supabaseAdmin().rpc("release_order_stock", { p_order: orderId });
-    if (error && !isMissing(error)) console.error(`[stock] release failed for order ${orderId}:`, error.message);
+    if (error && !isMissing(error)) {
+      console.error(`[stock] release failed for order ${orderId}:`, error.message);
+      return;
+    }
+    // Portions came back, so a dish that read "sold out" may be orderable again.
+    if (!error) refreshPublicMenu();
   } catch (error) {
     console.error(`[stock] release failed for order ${orderId}:`, error);
   }

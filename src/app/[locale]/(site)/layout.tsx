@@ -19,19 +19,25 @@ import { normalizeRewards } from "@/lib/rewards-math";
 import { getPublicDeals } from "@/lib/public-deals";
 import { getPromoPopups } from "@/lib/public-promos";
 
-// Revalidate at most every five minutes — status can flip on its own (opening
-// hours boundary) without anyone touching /admin/settings, so the banner can
-// lag a boundary by up to this long. A save there (and any content, menu or
-// promo save) also calls revalidatePath for an immediate update; see
-// settings/actions.ts.
+// Nothing this layout renders depends on the clock. `status.isOpen` is the
+// owner's "Taking orders" switch, not opening hours (see getStoreStatus:
+// ordering is never gated on hours, because customers book a delivery slot at
+// checkout); settings, content, menu, deal and promo saves in /admin all call
+// revalidatePath("/", "layout") themselves, so an edit is live within a
+// minute either way.
 //
-// This is 300 and not 60 on purpose: the value applies to EVERY page under
-// this layout (every route, dish and deal, in both languages), and each
-// regeneration is one Vercel ISR write. At 60 s, crawler traffic alone burned
-// ~72K of the free plan's 200K monthly writes against only ~22K reads.
-// Checkout does not depend on it — whether orders are accepted is checked on
-// the server — so a late banner is cosmetic.
-export const revalidate = 300;
+// So a time-based window buys nothing here and costs a great deal: this value
+// applies to EVERY page under this layout — every route, dish and deal, in
+// both languages, ~90 pages — and each regeneration is one Vercel ISR write.
+// At 60 s it burned ~72K of the free plan's 200K monthly writes; at 300 s it
+// was still running at ~168K/200K. A day is the safety net for a
+// revalidatePath that never fired, nothing more.
+//
+// The ONE clock-dependent thing on the public site is the live open/closed
+// pill on /contact (`status.openNow`), and that page sets its own shorter
+// revalidate. Don't move a clock-dependent value up into this layout — put it
+// on the page that needs it, or compute it in the browser.
+export const revalidate = 86400;
 
 /**
  * The normal site chrome (header nav, footer, floating WhatsApp button) —
