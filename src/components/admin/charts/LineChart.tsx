@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAnimatedNumbers } from "@/components/admin/charts/useAnimated";
 
 export interface LineSeries {
@@ -29,9 +29,29 @@ export default function LineChart({
   valueFormat?: (value: number) => string;
   yTicks?: number;
 }) {
-  const W = 760;
-  const H = height;
-  const PAD = { top: 16, right: 16, bottom: 34, left: 52 };
+  // The drawing is as wide as the space it is given, so its text is always real size. It used
+  // to be a fixed 760-unit canvas scaled down to fit: on a phone that shrank the axis labels to
+  // about 5px, and a 600px minimum then made the chart scroll sideways instead. 760 is only the
+  // first guess, before the container has been measured (and what the server renders).
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [width, setWidth] = useState(760);
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(([entry]) => {
+      const next = Math.round(entry.contentRect.width);
+      if (next > 0) setWidth(next);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const W = Math.max(width, 240);
+  const compact = W < 520;
+  const H = compact ? Math.min(height, 240) : height;
+  const PAD = compact
+    ? { top: 14, right: 12, bottom: 30, left: 40 }
+    : { top: 16, right: 16, bottom: 34, left: 52 };
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [hover, setHover] = useState<number | null>(null);
@@ -63,27 +83,55 @@ export default function LineChart({
     H - PAD.bottom - (v / max) * (H - PAD.top - PAD.bottom);
 
   const ticks = Array.from({ length: yTicks + 1 }, (_, i) => (max / yTicks) * i);
-  const labelStep = Math.max(1, Math.ceil(n / 12));
+  // One x label per ~52px of chart, never more than 12, so they never run into each other.
+  const fits = Math.max(2, Math.min(12, Math.floor((W - PAD.left - PAD.right) / 52)));
+  const labelStep = Math.max(1, Math.ceil(n / fits));
 
-  const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
+  const onMove = (e: React.PointerEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
     if (!svg) return;
     const rect = svg.getBoundingClientRect();
     const px = ((e.clientX - rect.left) / rect.width) * W;
     const ratio = (px - PAD.left) / (W - PAD.left - PAD.right);
     const index = Math.round(ratio * (n - 1));
-    setHover(index >= 0 && index < n ? index : null);
+    // The nearest point, even when the touch lands in the margin beside the first or last one:
+    // a fingertip is far less precise than a cursor.
+    setHover(n > 0 ? Math.min(Math.max(index, 0), n - 1) : null);
   };
 
   return (
-    <div className="relative">
-      <div className="overflow-x-auto">
+    <div ref={wrapRef} className="relative min-w-0">
+      {/* Which line is which. Hover tells you on a desktop; a phone has no hover. */}
+      {series.length > 1 && (
+        <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+          {series.map((s) => (
+            <li key={s.label} className="flex items-center gap-1.5">
+              <span
+                aria-hidden="true"
+                className="h-0.5 w-4 rounded-full"
+                style={
+                  s.dashed
+                    ? { background: `repeating-linear-gradient(90deg, ${s.color} 0 4px, transparent 4px 7px)` }
+                    : { background: s.color }
+                }
+              />
+              {s.label}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div>
         <svg
           ref={svgRef}
           viewBox={`0 0 ${W} ${H}`}
-          className="h-auto w-full min-w-[600px] touch-none"
-          onMouseMove={onMove}
-          onMouseLeave={() => setHover(null)}
+          // pan-y: a finger can still scroll the page, while sideways movement scrubs the chart.
+          className="block h-auto w-full max-w-full touch-pan-y"
+          onPointerDown={onMove}
+          onPointerMove={onMove}
+          onPointerLeave={(e) => {
+            // A finger lifting is not "leaving": the reading stays until the next touch.
+            if (e.pointerType === "mouse") setHover(null);
+          }}
           role="img"
           aria-label={`Line chart: ${series.map((s) => s.label).join(", ")}`}
         >
@@ -191,9 +239,13 @@ export default function LineChart({
       {/* tooltip — HTML so it can't be clipped by the SVG viewBox */}
       {hover !== null && (
         <div
-          className="pointer-events-none absolute top-2 z-10 min-w-40 -translate-x-1/2 rounded-xl border border-hairline bg-panel p-3 shadow-lg"
+          className="pointer-events-none absolute z-10 w-40 -translate-x-1/2 rounded-xl border border-hairline bg-panel p-3 shadow-lg"
           style={{
-            left: `${((x(hover) - PAD.left) / (W - PAD.left - PAD.right)) * 82 + 12}%`,
+            // Centred on the point but never past either edge, so the first and last buckets
+            // are not cut off on a narrow screen.
+            left: Math.min(Math.max(x(hover), 84), Math.max(W - 84, 84)),
+            // Clear of the legend row when there is one.
+            top: series.length > 1 ? 32 : 8,
           }}
         >
           <p className="text-xs font-semibold text-heading">{labels[hover]}</p>

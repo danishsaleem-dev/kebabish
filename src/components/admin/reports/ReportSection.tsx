@@ -152,16 +152,24 @@ export function ReportTable<T>({
   }
   const shown = limit ? rows.slice(0, limit) : rows;
 
+  // The first column is the row's name. On a phone the figures are wider than the screen and the
+  // table scrolls sideways, so that column stays put (sticky) and the reader never loses track of
+  // which row they are looking at. It is capped in width so a long dish name wraps rather than
+  // taking half the screen; the other columns keep their text on one line.
+  const sticky =
+    "max-sm:first:sticky max-sm:first:left-0 max-sm:first:z-[1] max-sm:first:min-w-24 max-sm:first:max-w-36 max-sm:first:bg-panel max-sm:first:pr-3 max-sm:first:shadow-[6px_0_6px_-6px_rgba(16,24,40,0.12)]";
+  const scrolls = columns.length > 3;
+
   return (
     <>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overscroll-x-contain">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-hairline text-left text-xs font-semibold uppercase tracking-wide text-muted">
               {columns.map((col) => (
                 <th
                   key={col.header}
-                  className={`px-3 py-2.5 first:pl-0 last:pr-0 ${
+                  className={`whitespace-nowrap px-3 py-2.5 first:pl-0 last:pr-0 ${sticky} ${
                     col.align === "right" ? "text-right" : ""
                   }`}
                 >
@@ -176,8 +184,8 @@ export function ReportTable<T>({
                 {columns.map((col) => (
                   <td
                     key={col.header}
-                    className={`px-3 py-2.5 first:pl-0 last:pr-0 ${
-                      col.align === "right" ? "text-right tabular-nums" : ""
+                    className={`px-3 py-2.5 first:pl-0 last:pr-0 ${sticky} ${
+                      col.align === "right" ? "whitespace-nowrap text-right tabular-nums" : ""
                     } ${col.muted ? "text-muted" : "text-body-text"}`}
                   >
                     {col.cell(row)}
@@ -188,6 +196,9 @@ export function ReportTable<T>({
           </tbody>
         </table>
       </div>
+      {scrolls && (
+        <p className="mt-2 text-xs text-faint sm:hidden print:hidden">Swipe sideways to see every column →</p>
+      )}
       {limit && rows.length > shown.length && (
         <p className="mt-3 text-xs text-muted print:hidden">
           Showing the top {shown.length} of {rows.length}. Export the CSV for all of them.

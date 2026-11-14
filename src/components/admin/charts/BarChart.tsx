@@ -64,11 +64,15 @@ export function ColumnChart({
   const animated = useAnimatedNumbers(data.map((d) => d.value));
   const [hover, setHover] = useState<number | null>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
+  // With a dozen or more columns (hours of the day) the labels run into each other on a phone,
+  // so below `sm` only every few-th one is written; the rest keep their space but are invisible.
+  // A bar can still be tapped to read its own value, whatever its label does.
+  const labelEvery = data.length > 16 ? 3 : data.length > 8 ? 2 : 1;
 
   return (
     <div>
       <div
-        className="flex items-end gap-1.5 sm:gap-2"
+        className="flex items-end gap-1 sm:gap-2"
         style={{ height }}
         onMouseLeave={() => setHover(null)}
       >
@@ -79,8 +83,9 @@ export function ColumnChart({
           return (
             <div
               key={datum.label}
-              className="group flex h-full flex-1 flex-col justify-end"
+              className="group flex h-full min-w-0 flex-1 flex-col justify-end"
               onMouseEnter={() => setHover(i)}
+              onClick={() => setHover((current) => (current === i ? null : i))}
             >
               <span
                 className={`mb-1 text-center text-[10px] font-semibold transition-opacity ${
@@ -102,13 +107,13 @@ export function ColumnChart({
         })}
       </div>
 
-      <div className="mt-2 flex gap-1.5 sm:gap-2">
+      <div className="mt-2 flex gap-1 overflow-hidden sm:gap-2">
         {data.map((datum, i) => (
           <span
             key={datum.label}
-            className={`flex-1 text-center text-[10px] ${
-              hover === i ? "font-semibold text-heading" : "text-faint"
-            }`}
+            className={`min-w-0 flex-1 whitespace-nowrap text-center text-[10px] ${
+              i % labelEvery !== 0 && hover !== i ? "max-sm:invisible" : ""
+            } ${hover === i ? "font-semibold text-heading" : "text-faint"}`}
           >
             {datum.label}
           </span>

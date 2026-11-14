@@ -2854,6 +2854,14 @@ reading dashes; and the **zero-coverage** case showing "—" everywhere with the
 instruction. **Not seen against the live store** (needs a sign-in): what the real coverage is —
 expect 0% until recipes are entered.
 
+#### Reports on a phone (Nov 2026)
+
+Danish asked for the whole Reports page to work on a phone. No data or maths changed.
+- **`LineChart` is as wide as its container**, measured with a `ResizeObserver`, so its text is always real size. It was a fixed 760-unit drawing scaled down (axis labels came out about 5px) with a 600px minimum that made it scroll sideways, and `touch-none` on the SVG meant a finger could not even swipe it. It now uses `touch-pan-y` plus pointer events, so a touch scrubs the tooltip while the page still scrolls. It picks the **nearest** point (a fingertip is imprecise), clamps the tooltip inside the chart, thins the x labels to one per ~52px, and shows a **legend whenever there is more than one line**. 760 is only the first guess before it is measured, and what the server renders. **A hidden Browser pane never fires `ResizeObserver`**, so in testing the charts look unmeasured until the pane is visible; that is the tool, not the code.
+- **Tables** (`ReportTable`) still scroll sideways when they are wider than the screen, but the **first column is sticky below `sm`** (capped in width, so a long dish name wraps) and a "swipe sideways" hint shows under any table with more than three columns. Desktop is unchanged.
+- The headline tiles and the profit/customer tiles are **two columns on a phone** (an odd last tile spans both). Grid children in report sections carry `min-w-0` (`[&>*]:min-w-0`): without it an auto grid track grows to its widest child's min-content and pushes the page wider than the screen. `ColumnChart` writes every third hour label on a phone, and a bar, a donut slice and a legend row can be **tapped** to read them (there is no hover on touch).
+- **Checked in the browser** through a throwaway preview over synthetic orders (deleted afterwards), at 375px and 320px: no element past its card, document width equal to the screen, the sticky column holding while the figures scroll, and a touch at the far edge of the profit chart giving a tooltip inside the chart. Desktop re-checked afterwards. **Not seen:** the line charts measured at 320px, for the hidden-pane reason above (they were measured correctly at 375px).
+
 ### A rider's day ends when the office closes the day (Nov 2026)
 
 No migration. A rider's day used to be the **calendar date** (`todayKey()`), so it rolled over at midnight whatever was happening: a round

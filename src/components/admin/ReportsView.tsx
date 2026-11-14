@@ -272,9 +272,9 @@ export default function ReportsView({
         </div>
 
         {/* gap-px over a hairline background draws the rules between tiles on every row count. */}
-        <div className="grid gap-px overflow-hidden rounded-b-2xl bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-px overflow-hidden rounded-b-2xl bg-hairline grid-cols-2 lg:grid-cols-4">
           {headline.map((stat) => (
-            <div key={stat.label} className="bg-panel p-5">
+            <div key={stat.label} className="min-w-0 bg-panel p-4 sm:p-5">
               <p className="text-sm text-muted">{stat.label}</p>
               <p className="mt-1.5 font-display text-xl font-semibold text-heading">
                 {stat.value}
@@ -398,7 +398,7 @@ export default function ReportsView({
               )
             )}
 
-            <div className="mb-5 grid gap-px overflow-hidden rounded-xl bg-hairline sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-hairline lg:grid-cols-5 max-lg:[&>*:last-child:nth-child(odd)]:col-span-2">
               {[
                 {
                   label: "Sales",
@@ -441,7 +441,7 @@ export default function ReportsView({
             </div>
 
             {profitView === "chart" ? (
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+              <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
                 <div>
                   <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
                     Sales, costs and profit over time
@@ -590,7 +590,7 @@ export default function ReportsView({
         {profitCategories.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">No sales in this period.</p>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
+          <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[14rem_minmax(0,1fr)]">
             <div className="flex items-center justify-center">
               {/* The centre is the dish profit these slices add up to — not the section's gross
                   profit, which also carries the delivery fees and the packaging. */}
@@ -682,7 +682,7 @@ export default function ReportsView({
         {categories.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">No sales in this period.</p>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-2">
             <DonutChart
               centreLabel="100%"
               slices={categories.map((c, i) => ({
@@ -897,7 +897,7 @@ export default function ReportsView({
           )
         }
       >
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-2">
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
               By hour
@@ -940,7 +940,7 @@ export default function ReportsView({
         {areas.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">No deliveries in this period.</p>
         ) : areaView === "chart" ? (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-2">
             <div>
               <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Revenue</p>
               <HorizontalBars data={areas.map((a) => ({ label: a.town, value: a.revenue }))} valueFormat={money} />
@@ -1012,7 +1012,7 @@ export default function ReportsView({
           <p className="py-8 text-center text-sm text-muted">No orders in this period.</p>
         ) : (
           <>
-            <div className="mb-5 grid gap-px overflow-hidden rounded-xl bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-hairline lg:grid-cols-4">
               {[
                 {
                   label: "By returning customers",
@@ -1044,7 +1044,7 @@ export default function ReportsView({
             </div>
 
             {mixView === "chart" ? (
-              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_14rem]">
+              <div className="grid gap-6 [&>*]:min-w-0 lg:grid-cols-[minmax(0,1fr)_14rem]">
                 <LineChart
                   labels={mix.rows.map((r) => r.label)}
                   series={[

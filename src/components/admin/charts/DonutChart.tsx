@@ -43,7 +43,7 @@ export default function DonutChart({
     hover !== null ? Math.round((slices[hover].value / Math.max(1, slices.reduce((a, b) => a + b.value, 0))) * 100) : null;
 
   return (
-    <div className="flex flex-wrap items-center gap-6">
+    <div className="flex flex-wrap items-center gap-4 max-sm:justify-center sm:gap-6">
       <div className="relative shrink-0" style={{ width: size, height: size }}>
         <svg viewBox="0 0 160 160" className="h-full w-full -rotate-90">
           <circle cx="80" cy="80" r={R} fill="none" stroke="#eef0f3" strokeWidth="18" />
@@ -62,6 +62,8 @@ export default function DonutChart({
               opacity={hover === null || hover === arc.index ? 1 : 0.4}
               onMouseEnter={() => setHover(arc.index)}
               onMouseLeave={() => setHover(null)}
+              // Touch has no hover: a tap picks the slice, a second tap lets go.
+              onClick={() => setHover((current) => (current === arc.index ? null : arc.index))}
             />
           ))}
         </svg>
@@ -82,6 +84,7 @@ export default function DonutChart({
             key={slice.label}
             onMouseEnter={() => setHover(i)}
             onMouseLeave={() => setHover(null)}
+            onClick={() => setHover((current) => (current === i ? null : i))}
             className={`flex cursor-default items-center justify-between gap-3 rounded-lg px-2 py-1 text-sm transition-colors ${
               hover === i ? "bg-canvas" : ""
             }`}
