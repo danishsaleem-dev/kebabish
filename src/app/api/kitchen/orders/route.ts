@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * Polled every few seconds by the kitchen board: what to cook, who it is for, where
- * it goes and who is taking it. The kitchen hands orders to riders and sees the
+ * it goes and who is taking it — plus what is out with a rider and what was delivered
+ * in the last few hours, which the board's last two tabs read only. The kitchen hands
+ * orders to riders and sees the
  * customer's phone number and address (so it can ring about an allergy, or tell a
  * rider where to go), but not the email, the payment details or the prices — a cook
  * has no need for them. The same few seconds' poll doubles as a heartbeat for the chores
@@ -44,6 +46,7 @@ export async function GET() {
       paymentMethod: o.paymentMethod,
       paidAt: o.paidAt,
       acceptedAt: o.acceptedAt,
+      deliveredAt: o.deliveredAt,
       placedAt: o.placedAt,
       deliveryDate: o.deliveryDate,
       slotStart: o.deliverySlotStart,

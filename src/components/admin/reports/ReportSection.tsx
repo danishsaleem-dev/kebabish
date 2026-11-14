@@ -1,8 +1,11 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
-import { Download, Printer } from "lucide-react";
+import { ChartColumn, Download, Printer, Table2 } from "lucide-react";
 import Card from "@/components/admin/ui/Card";
+
+/** A section that can be read either way shows one or the other, never both at once. */
+export type ReportView = "chart" | "table";
 
 /**
  * One report area: a heading, the figures, and its own Print and Export buttons.
@@ -21,6 +24,8 @@ export default function ReportSection({
   subtitle,
   rangeLabel,
   onExport,
+  view,
+  onView,
   children,
 }: {
   title: string;
@@ -28,6 +33,13 @@ export default function ReportSection({
   /** "1 – 7 Oct 2026" — printed under the title, on paper only. */
   rangeLabel: string;
   onExport?: () => void;
+  /**
+   * Pass both to get the chart/table switch next to Print and Export. The section
+   * then shows one of the two at a time rather than stacking them, so the page stays
+   * short and whoever is reading picks the shape they want.
+   */
+  view?: ReportView;
+  onView?: (view: ReportView) => void;
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -61,6 +73,28 @@ export default function ReportSection({
             </p>
           </div>
           <div className="flex items-center gap-1 print:hidden">
+            {view && onView && (
+              <div className="mr-1 flex items-center gap-0.5 rounded-lg border border-hairline p-0.5">
+                {([
+                  { id: "chart" as const, Icon: ChartColumn, label: "chart" },
+                  { id: "table" as const, Icon: Table2, label: "table" },
+                ]).map(({ id, Icon, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => onView(id)}
+                    aria-pressed={view === id}
+                    title={`Show ${title} as a ${label}`}
+                    aria-label={`Show ${title} as a ${label}`}
+                    className={`flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+                      view === id ? "bg-charcoal-600 text-white" : "text-muted hover:bg-canvas hover:text-heading"
+                    }`}
+                  >
+                    <Icon size={15} />
+                  </button>
+                ))}
+              </div>
+            )}
             <button
               type="button"
               onClick={printThis}

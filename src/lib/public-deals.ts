@@ -94,7 +94,11 @@ function toPublicDeal(deal: StoredDeal, data: StoreShape, stock: StockMap | null
 
   const canServe = (s: PublicDealSlot) => s.choices.some((c) => !c.soldOut);
   const served = slots.filter(canServe).length;
-  const soldOut = slots.some((s) => !s.removable && !canServe(s)) || served < Math.max(deal.minItems, 1);
+  // Switched off by hand in the kitchen, or nothing left to build it from.
+  const soldOut =
+    Boolean(deal.soldOut) ||
+    slots.some((s) => !s.removable && !canServe(s)) ||
+    served < Math.max(deal.minItems, 1);
 
   // The deal's own photo is the deal's photo, full stop: when there is one it is the only
   // one, so nothing of the dishes inside is mixed into it. Without one, the first dish photo

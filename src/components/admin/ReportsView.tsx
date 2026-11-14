@@ -9,7 +9,7 @@ import LineChart from "@/components/admin/charts/LineChart";
 import DonutChart from "@/components/admin/charts/DonutChart";
 import { ColumnChart, HorizontalBars } from "@/components/admin/charts/BarChart";
 import DateRangePicker from "@/components/admin/reports/DateRangePicker";
-import ReportSection, { ReportTable } from "@/components/admin/reports/ReportSection";
+import ReportSection, { ReportTable, type ReportView } from "@/components/admin/reports/ReportSection";
 import { formatMoney } from "@/lib/admin/units";
 import { downloadCsv, stampedFilename, toCsv } from "@/lib/admin/export";
 import {
@@ -23,18 +23,24 @@ import {
   type ReportRange,
 } from "@/lib/admin/report-range";
 import {
+  byArea,
   byCategory,
   byChannel,
   byCustomer,
   byDish,
   byHour,
   byRider,
-  byTown,
   byWeekday,
+  customerMix,
   delta,
   ordersInRange,
+  profitByCategory,
+  profitByDish,
+  profitSeries,
+  profitTotals,
   seriesFor,
   summarise,
+  type ProfitInputs,
   type SeriesMetric,
 } from "@/lib/admin/reports";
 import type { AdminOrder } from "@/lib/admin/order-types";
@@ -82,6 +88,8 @@ export default function ReportsView({
   supplies,
   purchases,
   purchasesReady,
+  costPerDish,
+  vatRatePercent,
   today,
   closedDays,
   openDay,
@@ -94,6 +102,10 @@ export default function ReportsView({
   /** Logged supply purchases for the last year; empty when migration 0028 hasn't been run. */
   purchases: SupplyPurchase[];
   purchasesReady: boolean;
+  /** Food cost of one portion by dish slug, from each dish's recipe. Absent = not costed. */
+  costPerDish: Record<string, number>;
+  /** VAT inside every price, from Settings → Tax. Null until the owner sets it. */
+  vatRatePercent: number | null;
   /** The open business day's label (or today's date), from the server, so the first paint matches. */
   today: string;
   /** Closed business days, oldest first — empty until a day has been closed (or without 0027). */
@@ -110,6 +122,12 @@ export default function ReportsView({
   const [range, setRange] = useState<ReportRange>(() => presetRange("last30", today));
   const [granularity, setGranularity] = useState<Granularity | "auto">("auto");
   const [metric, setMetric] = useState<SeriesMetric>("revenue");
+  // The two areas that can be read either way. They start on the shape that answers
+  // the question each is usually opened for: "how do the towns compare" is a table of
+  // figures; "are people coming back" is a trend.
+  const [areaView, setAreaView] = useState<ReportView>("table");
+  const [mixView, setMixView] = useState<ReportView>("chart");
+  const [profitView, setProfitView] = useState<ReportView>("chart");
 
   const allowed = allowedGranularities(range);
   const effective = granularity === "auto" || !allowed.includes(granularity)
@@ -138,7 +156,10 @@ export default function ReportsView({
   const riders = useMemo(() => byRider(orders, range, shifts, dayOf), [orders, range, shifts, dayOf]);
   const hours = useMemo(() => byHour(inRange), [inRange]);
   const weekdays = useMemo(() => byWeekday(inRange, dayOf), [inRange, dayOf]);
-  const towns = useMemo(() => byTown(inRange), [inRange]);
+  const areas = useMemo(() => byArea(inRange), [inRange]);
+  // "First time or coming back" is judged against every order the shop ever took, so
+  // this one gets the whole list as well as the range.
+  const mix = useMemo(() => customerMix(orders, inRange, buckets, dayOf), [orders, inRange, buckets, dayOf]);
   const channels = useMemo(() => byChannel(inRange), [inRange]);
 
   // Supplies. Spend is what was actually bought in the range; packaging is each order's share
@@ -153,7 +174,29 @@ export default function ReportsView({
   const spendEuros = totalSpendCents(boughtInRange) / 100;
   const packagingEuros = packagingForOrders(now.orders, packaging.total);
 
-  const busiest = hours.reduce((a, b) => (b.value > a.value ? b : a), hours[0]);
+  // Profit. Everything it needs is data the owner already keeps — the recipes, the
+  // per-order packaging from Supplies, and the VAT rate — so nothing here is a guess;
+  // what isn't known is reported as not known (see `profitTotals`).
+  const profitInputs: ProfitInputs = useMemo(
+    () => ({ costPerDish, packagingPerOrder: packaging.total, vatRatePercent }),
+    [costPerDish, packaging.total, vatRatePercent]
+  );
+  const profit = useMemo(() => profitTotals(inRange, profitInputs), [inRange, profitInputs]);
+  const profitThen = useMemo(() => profitTotals(before, profitInputs), [before, profitInputs]);
+  const profitOverTime = useMemo(
+    () => profitSeries(inRange, buckets, profitInputs, dayOf),
+    [inRange, buckets, profitInputs, dayOf]
+  );
+  const profitDishes = useMemo(
+    () => profitByDish(inRange, categoryByDish, profitInputs),
+    [inRange, categoryByDish, profitInputs]
+  );
+  const profitCategories = useMemo(() => profitByCategory(profitDishes), [profitDishes]);
+  /** What the dishes themselves made — no delivery fees, no packaging. */
+  const dishProfit = profitDishes.reduce((sum, r) => sum + (r.profit ?? 0), 0);
+  /** Nothing sold can be costed: print dashes, never a profit that is really just the sales. */
+  const noCosts = profit.coveragePct === 0;
+
   const money = (n: number) => formatMoney(n);
 
   const headline = [
@@ -189,8 +232,12 @@ export default function ReportsView({
       delta: delta(now.customers, then.customers),
     },
     {
-      label: "Busiest hour",
-      value: busiest && busiest.value > 0 ? busiest.label : "—",
+      label: "Gross profit",
+      value: noCosts ? "—" : money(profit.profit),
+      hint: noCosts
+        ? "No dish sold has a costed recipe yet"
+        : `${profit.marginPct}% margin${profit.coveragePct < 100 ? ` · only ${profit.coveragePct}% costed` : ""}`,
+      delta: noCosts ? undefined : delta(profit.profit, profitThen.profit),
     },
   ];
 
@@ -305,6 +352,277 @@ export default function ReportsView({
                 : Math.round(v).toLocaleString("en-GB")
             }
           />
+        )}
+      </ReportSection>
+
+      {/* ---- profit ---- */}
+      <ReportSection
+        title="Profit"
+        subtitle="What was taken, less the ingredients of what was cooked and the packaging it went out in"
+        rangeLabel={rangeLabel}
+        view={profitView}
+        onView={setProfitView}
+        onExport={() =>
+          downloadCsv(
+            stamp("profit"),
+            toCsv(profitOverTime, [
+              { header: "Period", value: (r) => r.label },
+              { header: "Sales excl. VAT", value: (r) => r.sales.toFixed(2) },
+              { header: "Food cost", value: (r) => r.foodCost.toFixed(2) },
+              { header: "Packaging", value: (r) => r.packaging.toFixed(2) },
+              { header: "Gross profit", value: (r) => r.profit.toFixed(2) },
+              { header: "Margin %", value: (r) => r.marginPct },
+            ])
+          )
+        }
+      >
+        {profit.orders === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">No orders in this period.</p>
+        ) : (
+          <>
+            {/* What the figure does and doesn't know, before the figure itself. */}
+            {noCosts ? (
+              <p className="mb-5 rounded-xl bg-warn-soft px-4 py-3 text-sm font-semibold text-warn">
+                No dish sold in this period has a costed recipe, so there is no profit to work out yet.
+                Add a recipe under Menu → a dish → Recipe, and give its ingredients a price under Menu →
+                Ingredients.
+              </p>
+            ) : (
+              profit.coveragePct < 100 && (
+                <p className="mb-5 rounded-xl bg-warn-soft px-4 py-3 text-sm text-warn">
+                  <span className="font-semibold">Only {profit.coveragePct}% of the food sold can be costed.</span>{" "}
+                  {profit.uncostedDishes} {profit.uncostedDishes === 1 ? "dish has" : "dishes have"} no costed
+                  recipe ({money(profit.uncostedSales)} of sales, {profit.portionsUncosted} portions), so their
+                  ingredients are missing and the profit below is higher than the real one.
+                </p>
+              )
+            )}
+
+            <div className="mb-5 grid gap-px overflow-hidden rounded-xl bg-hairline sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                {
+                  label: "Sales",
+                  value: money(profit.sales),
+                  hint:
+                    vatRatePercent && vatRatePercent > 0
+                      ? `${money(profit.grossSales)} taken, less ${money(profit.vat)} VAT`
+                      : "VAT not set, so nothing is taken off",
+                },
+                {
+                  label: "Food cost",
+                  value: noCosts ? "—" : money(profit.foodCost),
+                  hint: noCosts ? "Nothing costed" : `${profit.portions - profit.portionsUncosted} portions costed`,
+                },
+                {
+                  label: "Packaging",
+                  value: money(profit.packaging),
+                  hint:
+                    packaging.total > 0
+                      ? `${profit.orders} orders × ${money(packaging.total)}`
+                      : "No per-order supply is costed yet",
+                },
+                {
+                  label: "Gross profit",
+                  value: noCosts ? "—" : money(profit.profit),
+                  hint: noCosts ? "Needs costed recipes" : "Before wages, rent and fuel",
+                },
+                {
+                  label: "Margin",
+                  value: noCosts ? "—" : `${profit.marginPct}%`,
+                  hint: noCosts ? undefined : "Of sales excl. VAT",
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-panel p-4">
+                  <p className="text-sm text-muted">{stat.label}</p>
+                  <p className="mt-1 font-display text-xl font-semibold text-heading">{stat.value}</p>
+                  {stat.hint && <p className="mt-0.5 text-xs text-faint">{stat.hint}</p>}
+                </div>
+              ))}
+            </div>
+
+            {profitView === "chart" ? (
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                    Sales, costs and profit over time
+                  </p>
+                  <LineChart
+                    labels={profitOverTime.map((p) => p.label)}
+                    series={[
+                      { label: "Sales", values: profitOverTime.map((p) => p.sales), color: "#3d3831" },
+                      {
+                        label: "Costs",
+                        values: profitOverTime.map((p) => p.foodCost + p.packaging),
+                        color: "#f79009",
+                        dashed: true,
+                      },
+                      { label: "Profit", values: profitOverTime.map((p) => p.profit), color: "#a95026" },
+                    ]}
+                    valueFormat={(v) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)}k` : `€${Math.round(v)}`)}
+                  />
+                </div>
+                <div>
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
+                    Where the money went
+                  </p>
+                  <HorizontalBars
+                    data={[
+                      { label: "Food cost", value: profit.foodCost },
+                      { label: "Packaging", value: profit.packaging },
+                      ...(profit.vat > 0 ? [{ label: "VAT passed on", value: profit.vat }] : []),
+                      ...(profit.profit > 0 ? [{ label: "Gross profit", value: profit.profit }] : []),
+                    ]}
+                    valueFormat={money}
+                  />
+                  {profit.profit <= 0 && !noCosts && (
+                    <p className="mt-3 text-xs font-semibold text-danger">
+                      Costs came to {money(Math.abs(profit.profit))} more than sales in this period.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <ReportTable
+                rows={profitOverTime}
+                keyOf={(r, i) => `${r.label}-${i}`}
+                empty="No orders in this period."
+                columns={[
+                  { header: "Period", cell: (r) => <span className="font-medium text-heading">{r.label}</span> },
+                  { header: "Sales", cell: (r) => money(r.sales), align: "right" },
+                  { header: "Food cost", cell: (r) => money(r.foodCost), align: "right", muted: true },
+                  { header: "Packaging", cell: (r) => money(r.packaging), align: "right", muted: true },
+                  { header: "Gross profit", cell: (r) => (noCosts ? "—" : money(r.profit)), align: "right" },
+                  { header: "Margin", cell: (r) => (noCosts ? "—" : `${r.marginPct}%`), align: "right", muted: true },
+                ]}
+              />
+            )}
+
+            <p className="mt-4 text-xs leading-relaxed text-muted">
+              Gross profit is sales{vatRatePercent && vatRatePercent > 0 ? " excluding VAT" : ""} less the
+              ingredients of the portions cooked and the packaging those orders carried.{" "}
+              <span className="font-semibold">
+                Wages, rent, fuel, the payment provider&apos;s fee and everything else the kitchen pays are not
+                in it
+              </span>{" "}
+              — nothing here records them. Ingredient prices are taken exactly as entered under Menu →
+              Ingredients, and packaging at today&apos;s prices, so a past period moves if a price does. The
+              full cost of a partly refunded order is still counted: the food was made.
+            </p>
+          </>
+        )}
+      </ReportSection>
+
+      {/* ---- profit per dish ---- */}
+      <ReportSection
+        title="Profit by dish"
+        subtitle="What each dish really earns, most profitable first. Packaging isn't here — it belongs to an order, not a dish."
+        rangeLabel={rangeLabel}
+        onExport={() =>
+          downloadCsv(
+            stamp("profit-by-dish"),
+            toCsv(profitDishes, [
+              { header: "Dish", value: (r) => r.name },
+              { header: "Category", value: (r) => r.category },
+              { header: "Portions", value: (r) => r.portions },
+              { header: "Sales excl. VAT", value: (r) => r.sales.toFixed(2) },
+              { header: "Food cost", value: (r) => (r.cost === null ? "" : r.cost.toFixed(2)) },
+              { header: "Profit", value: (r) => (r.profit === null ? "" : r.profit.toFixed(2)) },
+              { header: "Margin %", value: (r) => r.marginPct ?? "" },
+            ])
+          )
+        }
+      >
+        <ReportTable
+          rows={profitDishes}
+          keyOf={(r) => r.slug}
+          limit={15}
+          empty="No dishes sold in this period."
+          columns={[
+            { header: "Dish", cell: (r) => <span className="font-medium text-heading">{r.name}</span> },
+            { header: "Category", cell: (r) => r.category, muted: true },
+            { header: "Portions", cell: (r) => r.portions, align: "right", muted: true },
+            { header: "Sales", cell: (r) => money(r.sales), align: "right" },
+            {
+              header: "Food cost",
+              cell: (r) =>
+                r.cost === null ? <span className="text-warn">no recipe</span> : money(r.cost),
+              align: "right",
+              muted: true,
+            },
+            { header: "Profit", cell: (r) => (r.profit === null ? "—" : money(r.profit)), align: "right" },
+            {
+              header: "Margin",
+              cell: (r) => (r.marginPct === null ? "—" : `${r.marginPct}%`),
+              align: "right",
+              muted: true,
+            },
+          ]}
+        />
+        <p className="mt-3 text-xs text-muted">
+          A dish reading “no recipe” has none, or its ingredients have no price — it is left out of the
+          profit figures rather than counted as free. Sales are after discounts and refunds
+          {vatRatePercent && vatRatePercent > 0 ? ", excluding VAT" : ""}.
+        </p>
+      </ReportSection>
+
+      {/* ---- profit per category ---- */}
+      <ReportSection
+        title="Profit by category"
+        subtitle="Which part of the menu earns the money. Dishes only — delivery fees and packaging belong to an order, not a category."
+        rangeLabel={rangeLabel}
+        onExport={() =>
+          downloadCsv(
+            stamp("profit-by-category"),
+            toCsv(profitCategories, [
+              { header: "Category", value: (r) => r.label },
+              { header: "Portions", value: (r) => r.portions },
+              { header: "Sales excl. VAT", value: (r) => r.sales.toFixed(2) },
+              { header: "Food cost", value: (r) => r.cost.toFixed(2) },
+              { header: "Profit", value: (r) => r.profit.toFixed(2) },
+              { header: "Margin %", value: (r) => r.marginPct },
+              { header: "Share of profit %", value: (r) => r.share },
+              { header: "Dishes costed", value: (r) => r.costed },
+              { header: "Dishes with no recipe", value: (r) => r.uncosted },
+            ])
+          )
+        }
+      >
+        {profitCategories.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">No sales in this period.</p>
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)]">
+            <div className="flex items-center justify-center">
+              {/* The centre is the dish profit these slices add up to — not the section's gross
+                  profit, which also carries the delivery fees and the packaging. */}
+              <DonutChart
+                centreLabel={noCosts ? "—" : money(dishProfit)}
+                slices={profitCategories.map((c, i) => ({
+                  label: c.label,
+                  value: c.share,
+                  color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
+                }))}
+              />
+            </div>
+            <ReportTable
+              rows={profitCategories}
+              keyOf={(r) => r.label}
+              columns={[
+                { header: "Category", cell: (r) => <span className="font-medium text-heading">{r.label}</span> },
+                { header: "Portions", cell: (r) => r.portions, align: "right", muted: true },
+                { header: "Sales", cell: (r) => money(r.sales), align: "right", muted: true },
+                // Nothing in the category is costed: that is unknown, not zero.
+                { header: "Food cost", cell: (r) => (r.costed ? money(r.cost) : "—"), align: "right", muted: true },
+                { header: "Profit", cell: (r) => (r.costed ? money(r.profit) : "—"), align: "right" },
+                { header: "Margin", cell: (r) => (r.costed ? `${r.marginPct}%` : "—"), align: "right" },
+                {
+                  header: "No recipe",
+                  cell: (r) => (r.uncosted > 0 ? <span className="text-warn">{r.uncosted}</span> : "—"),
+                  align: "right",
+                  muted: true,
+                },
+              ]}
+            />
+          </div>
         )}
       </ReportSection>
 
@@ -595,50 +913,211 @@ export default function ReportsView({
         </div>
       </ReportSection>
 
-      {/* ---- where and how ---- */}
-      <div className="grid gap-4 sm:gap-6 xl:grid-cols-2">
-        <ReportSection
-          title="Towns"
-          subtitle="Where the deliveries went"
-          rangeLabel={rangeLabel}
-          onExport={() =>
-            downloadCsv(
-              stamp("towns"),
-              toCsv(towns, [
-                { header: "Town", value: (r) => r.label },
-                { header: "Deliveries", value: (r) => r.value },
-              ])
-            )
-          }
-        >
-          {towns.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">No deliveries in this period.</p>
-          ) : (
-            <HorizontalBars data={towns} color="#3d3831" />
-          )}
-        </ReportSection>
+      {/* ---- delivery areas ---- */}
+      <ReportSection
+        title="Delivery areas"
+        subtitle="How each town performs, not just how many orders it sent. Pickup orders are left out — they didn't go anywhere."
+        rangeLabel={rangeLabel}
+        view={areaView}
+        onView={setAreaView}
+        onExport={() =>
+          downloadCsv(
+            stamp("delivery-areas"),
+            toCsv(areas, [
+              { header: "Town", value: (r) => r.town },
+              { header: "Orders", value: (r) => r.orders },
+              { header: "Customers", value: (r) => r.customers },
+              { header: "Dishes", value: (r) => r.items },
+              { header: "Food sales", value: (r) => r.foodSales.toFixed(2) },
+              { header: "Revenue", value: (r) => r.revenue.toFixed(2) },
+              { header: "Average order", value: (r) => r.averageOrder.toFixed(2) },
+              { header: "Share %", value: (r) => r.share },
+              { header: "Avg minutes to deliver", value: (r) => r.minutesToDeliver ?? "" },
+            ])
+          )
+        }
+      >
+        {areas.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">No deliveries in this period.</p>
+        ) : areaView === "chart" ? (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Revenue</p>
+              <HorizontalBars data={areas.map((a) => ({ label: a.town, value: a.revenue }))} valueFormat={money} />
+            </div>
+            <div>
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Orders</p>
+              <HorizontalBars
+                data={areas.map((a) => ({ label: a.town, value: a.orders }))}
+                color="#3d3831"
+                valueFormat={(v) => Math.round(v).toLocaleString("en-GB")}
+              />
+            </div>
+          </div>
+        ) : (
+          <>
+            <ReportTable
+              rows={areas}
+              keyOf={(r) => r.town}
+              empty="No deliveries in this period."
+              columns={[
+                { header: "Town", cell: (r) => <span className="font-medium text-heading">{r.town}</span> },
+                { header: "Orders", cell: (r) => r.orders, align: "right" },
+                { header: "Customers", cell: (r) => r.customers, align: "right", muted: true },
+                { header: "Dishes", cell: (r) => r.items, align: "right", muted: true },
+                { header: "Food sales", cell: (r) => money(r.foodSales), align: "right", muted: true },
+                { header: "Revenue", cell: (r) => money(r.revenue), align: "right" },
+                { header: "Average order", cell: (r) => money(r.averageOrder), align: "right", muted: true },
+                { header: "Share", cell: (r) => `${r.share}%`, align: "right", muted: true },
+                {
+                  header: "Avg delivery",
+                  cell: (r) => (r.minutesToDeliver === null ? "—" : `${r.minutesToDeliver} min`),
+                  align: "right",
+                  muted: true,
+                },
+              ]}
+            />
+            <p className="mt-3 text-xs text-muted">
+              Average delivery is from the order being placed to the rider marking it delivered — the whole
+              wait, kitchen included. An order still on the road counts in the money and the orders, but not
+              in that average.
+            </p>
+          </>
+        )}
+      </ReportSection>
 
-        <ReportSection
-          title="Ordering channel"
-          subtitle="Website checkout, WhatsApp, phone"
-          rangeLabel={rangeLabel}
-          onExport={() =>
-            downloadCsv(
-              stamp("channels"),
-              toCsv(channels, [
-                { header: "Channel", value: (r) => r.label },
-                { header: "Orders", value: (r) => r.value },
-              ])
-            )
-          }
-        >
-          {channels.length === 0 ? (
-            <p className="py-8 text-center text-sm text-muted">No orders in this period.</p>
-          ) : (
-            <HorizontalBars data={channels} />
-          )}
-        </ReportSection>
-      </div>
+      {/* ---- new and returning customers ---- */}
+      <ReportSection
+        title="Returning and new customers"
+        subtitle="Whether an order came from someone ordering for the first time ever, or someone coming back"
+        rangeLabel={rangeLabel}
+        view={mixView}
+        onView={setMixView}
+        onExport={() =>
+          downloadCsv(
+            stamp("returning-and-new"),
+            toCsv(mix.rows, [
+              { header: "Period", value: (r) => r.label },
+              { header: "New orders", value: (r) => r.newOrders },
+              { header: "Returning orders", value: (r) => r.returningOrders },
+              { header: "Orders", value: (r) => r.orders },
+              { header: "Returning %", value: (r) => r.returningShare },
+              { header: "Revenue from new", value: (r) => r.newRevenue.toFixed(2) },
+              { header: "Revenue from returning", value: (r) => r.returningRevenue.toFixed(2) },
+            ])
+          )
+        }
+      >
+        {mix.newOrders + mix.returningOrders === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">No orders in this period.</p>
+        ) : (
+          <>
+            <div className="mb-5 grid gap-px overflow-hidden rounded-xl bg-hairline sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                {
+                  label: "By returning customers",
+                  value: `${mix.returningShare}%`,
+                  hint: `${mix.returningOrders.toLocaleString("en-GB")} orders · ${money(mix.returningRevenue)}`,
+                },
+                {
+                  label: "By new customers",
+                  value: `${100 - mix.returningShare}%`,
+                  hint: `${mix.newOrders.toLocaleString("en-GB")} orders · ${money(mix.newRevenue)}`,
+                },
+                {
+                  label: "First-time customers",
+                  value: mix.newCustomers.toLocaleString("en-GB"),
+                  hint: "People whose first ever order is in this period",
+                },
+                {
+                  label: "Returning customers",
+                  value: mix.returningCustomers.toLocaleString("en-GB"),
+                  hint: "People who had ordered before this period",
+                },
+              ].map((stat) => (
+                <div key={stat.label} className="bg-panel p-4">
+                  <p className="text-sm text-muted">{stat.label}</p>
+                  <p className="mt-1 font-display text-xl font-semibold text-heading">{stat.value}</p>
+                  <p className="mt-0.5 text-xs text-faint">{stat.hint}</p>
+                </div>
+              ))}
+            </div>
+
+            {mixView === "chart" ? (
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_14rem]">
+                <LineChart
+                  labels={mix.rows.map((r) => r.label)}
+                  series={[
+                    {
+                      label: "Returning",
+                      values: mix.rows.map((r) => r.returningShare),
+                      color: "#a95026",
+                    },
+                    {
+                      label: "New",
+                      values: mix.rows.map((r) => (r.orders ? 100 - r.returningShare : 0)),
+                      color: "#3d3831",
+                    },
+                  ]}
+                  valueFormat={(v) => `${Math.round(v)}%`}
+                />
+                <div className="flex items-center justify-center">
+                  {/* The donut prints each slice's value with a % after it, so it is given
+                      the shares — the order counts are on the tiles above. */}
+                  <DonutChart
+                    centreLabel={`${(mix.newOrders + mix.returningOrders).toLocaleString("en-GB")} orders`}
+                    slices={[
+                      { label: "Returning", value: mix.returningShare, color: "#a95026" },
+                      { label: "New", value: 100 - mix.returningShare, color: "#3d3831" },
+                    ]}
+                  />
+                </div>
+              </div>
+            ) : (
+              <ReportTable
+                rows={mix.rows}
+                keyOf={(r, i) => `${r.label}-${i}`}
+                empty="No orders in this period."
+                columns={[
+                  { header: "Period", cell: (r) => <span className="font-medium text-heading">{r.label}</span> },
+                  { header: "New", cell: (r) => r.newOrders, align: "right" },
+                  { header: "Returning", cell: (r) => r.returningOrders, align: "right" },
+                  { header: "Orders", cell: (r) => r.orders, align: "right", muted: true },
+                  { header: "Returning %", cell: (r) => (r.orders ? `${r.returningShare}%` : "—"), align: "right" },
+                  { header: "From new", cell: (r) => money(r.newRevenue), align: "right", muted: true },
+                  { header: "From returning", cell: (r) => money(r.returningRevenue), align: "right", muted: true },
+                ]}
+              />
+            )}
+            <p className="mt-3 text-xs text-muted">
+              An order counts as new only if it is that person&apos;s first ever — matched on their account,
+              else email, else phone number, against every order the shop has taken, not only this period.
+            </p>
+          </>
+        )}
+      </ReportSection>
+
+      {/* ---- how they ordered ---- */}
+      <ReportSection
+        title="Ordering channel"
+        subtitle="Website checkout, WhatsApp, phone"
+        rangeLabel={rangeLabel}
+        onExport={() =>
+          downloadCsv(
+            stamp("channels"),
+            toCsv(channels, [
+              { header: "Channel", value: (r) => r.label },
+              { header: "Orders", value: (r) => r.value },
+            ])
+          )
+        }
+      >
+        {channels.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted">No orders in this period.</p>
+        ) : (
+          <HorizontalBars data={channels} />
+        )}
+      </ReportSection>
     </div>
   );
 }

@@ -190,6 +190,7 @@ function resolveDeal(
 ): { deal: StoredDeal; parts: DealPart[]; unitCents: number } {
   const deal = store.deals.find((d) => d.slug === dealSlugOf(line.slug));
   if (!deal?.visible) throw new CartPricingError("missing");
+  if (deal.soldOut) throw new CartPricingError("soldOut");
   if (!isSellablePrice(deal.price)) throw new CartPricingError("unpriced");
 
   const picks: DealPicks = Object.fromEntries(line.options.map((o) => [o.groupId, o.optionId]));

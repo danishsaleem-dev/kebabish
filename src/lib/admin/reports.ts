@@ -473,18 +473,6 @@ export function byWeekday(orders: AdminOrder[], dayOf: DayOf = calendarDayOf): N
   return WEEKDAY_NAMES.map((label, i) => ({ label, value: counts[i] }));
 }
 
-/** Delivery orders by town — a pickup order didn't go anywhere. */
-export function byTown(orders: AdminOrder[]): NamedValue[] {
-  const counts = new Map<string, number>();
-  for (const order of orders) {
-    if (order.fulfilment !== "delivery" || !isSale(order)) continue;
-    counts.set(order.town, (counts.get(order.town) ?? 0) + 1);
-  }
-  return [...counts.entries()]
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value);
-}
-
 /** Where the orders came from. Only channels with orders in the range are listed. */
 export function byChannel(orders: AdminOrder[]): NamedValue[] {
   const counts = new Map<AdminOrder["channel"], number>();
@@ -509,4 +497,504 @@ function round2(n: number): number {
 
 function round1(n: number): number {
   return Math.round(n * 10) / 10;
+}
+
+/* -------------------------------------------------------- delivery areas */
+
+export interface AreaRow {
+  town: string;
+  orders: number;
+  /** Everything taken in that town: food after discounts + delivery fees, less refunds. */
+  revenue: number;
+  /** Food only, after discounts and refunds. */
+  foodSales: number;
+  items: number;
+  /** Distinct people, grouped the same way the Customers screen groups them. */
+  customers: number;
+  averageOrder: number;
+  /** This town's share of the period's delivery revenue, as a percentage. */
+  share: number;
+  /**
+   * Average minutes from the order being placed to it being handed over, over the
+   * orders in this period that were actually delivered. Null when none of them were,
+   * which is printed as "—" rather than a 0 that reads like "instantly".
+   */
+  minutesToDeliver: number | null;
+}
+
+/**
+ * How each delivery area performs — not just how many orders it sent. A pickup order
+ * didn't go anywhere, so it is left out entirely (the same rule as `byTown`).
+ *
+ * The delivery time is measured from when the order was **placed** to when the rider
+ * marked it delivered. That is the whole wait as the customer experienced it, kitchen
+ * included — the number worth comparing between towns, since the cooking is the same
+ * everywhere and the driving is not. An order still out on the road contributes to the
+ * money and the count but not to the average, which is why a town can show orders and
+ * no time.
+ */
+export function byArea(orders: AdminOrder[]): AreaRow[] {
+  interface Acc {
+    orders: number;
+    revenue: number;
+    foodSales: number;
+    items: number;
+    people: Set<string>;
+    minutes: number;
+    delivered: number;
+  }
+  const rows = new Map<string, Acc>();
+
+  for (const order of orders) {
+    if (order.fulfilment !== "delivery" || !isSale(order)) continue;
+    const town = order.town?.trim() || "—";
+    const acc =
+      rows.get(town) ??
+      ({ orders: 0, revenue: 0, foodSales: 0, items: 0, people: new Set<string>(), minutes: 0, delivered: 0 } as Acc);
+
+    acc.orders += 1;
+    acc.revenue += order.total - order.refunded;
+    acc.foodSales += orderMoney(order).foodNet;
+    acc.items += order.lines.reduce((n, line) => n + line.quantity, 0);
+    acc.people.add(who(order));
+
+    if (order.status === "delivered" && order.deliveredAt) {
+      const minutes = (Date.parse(order.deliveredAt) - Date.parse(order.placedAt)) / 60_000;
+      // A negative or absurd gap is a hand-entered order backdated by staff, not a
+      // delivery that took three days — those would swamp the average, so they are skipped.
+      if (minutes > 0 && minutes < 24 * 60) {
+        acc.minutes += minutes;
+        acc.delivered += 1;
+      }
+    }
+    rows.set(town, acc);
+  }
+
+  const total = [...rows.values()].reduce((sum, r) => sum + r.revenue, 0);
+  return [...rows.entries()]
+    .map(([town, r]) => ({
+      town,
+      orders: r.orders,
+      revenue: round2(r.revenue),
+      foodSales: round2(r.foodSales),
+      items: r.items,
+      customers: r.people.size,
+      averageOrder: r.orders ? round2(r.revenue / r.orders) : 0,
+      share: total ? Math.round((r.revenue / total) * 100) : 0,
+      minutesToDeliver: r.delivered ? Math.round(r.minutes / r.delivered) : null,
+    }))
+    .sort((a, b) => b.revenue - a.revenue || b.orders - a.orders);
+}
+
+/* --------------------------------------------- new and returning customers */
+
+export interface CustomerMixRow {
+  label: string;
+  newOrders: number;
+  returningOrders: number;
+  orders: number;
+  newRevenue: number;
+  returningRevenue: number;
+  /** Percentage of this bucket's orders placed by someone who had ordered before. */
+  returningShare: number;
+}
+
+export interface CustomerMix {
+  rows: CustomerMixRow[];
+  newOrders: number;
+  returningOrders: number;
+  /** People whose very first order falls in this period. */
+  newCustomers: number;
+  /** People who ordered in this period having ordered before it. */
+  returningCustomers: number;
+  newRevenue: number;
+  returningRevenue: number;
+  /** Percentage of the period's orders placed by returning customers. */
+  returningShare: number;
+}
+
+/**
+ * Who the orders came from: someone ordering for the first time, or someone coming back.
+ *
+ * "First time" is decided against **every order the shop has ever taken**, not just the
+ * ones in the range — an order in October from a customer who first ordered in August is
+ * a returning one, however the range is drawn. `all` is therefore the full order list and
+ * `inRange` the period being reported on.
+ *
+ * A person is matched the same way the Customers screen matches them (account, else email,
+ * else phone), so the two can never disagree about whether two orders were the same person.
+ * Only real sales count on either side: an abandoned checkout is not a first order, and a
+ * cancelled one doesn't make its customer "returning" next time.
+ */
+export function customerMix(
+  all: AdminOrder[],
+  inRange: AdminOrder[],
+  buckets: ReportBucket[],
+  dayOf: DayOf = calendarDayOf
+): CustomerMix {
+  // The order each person started with, oldest first — ties broken by id so the answer
+  // is the same on every run.
+  const firstOrderId = new Map<string, string>();
+  const sortedAll = realOrders(all)
+    .filter(isSale)
+    .sort((a, b) => Date.parse(a.placedAt) - Date.parse(b.placedAt) || a.id.localeCompare(b.id));
+  for (const order of sortedAll) {
+    const key = who(order);
+    if (!firstOrderId.has(key)) firstOrderId.set(key, order.id);
+  }
+
+  const isFirst = (order: AdminOrder) => firstOrderId.get(who(order)) === order.id;
+
+  const rows = buckets.map((bucket): CustomerMixRow => {
+    let newOrders = 0;
+    let returningOrders = 0;
+    let newRevenue = 0;
+    let returningRevenue = 0;
+    for (const order of inRange) {
+      if (!isSale(order)) continue;
+      const day = orderDayKey(order, dayOf);
+      if (day < bucket.from || day > bucket.to) continue;
+      const money = order.total - order.refunded;
+      if (isFirst(order)) {
+        newOrders += 1;
+        newRevenue += money;
+      } else {
+        returningOrders += 1;
+        returningRevenue += money;
+      }
+    }
+    const orders = newOrders + returningOrders;
+    return {
+      label: bucket.label,
+      newOrders,
+      returningOrders,
+      orders,
+      newRevenue: round2(newRevenue),
+      returningRevenue: round2(returningRevenue),
+      returningShare: orders ? Math.round((returningOrders / orders) * 100) : 0,
+    };
+  });
+
+  const sales = inRange.filter(isSale);
+  const newPeople = new Set<string>();
+  const returningPeople = new Set<string>();
+  let newOrders = 0;
+  let returningOrders = 0;
+  let newRevenue = 0;
+  let returningRevenue = 0;
+  for (const order of sales) {
+    const money = order.total - order.refunded;
+    if (isFirst(order)) {
+      newOrders += 1;
+      newRevenue += money;
+      newPeople.add(who(order));
+    } else {
+      returningOrders += 1;
+      returningRevenue += money;
+      returningPeople.add(who(order));
+    }
+  }
+
+  return {
+    rows,
+    newOrders,
+    returningOrders,
+    newCustomers: newPeople.size,
+    // Someone who ordered twice in the period is counted once, and as returning —
+    // their first order of the period made them so.
+    returningCustomers: returningPeople.size,
+    newRevenue: round2(newRevenue),
+    returningRevenue: round2(returningRevenue),
+    returningShare: sales.length ? Math.round((returningOrders / sales.length) * 100) : 0,
+  };
+}
+
+/* ----------------------------------------------------------------- profit */
+
+/**
+ * What it takes to turn sales into profit. All of it comes from data the owner
+ * already keeps: the recipes (food cost per portion), Menu → Supplies (what the
+ * packaging of one order costs) and Settings → Tax (the VAT inside every price).
+ */
+export interface ProfitInputs {
+  /**
+   * Food cost of one portion, by dish slug, from that dish's recipe priced at the
+   * ingredient costs under Menu → Ingredients. A slug that isn't here has no costed
+   * recipe — **never treated as free**, it is reported as not costed.
+   */
+  costPerDish: Record<string, number>;
+  /** What the packaging of one order costs (Menu → Supplies, "used per order"). */
+  packagingPerOrder: number;
+  /** VAT inside every consumer price, as a percentage. Null until the owner sets it. */
+  vatRatePercent: number | null;
+}
+
+/** Strip the VAT the shop only collects and passes on. No rate set = nothing stripped. */
+function exVat(amount: number, rate: number | null): number {
+  return rate && rate > 0 ? amount / (1 + rate / 100) : amount;
+}
+
+export interface ProfitTotals {
+  /** Everything taken, as charged, incl. VAT and delivery, less refunds. */
+  grossSales: number;
+  /** The VAT inside that, which is not the shop's money. 0 while no rate is set. */
+  vat: number;
+  /** `grossSales` without the VAT — what the profit is worked out from. */
+  sales: number;
+  /** Ingredients of the portions sold, for the dishes that have a costed recipe. */
+  foodCost: number;
+  /** Orders × the packaging one order carries. */
+  packaging: number;
+  profit: number;
+  /** Profit as a percentage of `sales`. */
+  marginPct: number;
+  /** Food sales belonging to dishes whose cost is known. */
+  costedSales: number;
+  /** …and to dishes with no costed recipe, whose ingredients are therefore missing. */
+  uncostedSales: number;
+  /** `costedSales` as a percentage of the two together — how much of this is real. */
+  coveragePct: number;
+  /** Distinct dishes sold that have no costed recipe. */
+  uncostedDishes: number;
+  portions: number;
+  portionsUncosted: number;
+  orders: number;
+}
+
+/** The food cost of one order's portions, split into what is known and what isn't. */
+function orderFoodCost(
+  order: AdminOrder,
+  costPerDish: Record<string, number>
+): { cost: number; costedNet: number; uncostedNet: number; portions: number; portionsUncosted: number; uncosted: string[] } {
+  const money = orderMoney(order);
+  let cost = 0;
+  let costedNet = 0;
+  let uncostedNet = 0;
+  let portions = 0;
+  let portionsUncosted = 0;
+  const uncosted: string[] = [];
+
+  order.lines.forEach((line, i) => {
+    for (const share of dishShares(line, money.lineGross[i], money.lineNet[i])) {
+      portions += share.quantity;
+      const per = costPerDish[share.slug];
+      if (per === undefined || !(per > 0)) {
+        uncostedNet += share.net;
+        portionsUncosted += share.quantity;
+        uncosted.push(share.slug);
+        continue;
+      }
+      // The full cost of what was cooked. A partly refunded order therefore shows the
+      // loss it really was: the food was made whatever came back to the customer.
+      cost += per * share.quantity;
+      costedNet += share.net;
+    }
+  });
+
+  return { cost, costedNet, uncostedNet, portions, portionsUncosted, uncosted };
+}
+
+/**
+ * Gross profit for a period: what was taken, less the ingredients of what was cooked and
+ * the packaging it went out in.
+ *
+ * **It is gross, and the screen says so** — wages, rent, fuel, the payment provider's cut
+ * and everything else the kitchen pays are not in it, because nothing in this system
+ * records them. And a dish with no costed recipe contributes its sales but no cost, so
+ * `coveragePct` is reported beside every figure: at less than 100% the profit shown is
+ * higher than the real one, and the screen refuses to print a figure at all when nothing
+ * sold can be costed.
+ */
+export function profitTotals(orders: AdminOrder[], inputs: ProfitInputs): ProfitTotals {
+  const sales = orders.filter(isSale);
+  let grossSales = 0;
+  let foodCost = 0;
+  let costedNet = 0;
+  let uncostedNet = 0;
+  let portions = 0;
+  let portionsUncosted = 0;
+  const uncostedDishes = new Set<string>();
+
+  for (const order of sales) {
+    grossSales += order.total - order.refunded;
+    const part = orderFoodCost(order, inputs.costPerDish);
+    foodCost += part.cost;
+    costedNet += part.costedNet;
+    uncostedNet += part.uncostedNet;
+    portions += part.portions;
+    portionsUncosted += part.portionsUncosted;
+    for (const slug of part.uncosted) uncostedDishes.add(slug);
+  }
+
+  const packaging = sales.length * Math.max(inputs.packagingPerOrder, 0);
+  const net = exVat(grossSales, inputs.vatRatePercent);
+  const profit = net - foodCost - packaging;
+  const food = costedNet + uncostedNet;
+
+  return {
+    grossSales: round2(grossSales),
+    vat: round2(grossSales - net),
+    sales: round2(net),
+    foodCost: round2(foodCost),
+    packaging: round2(packaging),
+    profit: round2(profit),
+    marginPct: net > 0 ? Math.round((profit / net) * 100) : 0,
+    costedSales: round2(costedNet),
+    uncostedSales: round2(uncostedNet),
+    coveragePct: food > 0 ? Math.round((costedNet / food) * 100) : 0,
+    uncostedDishes: uncostedDishes.size,
+    portions,
+    portionsUncosted,
+    orders: sales.length,
+  };
+}
+
+export interface ProfitPoint {
+  label: string;
+  sales: number;
+  foodCost: number;
+  packaging: number;
+  profit: number;
+  marginPct: number;
+}
+
+/** The same three figures per bucket, for the trend. */
+export function profitSeries(
+  orders: AdminOrder[],
+  buckets: ReportBucket[],
+  inputs: ProfitInputs,
+  dayOf: DayOf = calendarDayOf
+): ProfitPoint[] {
+  const byDay = new Map<string, AdminOrder[]>();
+  for (const order of orders) {
+    if (!isSale(order)) continue;
+    const day = orderDayKey(order, dayOf);
+    const list = byDay.get(day);
+    if (list) list.push(order);
+    else byDay.set(day, [order]);
+  }
+
+  return buckets.map((bucket) => {
+    const inBucket: AdminOrder[] = [];
+    for (const [day, list] of byDay) {
+      if (day >= bucket.from && day <= bucket.to) inBucket.push(...list);
+    }
+    const totals = profitTotals(inBucket, inputs);
+    return {
+      label: bucket.label,
+      sales: totals.sales,
+      foodCost: totals.foodCost,
+      packaging: totals.packaging,
+      profit: totals.profit,
+      marginPct: totals.marginPct,
+    };
+  });
+}
+
+export interface ProfitDishRow {
+  slug: string;
+  name: string;
+  category: string;
+  portions: number;
+  /** Net of discounts and refunds, without VAT — the same basis as the profit figure. */
+  sales: number;
+  /** Null when the dish has no costed recipe. */
+  cost: number | null;
+  profit: number | null;
+  marginPct: number | null;
+}
+
+/**
+ * Profit per dish. Packaging is **not** here: it belongs to an order, not to a dish, so
+ * spreading it over the dishes would invent a number. A dish with no costed recipe shows
+ * its sales and dashes for the rest, rather than a profit equal to its sales.
+ */
+export function profitByDish(
+  orders: AdminOrder[],
+  categoryByDish: Map<string, string>,
+  inputs: ProfitInputs
+): ProfitDishRow[] {
+  const rows = new Map<string, { name: string; category: string; portions: number; sales: number }>();
+
+  for (const order of orders) {
+    if (!isSale(order)) continue;
+    const money = orderMoney(order);
+    order.lines.forEach((line, i) => {
+      for (const share of dishShares(line, money.lineGross[i], money.lineNet[i])) {
+        const row = rows.get(share.slug) ?? {
+          name: share.name,
+          category: categoryByDish.get(share.slug) ?? "Other",
+          portions: 0,
+          sales: 0,
+        };
+        row.portions += share.quantity;
+        row.sales += exVat(share.net, inputs.vatRatePercent);
+        rows.set(share.slug, row);
+      }
+    });
+  }
+
+  return [...rows.entries()]
+    .map(([slug, r]) => {
+      const per = inputs.costPerDish[slug];
+      const known = per !== undefined && per > 0;
+      const cost = known ? per * r.portions : null;
+      const profit = cost === null ? null : r.sales - cost;
+      return {
+        slug,
+        name: r.name,
+        category: r.category,
+        portions: r.portions,
+        sales: round2(r.sales),
+        cost: cost === null ? null : round2(cost),
+        profit: profit === null ? null : round2(profit),
+        marginPct: profit === null || r.sales <= 0 ? null : Math.round((profit / r.sales) * 100),
+      };
+    })
+    .sort((a, b) => (b.profit ?? -Infinity) - (a.profit ?? -Infinity) || b.sales - a.sales);
+}
+
+export interface ProfitCategoryRow {
+  label: string;
+  portions: number;
+  sales: number;
+  cost: number;
+  profit: number;
+  marginPct: number;
+  /** Share of the period's dish profit, as a whole percent. */
+  share: number;
+  /** Dishes in this category that have no costed recipe. */
+  uncosted: number;
+  /** …and how many do. Zero means cost and profit are unknown here, not zero. */
+  costed: number;
+}
+
+/** The same rolled up by category, from the rows above so the two can never disagree. */
+export function profitByCategory(rows: ProfitDishRow[]): ProfitCategoryRow[] {
+  const out = new Map<string, ProfitCategoryRow>();
+  for (const row of rows) {
+    const acc =
+      out.get(row.category) ??
+      { label: row.category, portions: 0, sales: 0, cost: 0, profit: 0, marginPct: 0, share: 0, uncosted: 0, costed: 0 };
+    acc.portions += row.portions;
+    acc.sales += row.sales;
+    if (row.cost === null) acc.uncosted += 1;
+    else {
+      acc.costed += 1;
+      acc.cost += row.cost;
+      acc.profit += row.profit ?? 0;
+    }
+    out.set(row.category, acc);
+  }
+  const total = [...out.values()].reduce((sum, r) => sum + Math.max(r.profit, 0), 0);
+  return [...out.values()]
+    .map((r) => ({
+      ...r,
+      sales: round2(r.sales),
+      cost: round2(r.cost),
+      profit: round2(r.profit),
+      marginPct: r.sales > 0 ? Math.round((r.profit / r.sales) * 100) : 0,
+      share: total > 0 ? Math.round((Math.max(r.profit, 0) / total) * 100) : 0,
+    }))
+    .sort((a, b) => b.profit - a.profit);
 }

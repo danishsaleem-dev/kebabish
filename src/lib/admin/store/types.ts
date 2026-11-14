@@ -417,6 +417,13 @@ export interface StoredDeal {
   /** Parts that must stay in the deal, however many are removable. At least 1. */
   minItems: number;
   visible: boolean;
+  /**
+   * Switched off for now — the kitchen ran out of something the deal needs, or simply
+   * isn't making it tonight (`/kitchen/availability`). Like a dish's `soldOut` it still
+   * shows on the site, marked unavailable, rather than vanishing; `visible` is the
+   * separate "is this deal on the menu at all" decision. Absent counts as available.
+   */
+  soldOut?: boolean;
   /** Leads the homepage section and the deals page. */
   featured?: boolean;
   createdAt: string;

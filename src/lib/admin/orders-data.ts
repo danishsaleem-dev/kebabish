@@ -483,18 +483,35 @@ export async function listPendingOrders(): Promise<AdminOrder[]> {
 }
 
 /**
+ * How far back the board's "Done" tab looks. The kitchen works evenings, often
+ * past midnight, so a calendar day would empty the tab at the worst moment; half
+ * a day keeps one service together. Anything older is the History screen's.
+ */
+const KITCHEN_DONE_HOURS = 12;
+
+/**
  * What the kitchen board shows: orders someone has to cook right now. A paid
  * order nobody has accepted yet; and anything already accepted (preparing or
  * ready for the rider) — including an order staff entered by phone that is
  * still to be paid in cash. A checkout that was started and never paid is not
  * an order yet and never appears.
+ *
+ * It also carries the two stages after the kitchen's own, so the board's "With
+ * rider" and "Done" tabs have something to show: every order out on the road, and
+ * the ones delivered in the last `KITCHEN_DONE_HOURS` hours. The kitchen can't
+ * move either of those on — `updateOrderStatus` refuses — they are there to be
+ * looked up.
  */
 export async function listKitchenOrders(): Promise<AdminOrder[]> {
+  const doneSince = new Date(Date.now() - KITCHEN_DONE_HOURS * 3_600_000).toISOString();
   const { data, error } = await supabaseAdmin()
     .from("orders")
     .select(ORDER_SELECT)
     .or(
-      "and(status.eq.new,payment_status.eq.paid),and(status.in.(scheduled,preparing,ready),payment_status.in.(paid,open))"
+      "and(status.eq.new,payment_status.eq.paid)," +
+        "and(status.in.(scheduled,preparing,ready),payment_status.in.(paid,open))," +
+        "and(status.eq.on_the_way,payment_status.in.(paid,open))," +
+        `and(status.eq.delivered,delivered_at.gte.${doneSince})`
     )
     .order("created_at", { ascending: true });
 

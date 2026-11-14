@@ -7,6 +7,8 @@ import {
   CalendarClock,
   Check,
   ChefHat,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   MapPin,
   Maximize2,
@@ -30,11 +32,12 @@ export interface BoardOrder {
   town: string;
   assignedRiderId: string | null;
   assignedRiderName: string | null;
-  status: "new" | "scheduled" | "preparing" | "ready";
+  status: "new" | "scheduled" | "preparing" | "ready" | "on_the_way" | "delivered";
   paymentStatus: string;
   paymentMethod: string;
   paidAt: string | null;
   acceptedAt: string | null;
+  deliveredAt: string | null;
   placedAt: string;
   deliveryDate: string | null;
   slotStart: string | null;
@@ -100,6 +103,15 @@ function dayLabel(deliveryDate: string, long = false): string {
   }).format(new Date(y, m - 1, d));
 }
 
+/** "19:12" in Amsterdam, for a stored instant. */
+function clockAt(iso: string): string {
+  return new Intl.DateTimeFormat("nl-NL", {
+    timeZone: "Europe/Amsterdam",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
 /** The delivery window split in two, so a card can show the day above the time. */
 function slotParts(o: BoardOrder): { day: string; time: string } | null {
   if (!o.deliveryDate || !o.slotStart) return null;
@@ -108,6 +120,11 @@ function slotParts(o: BoardOrder): { day: string; time: string } | null {
 
 /** Sort key for "which one is due soonest": date + slot start; no slot sorts last. */
 const dueKey = (o: BoardOrder) => (o.deliveryDate && o.slotStart ? `${o.deliveryDate} ${o.slotStart}` : "9999");
+
+const dishCount = (o: BoardOrder) => o.lines.reduce((n, l) => n + l.quantity, 0);
+
+const waitedSeconds = (o: BoardOrder, now: number) =>
+  Math.max(0, Math.floor((now - Date.parse(o.paidAt ?? o.placedAt)) / 1000));
 
 function readPrinted(): Record<string, number> {
   try {
@@ -129,17 +146,54 @@ function writePrinted(map: Record<string, number>) {
   }
 }
 
+/* ------------------------------------------------------------------- tabs */
+
+type TabId = "new" | "cooking" | "ready" | "rider" | "done" | "scheduled";
+
+const TABS: { id: TabId; label: string; hint: string }[] = [
+  { id: "new", label: "New", hint: "Paid and waiting for the kitchen to accept" },
+  { id: "cooking", label: "Cooking", hint: "Accepted and being prepared" },
+  { id: "ready", label: "Ready", hint: "Cooked and waiting for a rider" },
+  { id: "rider", label: "With rider", hint: "Picked up and on the way" },
+  { id: "done", label: "Done", hint: "Delivered in the last 12 hours" },
+  { id: "scheduled", label: "Scheduled", hint: "Accepted for later, and today's not-yet-started" },
+];
+
+/**
+ * Which tab an order belongs to. Every order is in exactly one, so the counts
+ * across the bar add up to the whole board.
+ */
+function tabOf(order: BoardOrder): TabId {
+  switch (order.status) {
+    case "new":
+      return "new";
+    case "preparing":
+      return "cooking";
+    case "ready":
+      return "ready";
+    case "on_the_way":
+      return "rider";
+    case "delivered":
+      return "done";
+    case "scheduled":
+      return "scheduled";
+  }
+}
+
 /**
  * The live orders board for the kitchen: a paid order appears the moment it
  * arrives and the screen beeps — repeatedly, for every order still waiting —
- * until someone accepts it. A card shows what to cook, who it is for and where it
- * goes, the customer's note (marked as an allergy check), the rider, and one big
- * button for the next step.
+ * until someone accepts it.
  *
- * Order of the board follows an order's own life, so the work in hand is always at
- * the top: waiting to be accepted first (longest wait on top), then being prepared
- * (soonest delivery slot first), then ready for the rider. Below that comes work that
- * hasn't started: scheduled for today, and last the days still to come.
+ * It is laid out as **tabs over a list, with the chosen order shown in full beside
+ * it** (Danish's ask, Nov 2026): one tab per stage of an order's life — new,
+ * cooking, ready, with the rider, done, and scheduled for later — so "what is out
+ * with a rider" or "what went out already" is one tap rather than a scroll past
+ * everything else. The left column is the queue for the chosen tab; the right is
+ * everything about the order being looked at: what to cook, who it is for and where
+ * it goes, the customer's note (marked as an allergy check), the rider, and the
+ * button for its next step. Below `lg` the list fills the screen and tapping a row
+ * opens the order, with a way back.
  *
  * The board can also print a ticket by itself whenever an order is accepted — by
  * anyone, from any screen — see `useAutoPrint`.
@@ -153,6 +207,10 @@ export default function KitchenBoard({ endpoint = "/api/kitchen/orders" }: { end
   const [now, setNow] = useState(() => Date.now());
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<TabId>("new");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  /** Below `lg` the list and the order share the screen; this says which one is showing. */
+  const [showDetail, setShowDetail] = useState(false);
   const failures = useRef(0);
 
   const poll = useCallback(async () => {
@@ -191,32 +249,39 @@ export default function KitchenBoard({ endpoint = "/api/kitchen/orders" }: { end
     return () => clearInterval(id);
   }, []);
 
-  const waiting = useMemo(
-    () =>
-      orders
-        .filter((o) => o.status === "new")
-        .sort((a, b) => Date.parse(a.paidAt ?? a.placedAt) - Date.parse(b.paidAt ?? b.placedAt)),
-    [orders]
-  );
-  // Scheduled orders split on whether their day has come. Re-evaluated each minute
-  // (not every second) — the date only changes at midnight.
+  // Which scheduled orders have had their day come round. Re-read each minute, not
+  // each second — the date only turns over at midnight.
   const minute = Math.floor(now / 60_000);
-  const { dueToday, later } = useMemo(() => {
+  const dueTodayIds = useMemo(() => {
     const at = new Date(minute * 60_000);
-    const scheduled = orders.filter((o) => o.status === "scheduled").sort((a, b) => dueKey(a).localeCompare(dueKey(b)));
-    return {
-      dueToday: scheduled.filter((o) => !isFutureDelivery(o.deliveryDate, at)),
-      later: scheduled.filter((o) => isFutureDelivery(o.deliveryDate, at)),
-    };
+    return new Set(
+      orders.filter((o) => o.status === "scheduled" && !isFutureDelivery(o.deliveryDate, at)).map((o) => o.id)
+    );
   }, [orders, minute]);
-  const preparing = useMemo(
-    () => orders.filter((o) => o.status === "preparing").sort((a, b) => dueKey(a).localeCompare(dueKey(b))),
-    [orders]
-  );
-  const ready = useMemo(
-    () => orders.filter((o) => o.status === "ready").sort((a, b) => dueKey(a).localeCompare(dueKey(b))),
-    [orders]
-  );
+
+  /** Every tab's list, sorted the way that stage wants to be read. */
+  const groups = useMemo(() => {
+    const out: Record<TabId, BoardOrder[]> = { new: [], cooking: [], ready: [], rider: [], done: [], scheduled: [] };
+    for (const order of orders) out[tabOf(order)].push(order);
+    // Longest wait first: the order that has been sitting there is the urgent one.
+    out.new.sort((a, b) => Date.parse(a.paidAt ?? a.placedAt) - Date.parse(b.paidAt ?? b.placedAt));
+    for (const id of ["cooking", "ready", "rider"] as const) {
+      out[id].sort((a, b) => dueKey(a).localeCompare(dueKey(b)));
+    }
+    // Due today before the days still to come, then soonest first.
+    out.scheduled.sort(
+      (a, b) => Number(dueTodayIds.has(b.id)) - Number(dueTodayIds.has(a.id)) || dueKey(a).localeCompare(dueKey(b))
+    );
+    // Finished: the one that just went out on top.
+    out.done.sort((a, b) => Date.parse(b.deliveredAt ?? b.placedAt) - Date.parse(a.deliveredAt ?? a.placedAt));
+    return out;
+  }, [orders, dueTodayIds]);
+
+  const waiting = groups.new;
+  const list = groups[tab];
+  // Derived, never stored: the chosen order if it is still in this tab, else the first
+  // one. So accepting an order simply moves the selection on, with no effect to go wrong.
+  const current = list.find((o) => o.id === selectedId) ?? list[0] ?? null;
 
   // Beep for as long as anything is waiting to be accepted — one shared beep,
   // not one per order.
@@ -243,9 +308,7 @@ export default function KitchenBoard({ endpoint = "/api/kitchen/orders" }: { end
     const next = order.status === "new" && to === "preparing" ? acceptTarget(order.deliveryDate) : to;
     setOrders((prev) =>
       prev.map((o) =>
-        o.id === order.id
-          ? { ...o, status: next, acceptedAt: o.acceptedAt ?? new Date().toISOString() }
-          : o
+        o.id === order.id ? { ...o, status: next, acceptedAt: o.acceptedAt ?? new Date().toISOString() } : o
       )
     );
     poll();
@@ -269,9 +332,13 @@ export default function KitchenBoard({ endpoint = "/api/kitchen/orders" }: { end
     }
   }
 
-  const urgent = waiting.some((o) => (now - Date.parse(o.paidAt ?? o.placedAt)) / 1000 >= URGENT_AFTER);
+  const urgent = waiting.some((o) => waitedSeconds(o, now) >= URGENT_AFTER);
+  const dueTodayWaiting = groups.scheduled.some((o) => dueTodayIds.has(o.id));
 
-  const cardProps = { riders, onAssign: assign };
+  function openOrder(id: string) {
+    setSelectedId(id);
+    setShowDetail(true);
+  }
 
   return (
     <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
@@ -282,144 +349,541 @@ export default function KitchenBoard({ endpoint = "/api/kitchen/orders" }: { end
             setSoundOn(true);
             beep();
           }}
-          className="mb-5 flex w-full items-center justify-center gap-3 rounded-2xl bg-ember-600 px-5 py-4 text-base font-semibold text-white shadow-lg hover:bg-ember-500"
+          className="mb-4 flex w-full items-center justify-center gap-3 rounded-2xl bg-ember-600 px-5 py-4 text-base font-semibold text-white shadow-lg hover:bg-ember-500"
         >
           <Volume2 size={22} />
           Tap here to turn on the new-order sound
         </button>
       )}
 
-      <label className="mb-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-hairline bg-panel px-4 py-3">
-        <input
-          type="checkbox"
-          checked={printer.on}
-          onChange={(e) => printer.set(e.target.checked)}
-          className="mt-1 h-5 w-5 accent-ember-600"
-        />
-        <span className="min-w-0 text-sm">
-          <span className="flex items-center gap-2 font-semibold text-heading">
-            <Printer size={16} />
-            Print a ticket automatically when an order is accepted
-            {printer.on && <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs text-success">On for this device</span>}
-          </span>
-          <span className="mt-0.5 block text-xs text-muted">
-            Tick this on the one computer or tablet the thermal printer is attached to. Tickets go to that
-            device&apos;s default printer; for printing without a pop-up, open Chrome with{" "}
-            <code className="rounded bg-canvas px-1">--kiosk-printing</code>. Don&apos;t tick it on two screens, or
-            every ticket prints twice.
-          </span>
-        </span>
-      </label>
-
       {offline && (
-        <p role="alert" className="mb-5 flex items-center gap-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+        <p
+          role="alert"
+          className="mb-4 flex items-center gap-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm font-semibold text-danger"
+        >
           <WifiOff size={18} />
           Lost connection — this list may be out of date. Retrying…
         </p>
       )}
       {error && (
-        <p role="alert" className="mb-5 rounded-2xl bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
+        <p role="alert" className="mb-4 rounded-2xl bg-danger-soft px-4 py-3 text-sm font-semibold text-danger">
           {error}
         </p>
       )}
 
+      {/* ---- one tab per stage, with how many are in it ---- */}
+      <div
+        role="tablist"
+        aria-label="Order stage"
+        className="mb-4 flex gap-1.5 overflow-x-auto rounded-2xl border border-hairline bg-panel p-1.5"
+      >
+        {TABS.map((t) => {
+          const count = groups[t.id].length;
+          const active = t.id === tab;
+          const loud = (t.id === "new" && count > 0) || (t.id === "scheduled" && dueTodayWaiting);
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              type="button"
+              aria-selected={active}
+              title={t.hint}
+              onClick={() => {
+                setTab(t.id);
+                setShowDetail(false);
+              }}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+                active ? "bg-charcoal-600 text-white" : "text-body-text hover:bg-canvas"
+              }`}
+            >
+              {t.label}
+              <span
+                className={`inline-flex min-w-6 justify-center rounded-full px-1.5 py-0.5 text-xs font-bold tabular-nums ${
+                  active
+                    ? "bg-white/20 text-white"
+                    : loud
+                      ? urgent && t.id === "new"
+                        ? "bg-danger text-white"
+                        : "bg-ember-600 text-white"
+                      : "bg-hairline text-muted"
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
       {!loaded ? (
         <p className="py-24 text-center text-muted">Loading orders…</p>
-      ) : orders.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-24 text-center">
-          <ChefHat size={44} className="text-faint" />
-          <p className="font-display text-xl font-semibold text-heading">No orders right now</p>
-          <p className="text-sm text-muted">New paid orders appear here by themselves, with a sound.</p>
-        </div>
       ) : (
-        <div className="space-y-8">
-          {waiting.length > 0 && (
-            <Section title="Waiting to be accepted" count={waiting.length} tone={urgent ? "danger" : "ember"}>
-              {waiting.map((o) => {
-                const seconds = Math.max(0, Math.floor((now - Date.parse(o.paidAt ?? o.placedAt)) / 1000));
-                const later = acceptTarget(o.deliveryDate) === "scheduled";
-                return (
-                  <Card
-                    key={o.id}
-                    order={o}
-                    tone={seconds >= URGENT_AFTER ? "danger" : seconds >= WARN_AFTER ? "warn" : "new"}
-                    clock={`Waiting ${mmss(seconds)}`}
-                    action={{
-                      label: "Accept order",
-                      onClick: () => advance(o, "preparing"),
-                      busy: busyId === o.id,
-                    }}
-                    hint={later && o.deliveryDate ? `For ${dayLabel(o.deliveryDate)} — accepting only schedules it` : undefined}
-                    {...cardProps}
-                  />
-                );
-              })}
-            </Section>
-          )}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] xl:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
+          {/* ---- the queue for this tab ---- */}
+          <div className={`min-w-0 ${showDetail ? "hidden lg:block" : ""}`}>
+            {list.length === 0 ? (
+              <EmptyList tab={tab} />
+            ) : (
+              <ul className="space-y-2">
+                {list.map((o) => (
+                  <li key={o.id}>
+                    <ListRow
+                      order={o}
+                      active={current?.id === o.id}
+                      now={now}
+                      dueToday={dueTodayIds.has(o.id)}
+                      onOpen={() => openOrder(o.id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-          {preparing.length > 0 && (
-            <Section title="Preparing" count={preparing.length} tone="warn">
-              {preparing.map((o) => {
-                const since = o.acceptedAt ? Math.max(0, Math.floor((now - Date.parse(o.acceptedAt)) / 1000)) : null;
-                return (
-                  <Card
-                    key={o.id}
-                    order={o}
-                    tone="prep"
-                    clock={since != null ? `Accepted ${mmss(since)} ago` : undefined}
-                    action={{ label: "Mark as ready", onClick: () => advance(o, "ready"), busy: busyId === o.id }}
-                    {...cardProps}
-                  />
-                );
-              })}
-            </Section>
-          )}
-
-          {ready.length > 0 && (
-            <Section title="Ready — waiting for the rider" count={ready.length} tone="ok">
-              {ready.map((o) => (
-                <Card key={o.id} order={o} tone="ready" {...cardProps} />
-              ))}
-            </Section>
-          )}
-
-          {dueToday.length > 0 && (
-            <Section title="Scheduled — due today, ready to start" count={dueToday.length} tone="ember" icon="calendar">
-              {dueToday.map((o) => (
-                <Card
-                  key={o.id}
-                  order={o}
-                  tone="prep"
-                  action={{ label: "Start preparing", onClick: () => advance(o, "preparing"), busy: busyId === o.id }}
-                  {...cardProps}
-                />
-              ))}
-            </Section>
-          )}
-
-          {later.length > 0 && (
-            <Section title="Coming up — accepted for a later day" count={later.length} tone="muted" icon="calendar">
-              {later.map((o) => (
-                <Card
-                  key={o.id}
-                  order={o}
-                  tone="later"
-                  banner={o.deliveryDate ? `For ${dayLabel(o.deliveryDate, true)} — don't start yet` : undefined}
-                  secondaryAction={{
-                    label: "Start now anyway",
-                    onClick: () => advance(o, "preparing"),
-                    busy: busyId === o.id,
-                  }}
-                  {...cardProps}
-                />
-              ))}
-            </Section>
-          )}
+          {/* ---- everything about the one being looked at ---- */}
+          <div className={`min-w-0 ${showDetail ? "" : "hidden lg:block"}`}>
+            {current ? (
+              <Detail
+                order={current}
+                now={now}
+                dueToday={dueTodayIds.has(current.id)}
+                busy={busyId === current.id}
+                riders={riders}
+                onAssign={assign}
+                onAdvance={advance}
+                onBack={() => setShowDetail(false)}
+              />
+            ) : (
+              <div className="flex h-full min-h-60 flex-col items-center justify-center gap-3 rounded-2xl border border-hairline bg-panel py-16 text-center">
+                <ChefHat size={40} className="text-faint" />
+                <p className="font-display text-lg font-semibold text-heading">Nothing to show here</p>
+                <p className="max-w-xs text-sm text-muted">{TABS.find((t) => t.id === tab)?.hint}</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
+
+      {/* ---- the one setting this screen owns ---- */}
+      <div className="mt-5 rounded-2xl border border-hairline bg-panel px-4 py-3">
+        <label className="flex cursor-pointer items-center gap-3">
+          <input
+            type="checkbox"
+            checked={printer.on}
+            onChange={(e) => printer.set(e.target.checked)}
+            className="h-5 w-5 accent-ember-600"
+          />
+          <span className="flex min-w-0 flex-wrap items-center gap-2 text-sm font-semibold text-heading">
+            <Printer size={16} className="shrink-0" />
+            Print a ticket automatically when an order is accepted
+            {printer.on && (
+              <span className="rounded-full bg-success-soft px-2 py-0.5 text-xs text-success">On for this device</span>
+            )}
+          </span>
+        </label>
+        <details className="mt-1.5 pl-8">
+          <summary className="cursor-pointer text-xs font-semibold text-muted">How this works</summary>
+          <p className="mt-1 text-xs leading-relaxed text-muted">
+            Tick this on the one computer or tablet the thermal printer is attached to. Tickets go to that
+            device&apos;s default printer; for printing without a pop-up, open Chrome with{" "}
+            <code className="rounded bg-canvas px-1">--kiosk-printing</code>. Don&apos;t tick it on two screens, or
+            every ticket prints twice.
+          </p>
+        </details>
+      </div>
     </div>
   );
 }
+
+function EmptyList({ tab }: { tab: TabId }) {
+  const text: Record<TabId, string> = {
+    new: "No new orders. One arriving here makes a sound.",
+    cooking: "Nothing is being cooked right now.",
+    ready: "Nothing is waiting for a rider.",
+    rider: "No order is out with a rider.",
+    done: "Nothing has been delivered in the last 12 hours.",
+    scheduled: "Nothing is booked for later.",
+  };
+  return (
+    <p className="rounded-2xl border border-dashed border-hairline bg-panel px-4 py-10 text-center text-sm text-muted">
+      {text[tab]}
+    </p>
+  );
+}
+
+/* -------------------------------------------------------------- the queue */
+
+/** The colour down the left edge of a row and of the open order: the stage, at a glance. */
+function railFor(order: BoardOrder, now: number, dueToday: boolean): string {
+  if (order.status === "new") {
+    const s = waitedSeconds(order, now);
+    return s >= URGENT_AFTER ? "bg-danger" : s >= WARN_AFTER ? "bg-warn" : "bg-ember-600";
+  }
+  if (order.status === "ready" || order.status === "delivered") return "bg-success";
+  if (order.status === "on_the_way") return "bg-violet-400";
+  if (order.status === "scheduled") return dueToday ? "bg-ember-600" : "bg-faint";
+  return "bg-hairline";
+}
+
+/** The one time a row shows: how long it has waited, when it is due, or when it went out. */
+function rowClock(order: BoardOrder, now: number): { text: string; tone: string; urgent: boolean } {
+  if (order.status === "new") {
+    const s = waitedSeconds(order, now);
+    return {
+      text: mmss(s),
+      tone:
+        s >= URGENT_AFTER
+          ? "bg-danger text-white"
+          : s >= WARN_AFTER
+            ? "bg-warn-soft text-warn"
+            : "bg-canvas text-muted",
+      urgent: s >= URGENT_AFTER,
+    };
+  }
+  if (order.status === "delivered" && order.deliveredAt) {
+    return { text: clockAt(order.deliveredAt), tone: "bg-success-soft text-success", urgent: false };
+  }
+  const slot = slotParts(order);
+  return { text: slot ? slot.time : "—", tone: "bg-canvas text-muted", urgent: false };
+}
+
+function ListRow({
+  order,
+  active,
+  now,
+  dueToday,
+  onOpen,
+}: {
+  order: BoardOrder;
+  active: boolean;
+  now: number;
+  dueToday: boolean;
+  onOpen: () => void;
+}) {
+  const clock = rowClock(order, now);
+  const unpaid = order.paymentStatus !== "paid";
+  const later = order.status === "scheduled" && !dueToday;
+  const dishes = dishCount(order);
+
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-current={active ? "true" : undefined}
+      className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border bg-panel py-3 pl-5 pr-3 text-left transition-colors ${
+        active ? "border-charcoal-600 ring-1 ring-charcoal-600" : "border-hairline hover:bg-canvas"
+      }`}
+    >
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 ${railFor(order, now, dueToday)}`} />
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline gap-2">
+          <span className="truncate font-display text-base font-semibold text-heading">{order.reference}</span>
+          {unpaid && <Wallet size={13} className="shrink-0 text-warn" aria-label="Not paid yet" />}
+        </div>
+        <p className="truncate text-sm text-body-text">{order.customerName}</p>
+        <p className="mt-0.5 truncate text-xs text-muted">
+          {dishes} {dishes === 1 ? "dish" : "dishes"}
+          {order.town ? ` · ${order.town}` : ""}
+          {order.assignedRiderName ? ` · ${order.assignedRiderName}` : ""}
+        </p>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <span className="flex flex-col items-end gap-1">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${clock.tone}`}
+          >
+            {clock.urgent ? <AlertTriangle size={11} /> : <Clock size={11} />}
+            {clock.text}
+          </span>
+          {later && order.deliveryDate && (
+            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[0.65rem] font-semibold text-violet-700">
+              {dayLabel(order.deliveryDate)}
+            </span>
+          )}
+        </span>
+        <ChevronRight size={16} className="text-faint lg:hidden" />
+      </div>
+    </button>
+  );
+}
+
+/* -------------------------------------------------------------- the order */
+
+/** The next step for this order, if the kitchen has one. */
+function stepFor(
+  order: BoardOrder,
+  dueToday: boolean
+): { label: string; to: "preparing" | "ready"; primary: boolean } | null {
+  if (order.status === "new") return { label: "Accept order", to: "preparing", primary: true };
+  if (order.status === "scheduled")
+    return { label: dueToday ? "Start preparing" : "Start now anyway", to: "preparing", primary: dueToday };
+  if (order.status === "preparing") return { label: "Mark as ready", to: "ready", primary: true };
+  return null;
+}
+
+const STAGE_LABEL: Record<BoardOrder["status"], string> = {
+  new: "Waiting to be accepted",
+  scheduled: "Scheduled",
+  preparing: "Cooking",
+  ready: "Ready for the rider",
+  on_the_way: "On the way",
+  delivered: "Delivered",
+};
+
+function Detail({
+  order,
+  now,
+  dueToday,
+  busy,
+  riders,
+  onAssign,
+  onAdvance,
+  onBack,
+}: {
+  order: BoardOrder;
+  now: number;
+  dueToday: boolean;
+  busy: boolean;
+  riders: BoardRider[];
+  onAssign: (order: BoardOrder, riderId: string) => void;
+  onAdvance: (order: BoardOrder, to: "preparing" | "ready") => void;
+  onBack: () => void;
+}) {
+  const slot = slotParts(order);
+  const step = stepFor(order, dueToday);
+  const unpaid = order.paymentStatus !== "paid";
+  const telHref = `tel:${order.phone.replace(/[^\d+]/g, "")}`;
+  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address)}`;
+  const label = "text-[0.65rem] font-bold uppercase tracking-[0.12em] text-faint";
+  const gone = order.status === "on_the_way" || order.status === "delivered";
+  const waited = order.status === "new" ? waitedSeconds(order, now) : null;
+  const since =
+    order.status === "preparing" && order.acceptedAt
+      ? Math.max(0, Math.floor((now - Date.parse(order.acceptedAt)) / 1000))
+      : null;
+
+  return (
+    <article className="relative overflow-hidden rounded-2xl border border-hairline bg-panel shadow-sm">
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 ${railFor(order, now, dueToday)}`} />
+
+      <div className="flex flex-col gap-5 py-5 pl-6 pr-4 sm:pl-7 sm:pr-5">
+        {/* ---- who it is for ---- */}
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={onBack}
+              className="mb-2 -ml-1 inline-flex items-center gap-1 rounded-lg px-1 py-1 text-sm font-semibold text-muted hover:text-heading lg:hidden"
+            >
+              <ChevronLeft size={16} />
+              All orders
+            </button>
+            <p className="font-display text-2xl font-semibold leading-tight tracking-tight text-heading">
+              {order.reference}
+            </p>
+            <p className="mt-1 text-base font-medium text-body-text">{order.customerName}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+              {STAGE_LABEL[order.status]}
+              {order.status === "scheduled" && order.deliveryDate
+                ? ` · ${dueToday ? "due today" : `for ${dayLabel(order.deliveryDate, true)}`}`
+                : ""}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {waited !== null && (
+              <span
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold tabular-nums ${
+                  waited >= URGENT_AFTER
+                    ? "bg-danger text-white"
+                    : waited >= WARN_AFTER
+                      ? "bg-warn-soft text-warn"
+                      : "bg-canvas text-muted"
+                }`}
+              >
+                {waited >= URGENT_AFTER ? <AlertTriangle size={14} /> : <Clock size={14} />}
+                Waiting {mmss(waited)}
+              </span>
+            )}
+            {since !== null && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-canvas px-3 py-1.5 text-sm font-semibold tabular-nums text-muted">
+                <Clock size={14} />
+                Accepted {mmss(since)} ago
+              </span>
+            )}
+            {order.status === "delivered" && order.deliveredAt && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1.5 text-sm font-semibold text-success">
+                <Check size={14} />
+                Delivered {clockAt(order.deliveredAt)}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* ---- the next step, and the ticket ---- */}
+        <div className="flex flex-wrap items-center gap-2">
+          {step ? (
+            <button
+              type="button"
+              onClick={() => onAdvance(order, step.to)}
+              disabled={busy}
+              className={`inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl px-5 py-3 text-base font-semibold transition-colors disabled:opacity-60 sm:min-w-56 sm:flex-none ${
+                step.primary
+                  ? "bg-ember-600 text-white shadow-sm hover:bg-ember-500"
+                  : "border border-hairline text-body-text hover:bg-canvas"
+              }`}
+            >
+              {step.primary && <Check size={18} />}
+              {busy ? "…" : step.label}
+            </button>
+          ) : (
+            <span className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-canvas px-5 py-3 text-sm font-semibold text-muted sm:min-w-56 sm:flex-none">
+              <Check size={16} />
+              {order.status === "ready"
+                ? "Waiting for the rider"
+                : order.status === "on_the_way"
+                  ? "Out with the rider"
+                  : "Finished"}
+            </span>
+          )}
+          <a
+            href={`/admin/orders/${order.id}/ticket`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-hairline px-4 py-3 text-sm font-semibold text-muted transition-colors hover:bg-canvas hover:text-heading"
+          >
+            <Printer size={16} />
+            Ticket
+          </a>
+        </div>
+
+        {order.status === "scheduled" && !dueToday && order.deliveryDate && (
+          <p className="flex items-start gap-2 rounded-xl bg-violet-50 px-3 py-2.5 text-sm font-semibold leading-snug text-violet-700">
+            <CalendarClock size={16} className="mt-px shrink-0" />
+            For {dayLabel(order.deliveryDate, true)} — don&apos;t start yet.
+          </p>
+        )}
+
+        <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,17rem)]">
+          {/* ---- what to cook ---- */}
+          <div className="min-w-0">
+            <p className={`${label} mb-2`}>What to cook</p>
+            <ul className="space-y-2">
+              {order.lines.map((l, i) => (
+                <li key={i} className="flex items-baseline gap-3 text-lg leading-snug">
+                  <span className="inline-flex min-w-8 shrink-0 justify-center rounded-md bg-ember-600/10 px-1.5 py-0.5 font-display text-base font-bold tabular-nums text-ember-700">
+                    {l.quantity}
+                  </span>
+                  <div className="min-w-0">
+                    <span className="font-medium text-heading">{l.name}</span>
+                    {(l.details?.length ?? 0) > 0 && (
+                      <ul className="mt-0.5 space-y-0.5 text-sm text-body-text">
+                        {l.details!.map((d, j) => (
+                          <li key={j} className="flex gap-1.5">
+                            <span aria-hidden="true" className="text-faint">
+                              –
+                            </span>
+                            <span>{d}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {l.instructions && <p className="mt-0.5 text-sm italic text-muted">“{l.instructions}”</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            {order.note && (
+              <div className="mt-4 rounded-lg border-l-4 border-warn bg-warn-soft px-3 py-2.5">
+                <p className="flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-warn">
+                  <StickyNote size={13} />
+                  Note — check for allergies
+                </p>
+                <p className="mt-1 text-base font-semibold leading-snug text-heading">{order.note}</p>
+              </div>
+            )}
+
+            {unpaid && (
+              <p className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-canvas px-2.5 py-1.5 text-xs font-semibold text-muted">
+                <Wallet size={13} />
+                {order.paymentMethod === "cash"
+                  ? "Collect cash"
+                  : order.paymentMethod === "bank_transfer"
+                    ? "Bank transfer – not in yet"
+                    : order.paymentMethod === "payment_link"
+                      ? "Payment link – not confirmed"
+                      : "Pay later"}
+              </p>
+            )}
+          </div>
+
+          {/* ---- when, where, and who takes it ---- */}
+          <div className="flex flex-col gap-3 text-sm">
+            {slot && (
+              <div className="rounded-lg bg-canvas px-3 py-2.5">
+                <p className={label}>Deliver</p>
+                <p className="mt-0.5 text-sm font-semibold text-heading first-letter:uppercase">{slot.day}</p>
+                <p className="font-display text-lg font-semibold tabular-nums text-heading">{slot.time}</p>
+              </div>
+            )}
+
+            <div>
+              <p className={`${label} mb-1.5`}>Where it goes</p>
+              <a
+                href={telHref}
+                className="flex items-center gap-2.5 font-semibold tabular-nums text-heading transition-colors hover:text-ember-700"
+              >
+                <Phone size={15} className="shrink-0 text-faint" />
+                {order.phone}
+              </a>
+              <a
+                href={mapsHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 flex items-start gap-2.5 leading-snug text-body-text transition-colors hover:text-ember-700"
+              >
+                <MapPin size={15} className="mt-0.5 shrink-0 text-faint" />
+                {order.address}
+              </a>
+            </div>
+
+            {/* Once it has left the kitchen the rider is a fact, not a choice. */}
+            {gone ? (
+              <p className="flex items-center gap-2.5 font-semibold text-heading">
+                <Bike size={15} className="shrink-0 text-faint" />
+                {order.assignedRiderName ?? "No rider was assigned"}
+              </p>
+            ) : (
+              riders.length > 0 && (
+              <label className="flex items-center gap-2.5">
+                <Bike size={15} className="shrink-0 text-faint" />
+                <span className="sr-only">Rider for {order.reference}</span>
+                <select
+                  value={order.assignedRiderId ?? ""}
+                  onChange={(e) => onAssign(order, e.target.value)}
+                  className="h-10 min-w-0 flex-1 rounded-lg border border-hairline bg-panel px-2 text-sm font-semibold text-heading transition-colors hover:border-faint focus:border-ember-500 focus:outline-none"
+                >
+                  <option value="">No rider yet</option>
+                  {riders.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              )
+            )}
+          </div>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/* ------------------------------------------------------------- auto-print */
 
 /**
  * Prints the kitchen ticket by itself when an order has been accepted — whoever
@@ -500,7 +964,10 @@ function useAutoPrint(orders: BoardOrder[], loaded: boolean) {
     const printed = readPrinted();
     let changed = false;
     for (const o of orders) {
-      if (o.status === "new" || !o.acceptedAt || printed[o.id]) continue;
+      // Only an order the kitchen still holds: one already out with a rider or
+      // delivered was accepted long before this device ever saw it.
+      if (o.status !== "scheduled" && o.status !== "preparing" && o.status !== "ready") continue;
+      if (!o.acceptedAt || printed[o.id]) continue;
       if (Date.now() - Date.parse(o.acceptedAt) > PRINT_WINDOW_MS) continue;
       printed[o.id] = Date.now();
       queue.current.push(o.id);
@@ -513,274 +980,6 @@ function useAutoPrint(orders: BoardOrder[], loaded: boolean) {
   }, [orders, on, loaded, drain]);
 
   return { on, set };
-}
-
-function Section({
-  title,
-  count,
-  tone,
-  icon,
-  children,
-}: {
-  title: string;
-  count: number;
-  tone: "ember" | "danger" | "warn" | "ok" | "muted";
-  icon?: "calendar";
-  children: React.ReactNode;
-}) {
-  const dot = { ember: "bg-ember-600", danger: "bg-danger", warn: "bg-warn", ok: "bg-success", muted: "bg-faint" }[tone];
-  return (
-    <section>
-      {/* A quiet label with a rule running off to the right, rather than a heavy heading --
-          the cards below are what should carry the weight. */}
-      <div className="mb-3 flex items-center gap-3">
-        <h2 className="flex items-center gap-2.5 text-xs font-bold uppercase tracking-[0.12em] text-muted">
-          {icon === "calendar" ? (
-            <CalendarClock size={15} className="text-faint" />
-          ) : (
-            <span className={`h-2 w-2 rounded-full ${dot}`} />
-          )}
-          {title}
-          <span className="rounded-full bg-hairline px-2 py-0.5 text-[0.7rem] font-bold tabular-nums text-body-text">
-            {count}
-          </span>
-        </h2>
-        <span aria-hidden="true" className="h-px flex-1 bg-hairline" />
-      </div>
-      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-1">{children}</div>
-    </section>
-  );
-}
-
-function Card({
-  order,
-  tone,
-  clock,
-  action,
-  secondaryAction,
-  banner,
-  hint,
-  riders,
-  onAssign,
-}: {
-  order: BoardOrder;
-  tone: "new" | "warn" | "danger" | "prep" | "ready" | "later";
-  clock?: string;
-  action?: { label: string; onClick: () => void; busy: boolean };
-  secondaryAction?: { label: string; onClick: () => void; busy: boolean };
-  banner?: string;
-  hint?: string;
-  riders: BoardRider[];
-  onAssign: (order: BoardOrder, riderId: string) => void;
-}) {
-  // One rail of colour down the left edge carries the status, instead of a heavy coloured
-  // box around the whole card. Loud colours are kept for the two things that need an eye --
-  // an order still waiting, and one that is done -- so a kitchen mid-rush is calm.
-  const rail = {
-    new: "bg-ember-600",
-    warn: "bg-warn",
-    danger: "bg-danger",
-    prep: "bg-hairline",
-    ready: "bg-success",
-    later: "bg-faint",
-  }[tone];
-  const clockTone = {
-    new: "bg-canvas text-muted",
-    warn: "bg-warn-soft text-warn",
-    danger: "bg-danger text-white",
-    prep: "bg-canvas text-muted",
-    ready: "",
-    later: "bg-canvas text-muted",
-  }[tone];
-  const slot = slotParts(order);
-  const unpaid = order.paymentStatus !== "paid";
-  const telHref = `tel:${order.phone.replace(/[^\d+]/g, "")}`;
-  const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.address)}`;
-  const label = "text-[0.65rem] font-bold uppercase tracking-[0.12em] text-faint";
-
-  return (
-    // Below lg (a phone, or the tablet on the wall) the card stacks, as it always did. From lg
-    // -- the laptop the kitchen actually uses -- it turns on its side: who it is for, what to
-    // cook, where it goes and the next step, side by side. Each order is then one short row
-    // rather than a tall tile, so far more of the board fits on screen at once.
-    <article className="relative overflow-hidden rounded-2xl border border-hairline bg-panel shadow-sm transition-shadow hover:shadow-md">
-      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1.5 ${rail}`} />
-
-      <div className="flex flex-col gap-4 py-4 pl-6 pr-4 lg:flex-row lg:items-stretch lg:gap-6 lg:py-5 lg:pl-7 lg:pr-5">
-        {/* ---- who it is for, and when it is due ---- */}
-        <div className="flex flex-col gap-3 lg:w-52 lg:shrink-0 xl:w-56">
-          <div className="flex items-start justify-between gap-3 lg:flex-col lg:gap-2">
-            <div className="min-w-0">
-              <p className="font-display text-xl font-semibold leading-tight tracking-tight text-heading lg:whitespace-nowrap">
-                {order.reference}
-              </p>
-              <p className="mt-1 truncate text-sm font-medium text-muted">{order.customerName}</p>
-            </div>
-            {clock && (
-              <span
-                className={`inline-flex w-fit shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-sm font-semibold tabular-nums ${clockTone}`}
-              >
-                {tone === "danger" ? <AlertTriangle size={13} /> : <Clock size={13} />}
-                {clock}
-              </span>
-            )}
-          </div>
-
-          {banner && (
-            <p className="flex items-start gap-1.5 rounded-lg bg-violet-50 px-2.5 py-2 text-xs font-semibold leading-snug text-violet-700">
-              <CalendarClock size={14} className="mt-px shrink-0" />
-              {banner}
-            </p>
-          )}
-
-          {slot && (
-            <div className="rounded-lg bg-canvas px-3 py-2">
-              <p className={label}>Deliver</p>
-              <p className="mt-0.5 text-sm font-semibold text-heading first-letter:uppercase">{slot.day}</p>
-              <p className="font-display text-base font-semibold tabular-nums text-heading">{slot.time}</p>
-            </div>
-          )}
-        </div>
-
-        {/* ---- what to cook: the point of the card, so it takes the room that is left ---- */}
-        <div className="min-w-0 lg:flex-1 lg:border-x lg:border-hairline lg:px-6">
-          <ul className="space-y-1.5">
-            {order.lines.map((l, i) => (
-              <li key={i} className="flex items-baseline gap-3 text-lg leading-snug">
-                <span className="inline-flex min-w-8 shrink-0 justify-center rounded-md bg-ember-600/10 px-1.5 py-0.5 font-display text-base font-bold tabular-nums text-ember-700">
-                  {l.quantity}
-                </span>
-                <div className="min-w-0">
-                  <span className="font-medium text-heading">{l.name}</span>
-                  {(l.details?.length ?? 0) > 0 && (
-                    <ul className="mt-0.5 space-y-0.5 text-sm text-body-text">
-                      {l.details!.map((d, j) => (
-                        <li key={j} className="flex gap-1.5">
-                          <span aria-hidden="true" className="text-faint">–</span>
-                          <span>{d}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {l.instructions && <p className="mt-0.5 text-sm italic text-muted">“{l.instructions}”</p>}
-                </div>
-              </li>
-            ))}
-          </ul>
-
-          {order.note && (
-            <div className="mt-3 rounded-lg border-l-4 border-warn bg-warn-soft px-3 py-2.5">
-              <p className="flex items-center gap-1.5 text-[0.65rem] font-bold uppercase tracking-[0.12em] text-warn">
-                <StickyNote size={13} />
-                Note — check for allergies
-              </p>
-              <p className="mt-1 text-base font-semibold leading-snug text-heading">{order.note}</p>
-            </div>
-          )}
-
-          {(unpaid || hint) && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {unpaid && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-canvas px-2 py-1 text-xs font-semibold text-muted">
-                  <Wallet size={12} />
-                  {order.paymentMethod === "cash"
-                    ? "Collect cash"
-                    : order.paymentMethod === "bank_transfer"
-                      ? "Bank transfer – not in yet"
-                      : order.paymentMethod === "payment_link"
-                        ? "Payment link – not confirmed"
-                        : "Pay later"}
-                </span>
-              )}
-              {hint && (
-                <span className="inline-flex items-center gap-1.5 rounded-md bg-violet-50 px-2 py-1 text-xs font-semibold text-violet-700">
-                  <CalendarClock size={12} />
-                  {hint}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* ---- where it goes: to ring about an allergy, or point a rider ---- */}
-        <div className="flex flex-col gap-2.5 text-sm lg:w-56 lg:shrink-0 xl:w-64">
-          <a
-            href={telHref}
-            className="flex items-center gap-2.5 font-semibold tabular-nums text-heading transition-colors hover:text-ember-700"
-          >
-            <Phone size={15} className="shrink-0 text-faint" />
-            {order.phone}
-          </a>
-          <a
-            href={mapsHref}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-start gap-2.5 leading-snug text-body-text transition-colors hover:text-ember-700"
-          >
-            <MapPin size={15} className="mt-0.5 shrink-0 text-faint" />
-            {order.address}
-          </a>
-          {riders.length > 0 && (
-            <label className="mt-auto flex items-center gap-2.5 pt-1">
-              <Bike size={15} className="shrink-0 text-faint" />
-              <span className="sr-only">Rider for {order.reference}</span>
-              <select
-                value={order.assignedRiderId ?? ""}
-                onChange={(e) => onAssign(order, e.target.value)}
-                className="h-9 min-w-0 flex-1 rounded-lg border border-hairline bg-panel px-2 text-sm font-semibold text-heading transition-colors hover:border-faint focus:border-ember-500 focus:outline-none"
-              >
-                <option value="">No rider yet</option>
-                {riders.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-
-        {/* ---- the next step ---- */}
-        <div className="mt-auto flex items-center gap-2 lg:mt-0 lg:w-44 lg:shrink-0 lg:flex-col lg:items-stretch lg:justify-center xl:w-48">
-          {action ? (
-            <button
-              type="button"
-              onClick={action.onClick}
-              disabled={action.busy}
-              className="inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-xl bg-ember-600 px-4 py-3 text-center text-base font-semibold leading-tight text-white shadow-sm transition-colors hover:bg-ember-500 disabled:opacity-60 lg:w-full lg:flex-none"
-            >
-              <Check size={18} className="shrink-0" />
-              {action.busy ? "\u2026" : action.label}
-            </button>
-          ) : secondaryAction ? (
-            <button
-              type="button"
-              onClick={secondaryAction.onClick}
-              disabled={secondaryAction.busy}
-              className="inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-xl border border-hairline px-4 py-3 text-center text-sm font-semibold leading-tight text-body-text transition-colors hover:bg-canvas disabled:opacity-60 lg:w-full lg:flex-none"
-            >
-              {secondaryAction.busy ? "\u2026" : secondaryAction.label}
-            </button>
-          ) : (
-            <span className="inline-flex min-h-13 flex-1 items-center justify-center gap-2 rounded-xl bg-success-soft px-4 py-3 text-center text-sm font-semibold leading-tight text-success lg:w-full lg:flex-none">
-              <Check size={16} className="shrink-0" />
-              Waiting for rider
-            </span>
-          )}
-          <a
-            href={`/admin/orders/${order.id}/ticket`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-xl px-3 text-sm font-semibold text-muted transition-colors hover:bg-canvas hover:text-heading lg:min-h-0 lg:w-full lg:py-2"
-            aria-label={`Print kitchen ticket for ${order.reference}`}
-          >
-            <Printer size={16} />
-            Ticket
-          </a>
-        </div>
-      </div>
-    </article>
-  );
 }
 
 /** Header button: put the board on the whole screen, for a wall-mounted tablet. */

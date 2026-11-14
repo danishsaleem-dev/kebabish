@@ -1085,7 +1085,7 @@ Dishes sold together for one price: *Menu → Deals* (`/admin/menu/deals`, owner
 - **A deal is one line**, slug `deal:<slug>`, name `Deal: X` (`dealLineName`). Each part is an ordinary option: `groupId` = slot, `optionId` = dish, or `REMOVED` ("none") with price minus the credit. So cart, checkout, tickets, kitchen board, emails, invoices and the Orders tables all show the deal and its contents with no special case. **Do not explode a deal into dish lines.**
 - **`options[].deal` on the order line** (`DealPartMeta`: dish, portions, menu price then) is what stock and reports read. Order option labels are Dutch, like the rest of an order line.
 - **Stock needs 0031** (it changes `consume_order_stock`). Without it deals still order, but their dishes don't leave stock. `priceCart`/`inspectCart` check stock per dish either way.
-- **Reports:** `dishShares()` in `reports.ts` counts a deal as its dishes. *Before discounts* = each dish at its menu price when ordered; *Sales* = the money really taken, spread by those prices, so totals still match what was paid. There is no profit figure anywhere yet: Danish wants deal profit worked out from real dish prices, so build it from those two columns and food cost.
+- **Reports:** `dishShares()` in `reports.ts` counts a deal as its dishes. *Before discounts* = each dish at its menu price when ordered; *Sales* = the money really taken, spread by those prices, so totals still match what was paid. Reports now has a profit area (see "Profit" below); a deal has no profit row of its own, and its dishes carry their own cost there.
 - **Promo codes and points work on deals** like any line, but a code restricted to dishes or categories does not count a deal line. Danish approved promo codes; points were not discussed and behave as for any food.
 - **A required extra on a dish in a deal is ignored:** a deal has no extras. Customers can use the kitchen note. No live dish had a required group when this was built.
 - Deleting a dish removes it from deals; a part left empty goes and the deal is hidden, since its price was set for more. Deleting a media image detaches it.
@@ -2607,7 +2607,82 @@ dashed cards, "don't start yet", a small "Start now anyway"). Verified: a future
 `updateOrderStatus` attempted `scheduled` (and, on the live database that has not had 0020 yet, fell back); the
 board's sections were checked with a mocked API; a same-day order stays "preparing".
 
+### The kitchen board: tabs and one order at a time (Nov 2026)
+
+Danish sent a screenshot of another kitchen system and asked for its shape: **tabs across the
+top to jump between stages, the queue on the left, and the whole order on the right**. That
+replaced the single scroll of stacked sections described in the two notes below — read those for
+the decisions that still hold (what the colours mean, why the labels are short), not for the
+layout.
+
+- **Six tabs, one per stage of an order's life**, and every order is in exactly one, so the
+  counts add up to the board: **New** (paid, not yet accepted) · **Cooking** (preparing) ·
+  **Ready** (waiting for a rider) · **With rider** (on the way) · **Done** (delivered) ·
+  **Scheduled** (accepted for later, and today's not-yet-started). The order of the tabs is the
+  order of the old sections, so the work in hand is still leftmost. The New badge turns ember,
+  then red once something has waited 5 minutes; Scheduled turns ember while something is due
+  today.
+- **The last two tabs are new data.** `listKitchenOrders` now also returns every `on_the_way`
+  order and anything `delivered` in the last **12 hours** (`KITCHEN_DONE_HOURS`) — a calendar day
+  would empty the Done tab at midnight, in the middle of a service. Older ones are the History
+  screen's. The kitchen **cannot move either on** (`updateOrderStatus` refuses, unchanged); they
+  are there to be looked up, which is exactly what Danish asked for ("see orders assigned to
+  riders and then done orders easily"). On those two the rider is **printed as text, not a
+  select** — once it has left, who is carrying it is a fact.
+- **The selected order is derived, never stored**: `list.find(id) ?? list[0]`. Accepting an order
+  therefore moves the selection on by itself, with no effect to go wrong when the order leaves
+  the tab. Below `lg` the list fills the screen and a row opens the order with an "All orders"
+  link back (`showDetail`).
+- The auto-print scan now only looks at `scheduled`/`preparing`/`ready`, so a delivered order
+  arriving on the board for the first time can't print a ticket for food that already went out.
+- The sound banner, the per-device auto-print switch (its long explanation folded into a
+  `<details>`), the ticket link, the rider select, the allergy note box and every clock are
+  unchanged.
+- **Checked in the browser** through a throwaway preview (`/admin/qa-preview/board` pointed at a
+  fixture feed — `KitchenBoard` takes an `endpoint` prop; both deleted afterwards) at 1366px and
+  375px: all six tabs with their counts, the waiting clock going amber then red, the allergy
+  note, a scheduled order due today against one for a later day, the delivered order's "Delivered
+  22:47" and rider-as-text, the phone layout's row → order → back, and no horizontal overflow at
+  375px. **Not seen with real data** (needs a sign-in): a real order actually moving between tabs.
+
+### Kitchen: switching a dish or a deal off (Nov 2026)
+
+**`/kitchen/availability`**, the third tab in the kitchen's own nav — Danish's ask, from the same
+screenshot: a cook who has run out of something takes it off the website themselves instead of
+ringing whoever has the admin open. Search, a "show unavailable only" filter, a count of what is
+off, category tabs, and one switch per row.
+
+- **The switch is the dish's own `soldOut` flag**, the same one `/admin/menu` sets — not a second
+  kitchen-only one that could disagree with it. So everything that already follows sold-out
+  follows this: the dish stays on the menu marked unavailable (with the "request it" form), schema
+  says `OutOfStock`, it is never suggested, and `priceCart` refuses it.
+- **Deals got the same flag**, `StoredDeal.soldOut` (store document, no migration): checked in
+  `resolveDeal` (`priceCart`/`inspectCart`) and OR-ed into `public-deals.ts`'s derived sold-out. A
+  deal was already unavailable when a part it can't do without has nothing left to serve — that
+  stays, and the screen names it as a reason rather than offering a switch. The deal form never
+  touches the field (`updateDeal` is a merge), so saving a deal can't clear it. **There is no
+  control for it under /admin** yet; owner/staff/manager can reach `/kitchen` too, which is where
+  it lives.
+- **What the screen can't undo, it says.** A dish whose tracked stock is at 0 shows "No stock left
+  — add a batch in the admin" with the switch disabled, because flipping the manual flag would
+  change nothing. Portions left are shown (staff, not the public site).
+- Only dishes that are actually on the website are listed: `visible`, in a `visible` category.
+  Deals come from `getPublicDeals`, so this screen and the site can't disagree about which exist.
+- `setDishAvailabilityAction` / `setDealAvailabilityAction` **check the role themselves**
+  (kitchen + owner/staff/manager) — a server action is a public POST — and revalidate the public
+  layout, so the change is on kebabish.nl within the usual window.
+- **Checked in the browser** through a throwaway preview (deleted afterwards): the four category
+  tabs, accent-insensitive search across every category ("kofte" → "Köfte met rijst"), the
+  unavailable-only filter and its count, a stock-blocked row, a blocked deal, and a refused toggle
+  rolling the switch back with the error. The real `/kitchen/availability` was confirmed to
+  compile and to bounce a signed-out visitor to `/login`. **Not exercised** (needs a sign-in): a
+  toggle actually writing to the store.
+
 ### Kitchen board: laptop layout and the order of the sections (Oct 2026)
+
+**Superseded by the tabs layout above (Nov 2026)** — the sections and the horizontal card are
+gone. What the colours mean, why the day label uses `first-letter:uppercase` and why the button
+labels are short all still hold.
 
 Danish runs `/kitchen` on a **laptop**, not the wall tablet it was first drawn for, and asked for two things.
 
@@ -2697,6 +2772,87 @@ categories, customers, riders, timing) and **a print option on every report area
   back to months for a year, all eight areas rendering with their own print/export buttons, the
   print-isolation selector verified by applying it on screen, a day with no orders showing zeros
   and a sensible empty line in every area, and the popover kept on screen at ~450 px.
+
+#### Delivery areas, and returning vs new customers (Nov 2026)
+
+Two areas Danish asked for, both reading the same range as everything else on the page.
+
+- **Delivery areas** (`byArea` in `reports.ts`) replaces the old "Towns" bar block: a table of
+  **orders, customers, dishes, food sales, revenue, average order, share and average delivery
+  time** per town, pickup orders excluded. **Average delivery is placed → delivered** — the whole
+  wait as the customer felt it, kitchen included, since the cooking is the same everywhere and the
+  driving is not. An order still on the road counts in the money and the orders but not in that
+  average, and a town with none reads "—". A gap that is negative or over 24 h is skipped: that is
+  a backdated hand-entered order, and it would swamp the average.
+- **Returning and new customers** (`customerMix`): four tiles (share and orders/revenue each way,
+  first-time people, returning people), then either two lines of % per bucket with a donut, or a
+  table per bucket (new / returning / orders / returning % / revenue each way). **"First time" is
+  judged against every order the shop has ever taken**, not the range — so the function takes the
+  full list *and* the range. People are matched the way the Customers screen matches them (account,
+  else email, else phone), and only real sales count on either side.
+- **The chart/table switch is `ReportSection`'s** (`view` + `onView`): two icon buttons beside Print
+  and Export, showing one shape at a time rather than stacking both, which is what Danish asked for.
+  Any section can opt in. Delivery areas opens on the table, the customer mix on the chart.
+- **`DonutChart` prints each slice's value with a `%` after it**, so a donut must be given shares,
+  never counts — passing order counts made the legend read "62%" for 62 orders. Caught in the browser.
+- `byTown` is gone — the new table replaced the bar block it fed, and nothing else used it.
+- **Checked in the browser** through a throwaway preview rendering `ReportsView` over 70 synthetic
+  orders (deleted afterwards): both areas at 1366px, both toggles, the per-bucket table adding up to
+  the tiles, a 30-day range reading 100% returning (every fixture customer's first order is older)
+  against 89/11 over the year, and no console errors.
+
+#### Profit (Nov 2026)
+
+Danish asked for profit in Reports and for **Busiest hour** to make way for it — that tile is gone
+(the hour-by-hour chart under Timing still says the same thing, better). In its place: **Gross
+profit**, with the usual comparison against the period before.
+
+**The figure is `sales excl. VAT − food cost − packaging`** (`profitTotals` in `reports.ts`), built
+only from numbers the owner already keeps:
+- **Food cost** = each portion sold × that dish's `analyseRecipe(...).costPerPortion`, the same
+  figure the Menu table and the recipe page show. The reports **page** works the map out once and
+  hands it down as `costPerDish`; nothing in `reports.ts` does any costing of its own. A deal is
+  counted as the dishes inside it (`dishShares`, as everywhere else).
+- **Packaging** = orders × the per-order supplies cost, the figure the Supplies area already shows
+  (**€0.00 today**, because none of the 12 per-order supplies has a "used per order" amount yet).
+- **VAT** comes off the top when Settings → Tax has a rate: VAT is collected, not earned. With no
+  rate set, nothing is taken off and the tile says so. Ingredient prices are used **exactly as
+  entered** under Menu → Ingredients — whether those are ex- or inc-VAT is the owner's to decide,
+  and nothing here second-guesses them.
+
+**What it refuses to do is guess.** A dish with no recipe, or whose ingredients have no price, is
+*not* treated as free:
+- `coveragePct` (costed food sales ÷ all food sales) is reported beside every figure. Below 100%
+  an amber line names how many dishes, how much of the sales and how many portions are missing,
+  and says plainly that the profit shown is **higher than the real one**.
+- At **0% coverage the screen prints dashes, never a profit** — which is the state the live shop is
+  in until recipes exist, and printing sales-as-profit there would be worse than useless.
+- `profitByDish` shows "no recipe" and dashes on such a dish; `profitByCategory` shows dashes for a
+  category where **nothing** is costed (`costed === 0`), rather than a €0.00 profit that reads as
+  "this earns nothing".
+- The page says, in the section itself, that **wages, rent, fuel and the payment fee are not in
+  it**. It is gross profit and is labelled as such.
+
+**Three sections, each printing and exporting on its own:**
+- **Profit** — five tiles (Sales, Food cost, Packaging, Gross profit, Margin), then either the
+  sales/costs/profit trend over the range's buckets beside a "where the money went" bar block
+  (food cost · packaging · VAT passed on · gross profit, which add up to what was taken), or a
+  table of the same per bucket. Chart/table toggle.
+- **Profit by dish** — portions, sales, food cost, profit, margin, top 15 on screen and all of them
+  in the CSV. **Packaging is deliberately absent**: it belongs to an order, not a dish.
+- **Profit by category** — a donut of the profit share beside the figures. **The donut's centre is
+  the dish profit the slices add up to, not the section's gross profit**, which also carries the
+  delivery fees; showing the latter there made the two disagree by exactly the delivery income.
+- **A partly refunded order still counts its full food cost** — the food was made. (A *fully*
+  refunded order is cancelled, so `isSale` already drops it.)
+
+**Checked in the browser** through a throwaway preview over 70 synthetic orders with 3 of 4 dishes
+costed and VAT at 9% (deleted afterwards): the tile replacing Busiest hour with its delta; the
+coverage warning naming the one uncosted dish; the bars adding back up to the gross sales
+(196.35 + 0.00 + 48.05 + 337.56 = 581.96); the per-bucket table; the uncosted dish and category
+reading dashes; and the **zero-coverage** case showing "—" everywhere with the "add a recipe"
+instruction. **Not seen against the live store** (needs a sign-in): what the real coverage is —
+expect 0% until recipes are entered.
 
 ### A rider's day ends when the office closes the day (Nov 2026)
 
