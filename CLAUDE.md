@@ -352,11 +352,12 @@ real per-day hours table and a live open/closed pill, and
 `StructuredData.tsx` feeds the same hours into schema.org
 `openingHoursSpecification` for local SEO.
 
-`(site)/layout.tsx` fetches settings once per request and revalidates
-every 5 minutes (`export const revalidate = 300`; it was 60 and burned the free plan's ISR writes — it applies to every public page) since hours can flip on their
-own at a hours boundary without anyone touching `/admin/settings`; saving
-there also calls `revalidatePath("/", "layout")` / `revalidatePath("/en",
-"layout")` for an immediate update instead of waiting on that window.
+`(site)/layout.tsx` fetches settings once per request and sets `export const revalidate = 604800`
+(a week). **That number is a safety net, not a refresh rate** — see "The ISR write budget" below
+for why it is so long. Nothing on the public site depends on the clock on the server: "open now"
+on `/contact` is drawn in the browser (`contact/LiveHours.tsx`) and a promotion's start/end is
+judged in the browser too (`PromoPopup` / `PromoWidget`). Saving in `/admin` refreshes what it
+changed straight away (`lib/public-refresh.ts`).
 
 **A real bug was found and fixed here, worth knowing about:** the
 per-day opening-hours inputs in `SettingsForm.tsx` used to be
@@ -370,6 +371,44 @@ look was already CSS opacity on the wrapper, not the `disabled` attribute,
 so nothing about the UI needed to change, only the submit behavior. If
 you ever touch that form again: don't reach for `disabled` on a field
 whose value still needs to reach the server.
+
+### The ISR write budget — read before calling `revalidatePath` (Nov 2026)
+
+The Vercel free plan allows **200K ISR writes a month**, and we went over it (290K by 24 Nov). Every
+regeneration of a public page is a write, and these pages are heavy: measured from a production build,
+the homepage is ~2.7 MB across its html / rsc / segment files, a dish page ~1.9 MB, and **one full
+regeneration of all ~99 pages is ~145 MB** (each page is written as about six cache entries: html, rsc
+and four segment files). Two things spent it: a short time-based window, and `revalidatePath("/", "layout")`
+on every admin click — that call marks *every* page stale, so every visitor or crawler that lands on a page
+afterwards regenerates it.
+
+- **`lib/public-refresh.ts` is the only way an action should tell the public site something changed.**
+  `refreshWholeSite()` (header/footer/settings/content, a dish's price/name/photo, promotions, deals —
+  rare, owner-driven), `refreshMenuViews()` (home, /menu, /deals + given dish/deal pages: availability and
+  menu order), `refreshDishPages()` (just that dish's page: its recipe, so its allergens), or **nothing**
+  when the thing isn't shown publicly (an ingredient's price, a new unused allergen or extras group, a
+  supply). Do not call a helper "just in case".
+- **Path format, checked against a production build:** the cache is keyed by the internal route, which
+  carries the locale — `/nl/menu/x`, `/en/menu/x`, `/nl`. `revalidatePath("/menu/x")` silently does
+  nothing here (the proxy rewrites it). Test any new path with `x-nextjs-cache` on the response
+  (`HIT` → `MISS` after the call, and the other pages still `HIT`).
+- **What was narrowed:** the kitchen's availability switches, stock changes (only when "sold out" or
+  "selling fast" actually flips — 40 → 39 portions changes nothing public), cancelling an order (same
+  rule), moving a dish or category (lists only), saving or deleting a recipe (that dish only), an
+  ingredient edit (only if its allergens changed, then only the dishes whose recipe uses it), and creating
+  an ingredient or an extras group (admin screens only).
+- **Never render anything time-dependent on the server under `(site)`.** Put it in a client component
+  (`useSyncExternalStore` with a `null` server snapshot, as `LiveHours` does, so the HTML is identical for
+  everyone) instead of shortening the revalidate window. A promotion that starts soon is sent to the page
+  with `startsAt`; the browser decides whether it is live.
+- Known consequences of the long window, accepted: a "Bestseller" badge, a used-up `maxRedemptions` promo
+  and cards on *other* dish pages ("you may also like") can be stale until the next save or a week;
+  checkout and `priceCart` re-check everything on the server, so nothing a customer pays depends on it.
+- **Not done, would cut it further:** the layout hands the whole `messages` file (~80 KB) to
+  `NextIntlClientProvider`, which is repeated in html, rsc and two segment files on every page (~12–17% of a
+  page); passing only the namespaces client components use would trim it, but a missing key *throws* at
+  render, so it needs a check script like `check-account-copy.mts`. The homepage (2.7 MB) is the single most
+  expensive page to regenerate.
 
 ### Toasts (status messages)
 
@@ -837,7 +876,7 @@ and a failure is cached 10 s so a dead database isn't hammered).
   values. Both tables are in `BACKUP_TABLES`.
 - **Publishing:** every save calls `publish()` → `revalidatePath("/", "layout")`, `("/en", "layout")`,
   `/sitemap.xml` and the admin screens. In production a static page can be a little stale on a
-  *different* server instance (≤ 15 s cache, then the layout's 5-minute revalidate heals it), so the
+  *different* server instance (≤ 15 s cache; the layout's weekly window is only the backstop), so the
   toasts say **"live within a minute"**, not "now". In dev it is instant.
 - **Homepage sections** (`/admin/content/homepage`, `HOME_SECTIONS` in `model.ts`): show/hide and
   reorder (drag or arrows). `page.tsx` renders `getHomeLayout()`'s order. The **top banner is pinned**

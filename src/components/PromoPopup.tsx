@@ -102,6 +102,7 @@ export default function PromoPopup({ promos }: { promos: PromoPopupData[] }) {
     const pick = promos.find(
       (p) =>
         p.code !== promoCode &&
+        !(p.startsAt !== null && p.startsAt > Date.now()) &&
         !(p.endsAt !== null && p.endsAt <= Date.now()) &&
         !(seen[p.id] && Date.now() - seen[p.id] < quietMs)
     );

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { getDeal, getItem, updateDeal, updateItem } from "@/lib/admin/store";
+import { refreshMenuViews } from "@/lib/public-refresh";
 
 export interface AvailabilityResult {
   ok: boolean;
@@ -22,13 +23,17 @@ async function guard(): Promise<{ ok: true } | { ok: false; message: string }> {
   return { ok: true };
 }
 
-/** The menu is rendered from this same store, so a change has to reach the site too. */
-function refresh() {
+/**
+ * The menu is rendered from this same store, so a change has to reach the site too — but only
+ * the pages that show availability (home, /menu, /deals and the item's own page). This used to
+ * invalidate the whole site on every click of a switch, and a cook flipping a few dishes during
+ * service regenerated all ~99 heavy pages each time: see `lib/public-refresh.ts`.
+ */
+function refresh(opts: { dish?: string; deal?: string }) {
   revalidatePath("/admin/menu");
   revalidatePath("/admin/menu/deals");
   revalidatePath("/kitchen/availability");
-  revalidatePath("/", "layout");
-  revalidatePath("/en", "layout");
+  refreshMenuViews({ dishes: opts.dish ? [opts.dish] : [], deals: opts.deal ? [opts.deal] : [] });
 }
 
 /**
@@ -49,7 +54,7 @@ export async function setDishAvailabilityAction(
   if (!item) return { ok: false, message: "That dish no longer exists." };
 
   await updateItem(slug, { soldOut: !available });
-  refresh();
+  refresh({ dish: slug });
   return { ok: true };
 }
 
@@ -66,6 +71,6 @@ export async function setDealAvailabilityAction(
   if (!deal) return { ok: false, message: "That deal no longer exists." };
 
   await updateDeal(slug, { soldOut: !available });
-  refresh();
+  refresh({ deal: slug });
   return { ok: true };
 }

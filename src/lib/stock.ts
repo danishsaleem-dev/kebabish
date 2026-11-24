@@ -1,9 +1,9 @@
 import "server-only";
 import { after } from "next/server";
-import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { readStore } from "@/lib/admin/store";
 import { stockLevel, type StockEntry } from "@/lib/stock-status";
+import { refreshMenuViews } from "@/lib/public-refresh";
 import { sendStockAlertEmail, type StockAlert } from "@/lib/email/stock-alert";
 
 /**
@@ -136,26 +136,25 @@ export function crossings(rows: MoveRow[]): { slug: string; level: "low" | "out"
 }
 
 /**
- * A dish going out of stock (or coming back) changes the PUBLIC menu: the
- * "sold out" state, the "selling fast" tag, whether it can be added at all.
- * The (site) layout only revalidates once a day now — a short window there
- * cost ~168K of the free plan's 200K monthly Vercel ISR writes — so a stock
- * move has to say so itself instead of being picked up by polling.
- *
- * Only called on a real crossing (in or out of stock), which happens at most
- * a handful of times a day, so this stays far cheaper than a timed window.
- * Best-effort: revalidatePath throws if we are inside a render (syncPaymentStatus
- * runs from the confirmation page too), and stock bookkeeping must never fail
- * an order that has already been paid.
+ * What a customer can see of a dish's stock is two things: "sold out" (nothing left) and the
+ * "selling fast" tag. A move that doesn't change either — 40 portions to 39 — changes nothing
+ * public, so it must not regenerate anything. (Pages are heavy and every regeneration is a
+ * metered Vercel ISR write: see `lib/public-refresh.ts`.)
  */
-function refreshPublicMenu(): void {
-  try {
-    revalidatePath("/", "layout");
-    revalidatePath("/en", "layout");
-  } catch {
-    // Not in a revalidatable context (a render, or a plain script). The daily
-    // window and the next admin save both heal it.
-  }
+function publicState(entry: StockEntry | null | undefined): "out" | "low" | "normal" {
+  const level = stockLevel(entry);
+  return level === "out" || level === "low" ? level : "normal";
+}
+
+/** Dishes whose public state flipped (in stock <-> low <-> out) in these moves. */
+function flipped(rows: MoveRow[]): string[] {
+  return rows
+    .filter(
+      (r) =>
+        publicState({ quantity: r.out_before, lowThreshold: r.out_threshold }) !==
+        publicState({ quantity: r.out_after, lowThreshold: r.out_threshold })
+    )
+    .map((r) => r.out_slug);
 }
 
 async function runMove(fn: "consume_order_stock" | "resync_order_stock", orderId: string): Promise<void> {
@@ -165,11 +164,11 @@ async function runMove(fn: "consume_order_stock" | "resync_order_stock", orderId
       if (!isMissing(error)) console.error(`[stock] ${fn} failed for order ${orderId}:`, error.message);
       return;
     }
-    const alerts = crossings((data ?? []) as MoveRow[]);
-    if (alerts.length > 0) {
-      refreshPublicMenu();
-      await notify(alerts);
-    }
+    const rows = (data ?? []) as MoveRow[];
+    const changed = flipped(rows);
+    if (changed.length > 0) refreshMenuViews({ dishes: changed });
+    const alerts = crossings(rows);
+    if (alerts.length > 0) await notify(alerts);
   } catch (error) {
     // Stock bookkeeping must never fail an order that has already been paid or accepted.
     console.error(`[stock] ${fn} failed for order ${orderId}:`, error);
@@ -185,13 +184,23 @@ export const resyncOrderStock = (orderId: string) => runMove("resync_order_stock
 /** The order was cancelled: give its portions back. Safe to call twice. */
 export async function releaseOrderStock(orderId: string): Promise<void> {
   try {
+    // The SQL function returns nothing, so to know whether a dish just came back (sold out ->
+    // available, or the "selling fast" tag went away) compare the stock before and after. When no
+    // dish tracks stock there is nothing to compare and nothing public can change.
+    const before = await readStockMap();
     const { error } = await supabaseAdmin().rpc("release_order_stock", { p_order: orderId });
-    if (error && !isMissing(error)) {
-      console.error(`[stock] release failed for order ${orderId}:`, error.message);
+    if (error) {
+      if (!isMissing(error)) console.error(`[stock] release failed for order ${orderId}:`, error.message);
       return;
     }
-    // Portions came back, so a dish that read "sold out" may be orderable again.
-    if (!error) refreshPublicMenu();
+    if (!before || before.size === 0) return;
+    const after = await readStockMap();
+    if (!after) return;
+    const changed: string[] = [];
+    for (const [slug, entry] of after) {
+      if (publicState(before.get(slug)) !== publicState(entry)) changed.push(slug);
+    }
+    if (changed.length > 0) refreshMenuViews({ dishes: changed });
   } catch (error) {
     console.error(`[stock] release failed for order ${orderId}:`, error);
   }

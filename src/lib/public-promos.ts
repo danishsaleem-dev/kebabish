@@ -1,6 +1,6 @@
 import "server-only";
 import { readStore } from "@/lib/admin/store";
-import { amsterdamNow } from "@/lib/delivery-slots";
+import { amsterdamDateAhead, amsterdamNow } from "@/lib/delivery-slots";
 import { promoRedemptionCounts } from "@/lib/orders";
 
 /**
@@ -37,13 +37,25 @@ export interface PromoPopup {
    * (checkout compares Amsterdam calendar days). Null = it doesn't end.
    */
   endsAt: number | null;
+  /**
+   * The instant the promotion begins (ms since epoch): the **start of its first day in
+   * Amsterdam**. Null = it has already begun / has no start date. A promotion that starts
+   * within the next few days is included in the page data *with* this, and the browser
+   * decides whether it is live yet (see PromoPopup / PromoWidget) — because the public
+   * pages are regenerated rarely now (see `lib/public-refresh.ts`), and a server-side
+   * "has it started?" check would be frozen at the moment the page was built.
+   */
+  startsAt: number | null;
 }
 
-/** The moment Amsterdam's calendar day `dateKey` ends — i.e. midnight starting the next day. */
-function endOfAmsterdamDay(dateKey: string): number | null {
+/** How far ahead of its start a promotion is put in the page, so a cached page already knows it. */
+const LOOKAHEAD_DAYS = 8;
+
+/** Amsterdam's midnight `plusDays` after the start of calendar day `dateKey` (0 = that day begins, 1 = it ends). */
+function amsterdamMidnight(dateKey: string, plusDays: number): number | null {
   const [y, m, d] = dateKey.split("-").map(Number);
   if (!y || !m || !d) return null;
-  const nextMidnightUtc = Date.UTC(y, m - 1, d + 1, 0, 0, 0);
+  const nextMidnightUtc = Date.UTC(y, m - 1, d + plusDays, 0, 0, 0);
   // What does Amsterdam's wall clock read at that UTC instant? The difference is the offset.
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/Amsterdam",
@@ -60,6 +72,10 @@ function endOfAmsterdamDay(dateKey: string): number | null {
   return nextMidnightUtc - (wallAsUtc - nextMidnightUtc);
 }
 
+/** The moment Amsterdam's calendar day `dateKey` ends — i.e. midnight starting the next day. */
+const endOfAmsterdamDay = (dateKey: string) => amsterdamMidnight(dateKey, 1);
+const startOfAmsterdamDay = (dateKey: string) => amsterdamMidnight(dateKey, 0);
+
 export async function getPromoPopups(): Promise<PromoPopup[]> {
   try {
     const { promoCodes, media } = await readStore();
@@ -67,6 +83,7 @@ export async function getPromoPopups(): Promise<PromoPopup[]> {
     if (withImage.length === 0) return [];
 
     const today = amsterdamNow().dateKey;
+    const horizon = amsterdamDateAhead(LOOKAHEAD_DAYS).dateKey;
     const imageById = new Map((media ?? []).map((m) => [m.id, m]));
 
     // Only ask the orders table about usage when a candidate actually has a cap.
@@ -75,7 +92,7 @@ export async function getPromoPopups(): Promise<PromoPopup[]> {
 
     return withImage
       .filter((p) => {
-        if (p.startsAt && p.startsAt > today) return false;
+        if (p.startsAt && p.startsAt > horizon) return false; // not for a while: a later page will carry it
         if (p.expiresAt && p.expiresAt < today) return false;
         if (p.maxRedemptions != null && (used.get(p.code) ?? 0) >= p.maxRedemptions) return false;
         return imageById.has(p.imageId!);
@@ -94,6 +111,8 @@ export async function getPromoPopups(): Promise<PromoPopup[]> {
           type: p.type,
           value: p.value,
           endsAt: p.expiresAt ? endOfAmsterdamDay(p.expiresAt) : null,
+          // Only worth sending while it is still ahead; once begun, null = "live".
+          startsAt: p.startsAt && p.startsAt > today ? startOfAmsterdamDay(p.startsAt) : null,
         };
       });
   } catch (error) {

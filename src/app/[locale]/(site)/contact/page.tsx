@@ -3,7 +3,6 @@ import { getTranslations } from "next-intl/server";
 import {
   ArrowUpRight,
   Bike,
-  Clock,
   Facebook,
   Instagram,
   Mail,
@@ -23,14 +22,7 @@ import { Link } from "@/i18n/navigation";
 import DeliveryMap from "@/components/home/DeliveryMap";
 import FeedbackCta from "@/components/feedback/FeedbackCta";
 import DeliveryCheck from "@/components/DeliveryCheck";
-import { amsterdamNow } from "@/lib/delivery-slots";
-
-// The only clock-dependent thing on the public site: the live "open now" pill
-// and today's hours row. The (site) layout revalidates daily to keep Vercel
-// ISR writes down, so this page opts back in to a short window for itself —
-// two pages (nl + en) rather than the ~90 under that layout. The smallest
-// revalidate in a segment's hierarchy wins, so this one applies here only.
-export const revalidate = 600;
+import LiveHours from "@/components/contact/LiveHours";
 
 export async function generateMetadata({
   params,
@@ -61,9 +53,8 @@ export default async function ContactPage({
   const tFooter = await getTranslations({ locale, namespace: "footer" });
   const status = getStoreStatus(settings);
   const weekdays = tStatus.raw("weekdays") as string[];
-  // Monday first, the way a Dutch week reads; today (in Amsterdam) is lit.
+  // Monday first, the way a Dutch week reads.
   const sortedHours = [...settings.hours].sort((a, b) => ((a.day + 6) % 7) - ((b.day + 6) % 7));
-  const today = amsterdamNow().weekday;
   // Postcode and town only, as before — the street is not advertised for a delivery-only kitchen.
   const fullAddress = `${siteConfig.address.postalCode} ${siteConfig.address.city}`;
 
@@ -152,48 +143,20 @@ export default async function ContactPage({
         <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-8">
           {/* ---- details -------------------------------------------------- */}
           <div className="min-w-0 space-y-6">
-            {/* Hours, with today lit. */}
-            <section className="rounded-3xl bg-cream-50 p-6 ring-1 ring-charcoal-600/8 sm:p-7">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="flex items-center gap-2.5 font-display text-lg font-semibold text-charcoal-600">
-                  <Clock size={19} aria-hidden="true" className="text-ember-600" />
-                  {t("hoursTitle")}
-                </h2>
-                <span
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
-                    status.openNow ? "bg-success-soft text-success" : "bg-charcoal-600/10 text-charcoal-600/80"
-                  }`}
-                >
-                  <span className={`h-2 w-2 rounded-full ${status.openNow ? "bg-success" : "bg-charcoal-400"}`} />
-                  {status.openNow ? tStatus("openNowLabel") : tStatus("closedNowLabel")}
-                </span>
-              </div>
-              <dl className="mt-4 space-y-1 text-sm">
-                {sortedHours.map((h) => {
-                  const isToday = h.day === today;
-                  return (
-                    <div
-                      key={h.day}
-                      className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 ${
-                        isToday ? "bg-ember-600/10 font-semibold" : ""
-                      }`}
-                    >
-                      <dt className={isToday ? "text-charcoal-700" : "text-ink/60"}>
-                        {weekdays[h.day]}
-                        {isToday && (
-                          <span className="ml-2 rounded-full bg-ember-600 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-cream-50">
-                            {t("today")}
-                          </span>
-                        )}
-                      </dt>
-                      <dd className={`tabular-nums ${h.closed ? "text-ink/45" : "font-medium text-charcoal-600"}`}>
-                        {h.closed ? tStatus("closedLabel") : `${h.opens} – ${h.closes}`}
-                      </dd>
-                    </div>
-                  );
-                })}
-              </dl>
-            </section>
+            {/* Hours. The "open now" pill and today's highlight are drawn in the browser (LiveHours),
+                so this page does not depend on the clock and never needs to regenerate for it. */}
+            <LiveHours
+              hours={sortedHours}
+              weekdays={weekdays}
+              acceptingOrders={status.acceptingOrders}
+              labels={{
+                title: t("hoursTitle"),
+                today: t("today"),
+                open: tStatus("openNowLabel"),
+                closedNow: tStatus("closedNowLabel"),
+                closedDay: tStatus("closedLabel"),
+              }}
+            />
 
             {/* Where we cook — and that we deliver only. */}
             <section className="flex items-start gap-4 rounded-3xl bg-cream-50 p-6 ring-1 ring-charcoal-600/8 sm:p-7">

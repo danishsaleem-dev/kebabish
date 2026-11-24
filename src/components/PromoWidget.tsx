@@ -51,9 +51,14 @@ export default function PromoWidget({
   const pathname = usePathname();
   const { promoCode, setPromoCode } = useCart();
 
-  const promo = promos[0];
   const [now, setNow] = useState<number | null>(null);
   const [hidden, setHidden] = useState<string | null>(null);
+  // The first (newest) promotion that is live right now. Start and end are judged here, in the
+  // browser, because the page data was built whenever the page was last regenerated.
+  const promo =
+    now === null
+      ? undefined
+      : promos.find((p) => (p.startsAt === null || p.startsAt <= now) && (p.endsAt === null || p.endsAt > now));
 
   // Start the clock after mount, and tick every second only in the last hour
   // (below that the seconds are shown); otherwise twice a minute is plenty.

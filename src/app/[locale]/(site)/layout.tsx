@@ -22,22 +22,26 @@ import { getPromoPopups } from "@/lib/public-promos";
 // Nothing this layout renders depends on the clock. `status.isOpen` is the
 // owner's "Taking orders" switch, not opening hours (see getStoreStatus:
 // ordering is never gated on hours, because customers book a delivery slot at
-// checkout); settings, content, menu, deal and promo saves in /admin all call
-// revalidatePath("/", "layout") themselves, so an edit is live within a
-// minute either way.
+// checkout). The things that DO change with the date are decided in the
+// browser instead: the live "open now" pill on /contact (contact/LiveHours.tsx)
+// and a promotion's start and end (PromoPopup / PromoWidget).
 //
-// So a time-based window buys nothing here and costs a great deal: this value
-// applies to EVERY page under this layout — every route, dish and deal, in
-// both languages, ~90 pages — and each regeneration is one Vercel ISR write.
-// At 60 s it burned ~72K of the free plan's 200K monthly writes; at 300 s it
-// was still running at ~168K/200K. A day is the safety net for a
-// revalidatePath that never fired, nothing more.
+// WHY A WEEK, AND WHY IT MATTERS: every regeneration of a public page is a
+// metered Vercel ISR write, and these pages are heavy (homepage ~2.7 MB, a dish
+// page ~1.9 MB across its html / rsc / segment files; ~99 pages, ~145 MB for one
+// full regeneration of the site, and each page is written as ~6 cache entries).
+// The free plan allows 200K writes a month, so the site can afford very few
+// regenerations. At 300 s this burned the whole allowance, and the count kept
+// climbing after the window was cut to a day.
 //
-// The ONE clock-dependent thing on the public site is the live open/closed
-// pill on /contact (`status.openNow`), and that page sets its own shorter
-// revalidate. Don't move a clock-dependent value up into this layout — put it
-// on the page that needs it, or compute it in the browser.
-export const revalidate = 86400;
+// A save in /admin that changes what visitors see publishes immediately and only
+// for the pages it changes (lib/public-refresh.ts), so this window is just the
+// safety net for a refresh that never fired. Rules that keep it cheap:
+//   - never render anything clock-dependent on the server in this tree: use a
+//     client component rather than shortening this number;
+//   - an action calls `refreshWholeSite()` only when what it saved shows on
+//     every page; otherwise the narrower helpers, or nothing.
+export const revalidate = 604800;
 
 /**
  * The normal site chrome (header nav, footer, floating WhatsApp button) —

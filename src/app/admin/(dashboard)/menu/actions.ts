@@ -17,11 +17,13 @@ import {
   deleteItem,
   deleteOptionGroup,
   deleteRecipe,
+  getIngredient,
   getItem,
   listCategories,
   moveCategory,
   moveItem,
   listItems,
+  listRecipes,
   saveRecipe,
   slugify,
   updateAllergen,
@@ -38,7 +40,8 @@ import { FEATURED_LIMIT } from "@/lib/featured";
 import { flashRedirect } from "@/lib/admin/flash";
 import { deleteVideoByUrl, isOwnVideoUrl } from "@/lib/admin/videos";
 import { readStockMap, setItemStock } from "@/lib/stock";
-import { DEFAULT_LOW_THRESHOLD, type StockEntry } from "@/lib/stock-status";
+import { DEFAULT_LOW_THRESHOLD, stockLevel, type StockEntry } from "@/lib/stock-status";
+import { refreshDishPages, refreshMenuViews, refreshWholeSite } from "@/lib/public-refresh";
 
 /**
  * Server actions for everything under /admin/menu.
@@ -75,16 +78,27 @@ function fieldErrors(error: z.ZodError): Record<string, string> {
   return out;
 }
 
-function refreshMenu() {
+/** The admin screens only: for a save that nothing on the public site shows. */
+function refreshAdminMenu() {
   revalidatePath("/admin/menu");
   revalidatePath("/admin/menu/categories");
   revalidatePath("/admin/menu/ingredients");
   revalidatePath("/admin/menu/extras");
   revalidatePath("/admin/menu/production");
   revalidatePath("/admin/media");
-  // The public menu renders from this same store now.
-  revalidatePath("/", "layout");
-  revalidatePath("/en", "layout");
+}
+
+/**
+ * The admin screens AND the whole public site. The public menu renders from this same store, but
+ * regenerating every page is expensive (each one is a metered Vercel ISR write and the pages are
+ * heavy), so this is only for a change that really shows everywhere — a dish's name, price, photo
+ * or visibility, a category, extras. Anything narrower uses `refreshAdminMenu()` plus one of the
+ * helpers in `lib/public-refresh.ts`; a save nothing public shows (a new ingredient, a new
+ * extras group) uses `refreshAdminMenu()` alone.
+ */
+function refreshMenu() {
+  refreshAdminMenu();
+  refreshWholeSite();
 }
 
 /* ---------------------------------------------------------------- categories */
@@ -169,7 +183,8 @@ export async function moveCategoryAction(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   const direction = formData.get("direction") === "up" ? "up" : "down";
   await moveCategory(id, direction);
-  refreshMenu();
+  refreshAdminMenu();
+  refreshMenuViews(); // the order of the menu / homepage; nothing on a dish page
 }
 
 /* --------------------------------------------------------------------- items */
@@ -425,7 +440,8 @@ export async function moveItemAction(formData: FormData): Promise<void> {
   const slug = String(formData.get("slug") ?? "");
   const direction = formData.get("direction") === "up" ? "up" : "down";
   await moveItem(slug, direction);
-  refreshMenu();
+  refreshAdminMenu();
+  refreshMenuViews();
 }
 
 /** Inline "show on website" toggle in the items table — no full edit needed. */
@@ -454,11 +470,19 @@ export async function setStockAction(formData: FormData): Promise<void> {
   const [item, stock] = await Promise.all([getItem(slug), readStockMap()]);
   if (!item || !stock) return; // unknown dish, or stock tracking isn't set up yet
   const current = stock.get(slug);
-  await setItemStock(slug, {
+  const next: StockEntry = {
     quantity: mode === "add" ? (current?.quantity ?? 0) + amount : amount,
     lowThreshold: current?.lowThreshold ?? DEFAULT_LOW_THRESHOLD,
-  });
-  refreshMenu();
+  };
+  await setItemStock(slug, next);
+  refreshAdminMenu();
+  // Customers see only "sold out" and "selling fast", never the number: 40 -> 45 portions
+  // changes nothing public and must not regenerate any page.
+  const visible = (e: StockEntry | undefined) => {
+    const level = stockLevel(e);
+    return level === "out" || level === "low" ? level : "normal";
+  };
+  if (visible(current) !== visible(next)) refreshMenuViews({ dishes: [slug] });
 }
 
 /* ------------------------------------------------- quick edit & bulk edit */
@@ -680,7 +704,7 @@ export async function createIngredientAction(
     group: parsed.data.group as IngredientGroup,
     unit: parsed.data.unit as Unit,
   });
-  refreshMenu();
+  refreshAdminMenu(); // not in any recipe yet, so no dish page can show it
   redirect(
     flashRedirect("/admin/menu/ingredients", `“${parsed.data.name}” added.`)
   );
@@ -695,12 +719,27 @@ export async function updateIngredientAction(
   const parsed = readIngredientForm(formData);
   if (!parsed.success) return { ok: false, errors: fieldErrors(parsed.error) };
 
+  const before = await getIngredient(id);
   await updateIngredient(id, {
     ...parsed.data,
     group: parsed.data.group as IngredientGroup,
     unit: parsed.data.unit as Unit,
   });
-  refreshMenu();
+  refreshAdminMenu();
+  // Price, supplier, stock and name are never shown to customers. What is shown is the allergen
+  // lists, on the pages of the dishes whose recipe uses this ingredient — so only when those
+  // changed, and only those dishes. (Editing prices all afternoon used to regenerate the site each save.)
+  const sameList = (a: readonly string[] = [], b: readonly string[] = []) =>
+    a.length === b.length && [...a].sort().join("|") === [...b].sort().join("|");
+  if (!before) {
+    refreshWholeSite();
+  } else if (
+    !sameList(before.allergens, parsed.data.allergens) ||
+    !sameList(before.mayContain, parsed.data.mayContain)
+  ) {
+    const recipes = await listRecipes();
+    refreshDishPages(recipes.filter((r) => r.lines.some((l) => l.ingredientId === id)).map((r) => r.menuItemSlug));
+  }
   redirect(
     flashRedirect("/admin/menu/ingredients", `“${parsed.data.name}” saved.`)
   );
@@ -720,7 +759,7 @@ export async function deleteIngredientAction(
         error instanceof Error ? error.message : "Could not delete ingredient.",
     };
   }
-  refreshMenu();
+  refreshAdminMenu(); // refused while a recipe uses it, so no public page can have shown it
   return { ok: true, message: "Ingredient deleted." };
 }
 
@@ -840,7 +879,8 @@ export async function saveRecipeAction(
 
   await saveRecipe({ ...parsed.data, lines, steps });
 
-  refreshMenu();
+  refreshAdminMenu();
+  refreshDishPages([parsed.data.menuItemSlug]); // a recipe only feeds that dish's allergen list
   revalidatePath(`/admin/menu/recipes/${parsed.data.menuItemSlug}`);
   redirect(
     flashRedirect(
@@ -857,7 +897,8 @@ export async function deleteRecipeAction(
   await requireRole(OWNER_STAFF);
   const slug = String(formData.get("menuItemSlug") ?? "");
   await deleteRecipe(slug);
-  refreshMenu();
+  refreshAdminMenu();
+  refreshDishPages([slug]);
   revalidatePath(`/admin/menu/recipes/${slug}`);
   return { ok: true, message: "Recipe deleted." };
 }
@@ -939,7 +980,7 @@ export async function createOptionGroupAction(
     ...parsed.data,
     options: withOptionIds(parsed.data.options),
   });
-  refreshMenu();
+  refreshAdminMenu(); // attached to no dish yet, so nothing public changes
   redirect(flashRedirect("/admin/menu/extras", `“${group.label}” added.`));
 }
 
