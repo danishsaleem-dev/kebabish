@@ -1095,12 +1095,17 @@ export interface RetryableOrder {
   deliveryDate: string | null;
   deliverySlotStart: string | null;
   deliverySlotEnd: string | null;
+  status: string;
+  createdAt: string;
+  customerId: string | null;
+  pointsRedeemed: number;
 }
 
 export async function getOrderForRetry(reference: string): Promise<RetryableOrder | null> {
   const { data, error } = await supabaseAdmin()
     .from("orders")
-    .select("id, reference, payment_status, payment_method, total_cents, delivery_date, delivery_slot_start, delivery_slot_end")
+    // Everything, so a database without the points column (migration 0029) still answers.
+    .select("*")
     .eq("reference", reference)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -1114,7 +1119,27 @@ export async function getOrderForRetry(reference: string): Promise<RetryableOrde
     deliveryDate: data.delivery_date,
     deliverySlotStart: data.delivery_slot_start,
     deliverySlotEnd: data.delivery_slot_end,
+    status: data.status,
+    createdAt: data.created_at,
+    customerId: data.customer_id ?? null,
+    pointsRedeemed: data.points_redeemed ?? 0,
   };
+}
+
+/** Move an unpaid order to another delivery window (the seat is the caller's business). */
+export async function setOrderDeliveryWindow(
+  id: string,
+  slot: { date: string; start: string; end: string }
+): Promise<void> {
+  const { error } = await supabaseAdmin()
+    .from("orders")
+    .update({
+      delivery_date: slot.date,
+      delivery_slot_start: slot.start,
+      delivery_slot_end: slot.end,
+    })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 /**

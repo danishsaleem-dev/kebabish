@@ -21,7 +21,11 @@ import { auth } from "@/lib/auth";
 import { ensureCheckoutAccount, findCustomerStateByEmail } from "@/lib/customers/accounts";
 import { checkOrderAccess } from "@/lib/customers/order-access";
 import EnterDashboard from "@/components/account/EnterDashboard";
-import { retryPaymentAction } from "@/app/[locale]/(site)/checkout/actions";
+import RetryPaymentForm from "@/components/cart/RetryPaymentForm";
+import { canPayAgain, isReopenActive, payableUntil, slotProblem } from "@/lib/payment-window";
+import { getPaymentReopen } from "@/lib/payment-reopen";
+import { getSlotAvailability } from "@/lib/delivery-slots-data";
+import { bookingWindowDays, effectiveHours, weekdayForDateKey } from "@/lib/delivery-slots";
 import ClearCartOnPaid from "@/components/cart/ClearCartOnPaid";
 import RememberLastOrder from "@/components/reorder/RememberLastOrder";
 import { getPublicMenu } from "@/lib/public-menu";
@@ -32,7 +36,8 @@ import { lineDetails } from "@/lib/deals";
 export const dynamic = "force-dynamic";
 
 /** `?retry=` values the retry action can send back, each a `checkout.*` message. */
-const RETRY_ERRORS = ["slotUnavailable", "slotClosed", "slotFull", "notAccepting", "failed"];
+const SLOT_ERRORS = ["slotUnavailable", "slotClosed", "slotFull"];
+const RETRY_ERRORS = [...SLOT_ERRORS, "notAccepting", "failed", "retryPointsGone"];
 
 export async function generateMetadata({
   params,
@@ -99,6 +104,37 @@ export default async function CheckoutCompletePage({
       : []
   );
   const failed = ["failed", "expired", "canceled"].includes(paymentStatus);
+  // Can it still be paid, and does its delivery time still work? (lib/payment-window.ts)
+  const reopen = failed ? await getPaymentReopen(order.id) : null;
+  const payable =
+    failed &&
+    canPayAgain({ paymentStatus, status: order.status, createdAt: order.placedAt }, reopen);
+  const reopened = payable && isReopenActive(reopen);
+  const hours = effectiveHours(settings);
+  let needsNewTime = false;
+  if (payable) {
+    const slot = { date: order.deliveryDate, start: order.deliverySlotStart, end: order.deliverySlotEnd };
+    const weekday = slot.date ? weekdayForDateKey(slot.date) : null;
+    needsNewTime =
+      slotProblem(slot, hours.find((h) => h.day === weekday), reopen) !== null ||
+      (!!retry && SLOT_ERRORS.includes(retry));
+    if (!needsNewTime) {
+      const live = await getSlotAvailability(slot.date!, weekday!)
+        .then((slots) => slots.find((s) => s.start === slot.start)?.status)
+        .catch(() => undefined);
+      needsNewTime = live === "full" || live === "disabled";
+    }
+  }
+  const payUntilLabel = payable
+    ? payableUntil(order.placedAt, reopen).toLocaleString(locale === "nl" ? "nl-NL" : "en-GB", {
+        timeZone: "Europe/Amsterdam",
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "";
   // Interim payment-link mode: unpaid, and the customer pays on Mollie's page.
   const linkPending = order.paymentMethod === "payment_link" && !paid && !failed;
   const paymentLinkUrl = validPaymentLinkUrl(settings.paymentLinkUrl);
@@ -214,14 +250,14 @@ export default async function CheckoutCompletePage({
         className={`print:hidden flex h-16 w-16 items-center justify-center rounded-full ${
           paid
             ? "bg-green-100 text-green-700"
-            : failed
+            : failed && !reopened
               ? "bg-red-100 text-red-700"
               : "bg-cream-300 text-charcoal-600"
         }`}
       >
         {paid ? (
           <CheckCircle2 size={30} />
-        ) : failed ? (
+        ) : failed && !reopened ? (
           <XCircle size={30} />
         ) : (
           <Clock size={30} />
@@ -238,7 +274,13 @@ export default async function CheckoutCompletePage({
             ? t("trackCancelled")
             : t("completePaid")
           : failed
-            ? t("completeFailed")
+            ? order.status === "cancelled"
+              ? t("trackCancelled")
+              : !payable
+                ? t("payClosed")
+                : reopened
+                  ? t("completeReopened")
+                  : t("completeFailed")
             : linkPending
               ? t("payLinkPending")
               : t("completePending")}
@@ -362,23 +404,26 @@ export default async function CheckoutCompletePage({
         </div>
       )}
 
-      {failed && (
-        <form action={retryPaymentAction} className="print:hidden mt-6 flex flex-col items-center gap-3">
-          <input type="hidden" name="ref" value={ref} />
-          <input type="hidden" name="t" value={token ?? ""} />
-          <input type="hidden" name="locale" value={locale} />
+      {payable && (
+        <div className="print:hidden mt-6 flex w-full max-w-md flex-col items-center gap-3">
           {retry && RETRY_ERRORS.includes(retry) && (
             <p role="alert" className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-800">
               {t(retry)}
             </p>
           )}
-          <button
-            type="submit"
-            className="rounded-full bg-ember-600 px-7 py-3 font-display text-sm font-semibold text-cream-50 transition-colors hover:bg-ember-700"
-          >
-            {t("retryPay")}
-          </button>
-        </form>
+          <RetryPaymentForm
+            reference={ref}
+            token={token ?? ""}
+            locale={locale}
+            label={needsNewTime || reopened ? t("payNow") : t("retryPay")}
+            picker={
+              needsNewTime
+                ? { hours, windowDays: bookingWindowDays(settings), hint: t("payNewTime") }
+                : null
+            }
+          />
+          <p className="text-xs text-ink/60">{t("payAgainUntil", { until: payUntilLabel })}</p>
+        </div>
       )}
 
       {/* ---- receipt ------------------------------------------------------ */}

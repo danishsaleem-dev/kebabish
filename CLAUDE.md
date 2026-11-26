@@ -2450,6 +2450,22 @@ everything when paying, and `checkoutAction` now says *why* it refused
 (`itemUnavailable` / `optionsChanged` / `priceChanged`) instead of one generic
 message.
 
+### Paying again, and reopening a payment (Nov 2026, migration `0033_payment_reopen.sql`)
+
+A single Mollie payment can't be lengthened (iDEAL ends about 15 minutes after it is made), so "more time"
+means a **new payment for the same order**. Rules are pure in `lib/payment-window.ts`
+(`npx tsx scripts/check-payment-window.mts` after touching it).
+- **Customer:** "Pay again" on the order page works for **24 hours** after ordering. If the delivery time has
+  closed, filled up or is no longer offered, the checkout day/time picker appears and the new time goes with
+  the payment. After 24 hours the page says to order again.
+- **Staff** (owner/staff/manager): *Payment* panel on an unpaid online order: copy the link, send it on
+  WhatsApp, or **Reopen payment** (1 h / 3 h / 24 h / 3 days, plus delivery day and time), which emails the
+  customer. One row per order in `order_payment_reopens`; a reopening *replaces* the 24 h window, ignores
+  "Taking orders", and the approved time skips the ordering cutoff (never a window that has ended). **No seat
+  is held until the customer pays.** Without 0033 only the reopen button fails, with a message.
+- A cancelled order can't be paid. Points used on an order are re-checked before a new payment. Sold-out
+  dishes are **not** re-checked on paying again.
+
 ### Allergens are user-extendable
 
 `Allergen` is a plain string, not a union. The 14 EU-mandated ones seed the

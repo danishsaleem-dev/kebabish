@@ -22,6 +22,7 @@ import {
   getOrderForRetry,
   markOrderPaymentFailed,
   restoreOrderPaymentStatus,
+  setOrderDeliveryWindow,
   deliveryFeeCents,
   priceCart,
   validatePromoCode,
@@ -44,6 +45,8 @@ import {
   weekdayForDateKey,
 } from "@/lib/delivery-slots";
 import { reserveDeliverySlot, releaseDeliverySlot } from "@/lib/delivery-slots-data";
+import { canPayAgain, isReopenActive, slotProblem } from "@/lib/payment-window";
+import { getPaymentReopen } from "@/lib/payment-reopen";
 
 export interface CheckoutState {
   ok: boolean;
@@ -453,10 +456,11 @@ export async function checkoutAction(
  *
  * Reuses the *same* order — same reference, same lines, same prices — and
  * only starts a fresh Mollie payment for it, instead of making the customer
- * rebuild the cart and creating a second order row for the same meal. The
- * slot was handed back when the first attempt failed, so it has to be
- * re-checked and re-reserved here exactly as at checkout: it may have
- * passed its cutoff or been booked by someone else in the meantime.
+ * rebuild the cart and creating a second order row for the same meal. Allowed
+ * for 24 hours after ordering, or for as long as staff reopened it (see
+ * lib/payment-window.ts). The slot was handed back when the first attempt
+ * failed, so it is re-checked and re-reserved here; if it no longer works the
+ * customer posts a new one with the form.
  */
 export async function retryPaymentAction(formData: FormData): Promise<void> {
   after(() => expireStaleOrders());
@@ -476,40 +480,70 @@ export async function retryPaymentAction(formData: FormData): Promise<void> {
   if (!isValidOrderToken(reference, token)) redirect(`${prefix}/menu`);
 
   const order = await getOrderForRetry(reference);
-  const retryable = ["failed", "expired", "canceled"];
-  if (!order || !retryable.includes(order.paymentStatus)) return back();
-  if (!order.deliveryDate || !order.deliverySlotStart || !order.deliverySlotEnd) {
-    return back("slotUnavailable");
-  }
+  if (!order) return back();
+  const reopen = await getPaymentReopen(order.id);
+  // Paid, in progress, cancelled or out of time: the page says which.
+  if (!canPayAgain(order, reopen)) return back();
 
   const store = await readStore();
-  if (!store.settings.acceptingOrders) return back("notAccepting");
+  // Staff reopening an order is their own yes, whatever the "Taking orders" switch says.
+  if (!store.settings.acceptingOrders && !isReopenActive(reopen)) return back("notAccepting");
+
+  // The delivery window: the one just picked on the page, else the order's own.
+  const picked = {
+    date: String(formData.get("deliveryDate") ?? ""),
+    start: String(formData.get("deliverySlotStart") ?? ""),
+    end: String(formData.get("deliverySlotEnd") ?? ""),
+  };
+  const changed =
+    !!(picked.date && picked.start && picked.end) &&
+    (picked.date !== order.deliveryDate || picked.start !== order.deliverySlotStart);
+  const slot = changed
+    ? picked
+    : {
+        date: order.deliveryDate ?? "",
+        start: order.deliverySlotStart ?? "",
+        end: order.deliverySlotEnd ?? "",
+      };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(slot.date)) return back("slotUnavailable");
+  const weekday = weekdayForDateKey(slot.date);
+  const day = effectiveHours(store.settings).find((h) => h.day === weekday);
+  // A newly picked time gets no staff exception, and must be inside the booking window.
+  const problem = slotProblem(slot, day, changed ? null : reopen);
+  if (problem) return back(problem);
+  if (changed) {
+    const daysAhead = Math.round(
+      (Date.parse(`${slot.date}T00:00:00Z`) - Date.parse(`${amsterdamNow().dateKey}T00:00:00Z`)) /
+        86_400_000
+    );
+    if (daysAhead >= bookingWindowDays(store.settings)) return back("slotUnavailable");
+  }
+
+  // Points are only held while a payment is open, so they may have been spent since.
+  if (order.pointsRedeemed > 0) {
+    const available = order.customerId ? await availablePoints(order.customerId) : null;
+    if ((available ?? 0) < order.pointsRedeemed) return back("retryPointsGone");
+  }
 
   // Only one request gets to restart this order (see claimOrderForRetry).
   if (!(await claimOrderForRetry(order.id, order.paymentStatus))) return back();
   const giveUp = (error: string) =>
     restoreOrderPaymentStatus(order.id, order.paymentStatus).then(() => back(error));
 
-  const now = amsterdamNow();
-  const weekday = weekdayForDateKey(order.deliveryDate);
-  const day = effectiveHours(store.settings).find((h) => h.day === weekday);
-  const stillValid =
-    order.deliveryDate >= now.dateKey &&
-    !!day &&
-    generateDaySlots(day).some(
-      (s) => s.start === order.deliverySlotStart && s.end === order.deliverySlotEnd
-    ) &&
-    true;
-  if (!stillValid) return giveUp("slotUnavailable");
-  if (isPastCutoff(order.deliveryDate, order.deliverySlotStart, now, day!.slotMinutes)) {
-    return giveUp("slotClosed");
-  }
-
-  if (!(await reserveDeliverySlot(order.deliveryDate, weekday, order.deliverySlotStart))) {
+  if (!(await reserveDeliverySlot(slot.date, weekday, slot.start))) {
     return giveUp("slotFull");
   }
-  const releaseSlot = () =>
-    releaseDeliverySlot(order.deliveryDate!, order.deliverySlotStart!);
+  const releaseSlot = () => releaseDeliverySlot(slot.date, slot.start);
+
+  if (changed) {
+    try {
+      await setOrderDeliveryWindow(order.id, slot);
+    } catch (error) {
+      console.error("[checkout] could not move the order to the new time:", error);
+      await releaseSlot();
+      return giveUp("failed");
+    }
+  }
 
   // Payment-link orders have no payment to restart: the seat is held again, and
   // the page shows the payment instructions again.

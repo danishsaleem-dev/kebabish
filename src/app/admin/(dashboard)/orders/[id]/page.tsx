@@ -45,6 +45,8 @@ import {
 } from "@/lib/admin/order-types";
 import MarkPaidControl from "@/components/admin/MarkPaidControl";
 import DeleteOrderControl from "@/components/admin/DeleteOrderControl";
+import ReopenPaymentPanel from "@/components/admin/ReopenPaymentPanel";
+import { getReopenPanel } from "@/lib/admin/reopen-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -81,6 +83,7 @@ export default async function OrderDetailPage({
   const refunds = await listRefunds(order.id);
   const edits = await listOrderEdits(order.id);
   const canEdit = !editBlockedReason(order);
+  const reopenPanel = await getReopenPanel(order);
 
   const [customer, allOrders, riders] = await Promise.all([
     order.customerId ? getCustomer(order.customerId) : Promise.resolve(null),
@@ -239,6 +242,8 @@ timeZone: "Europe/Amsterdam",
               </div>
             )}
         </Card>
+
+        {reopenPanel && <ReopenPaymentPanel {...reopenPanel} />}
 
         {(order.paymentStatus === "paid" || order.paymentStatus === "refunded") && (
           <RefundPanel
